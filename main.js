@@ -175,6 +175,14 @@ function initializeCanvas() {
         if (!window.world) {
             window.world = new World(canvas);
             window.world.generateTerrain();
+            
+            // Инициализация позиций агентов после создания мира
+            if (window.agents) {
+                window.agents.getAllAgents().forEach(agent => {
+                    agent.initializePosition();
+                });
+            }
+            
             window.world.draw();
         }
     }

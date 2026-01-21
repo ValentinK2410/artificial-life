@@ -342,6 +342,9 @@ class World {
     drawAgent(agent) {
         if (!this.ctx) return;
 
+        const x = agent.position ? agent.position.x : (agent.x || 100);
+        const y = agent.position ? agent.position.y : (agent.y || 100);
+
         // Простая отрисовка агента как круга
         const colors = {
             'man': '#4a9eff',
@@ -354,14 +357,28 @@ class World {
 
         this.ctx.fillStyle = colors[agent.type] || '#ffffff';
         this.ctx.beginPath();
-        this.ctx.arc(agent.x || 100, agent.y || 100, 12, 0, Math.PI * 2);
+        this.ctx.arc(x, y, 12, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // Обводка в зависимости от состояния
-        this.ctx.strokeStyle = agent.state === 'healthy' ? '#00ff00' : 
-                               agent.state === 'wounded' ? '#ffaa00' : '#ff0000';
+        // Обводка в зависимости от здоровья
+        const health = agent.health !== undefined ? agent.health : 100;
+        this.ctx.strokeStyle = health > 70 ? '#00ff00' : 
+                               health > 40 ? '#ffaa00' : '#ff0000';
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
+        
+        // Индикатор состояния (маленький кружок сверху)
+        if (agent.state) {
+            const stateColors = {
+                'explore': '#4a9eff',
+                'findFood': '#ffaa00',
+                'rest': '#00ff00'
+            };
+            this.ctx.fillStyle = stateColors[agent.state] || '#ffffff';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 18, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
     }
 
     animate() {
