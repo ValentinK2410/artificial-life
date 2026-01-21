@@ -1,5 +1,212 @@
 // Основной файл для управления интерфейсом и симуляцией
 
+// Класс Simulation для управления всей симуляцией
+class Simulation {
+    constructor(world, agentsManager) {
+        this.world = world;
+        this.agentsManager = agentsManager;
+        this.agents = agentsManager.getAllAgents();
+        this.isRunning = false;
+        this.animationFrameId = null;
+        this.simulationSpeed = 5; // Скорость симуляции (1-10)
+        this.frameCount = 0;
+        
+        // Инициализация агентов с разными стартовыми координатами
+        this.initializeAgentsPositions();
+    }
+
+    initializeAgentsPositions() {
+        if (!this.world || !this.world.canvas) return;
+        
+        const width = this.world.canvas.width;
+        const height = this.world.canvas.height;
+        
+        // Распределяем агентов по разным точкам карты
+        const positions = [
+            { x: width * 0.2, y: height * 0.2 },   // Мужчина
+            { x: width * 0.3, y: height * 0.3 },   // Женщина
+            { x: width * 0.7, y: height * 0.2 },    // Парень
+            { x: width * 0.8, y: height * 0.3 },   // Девушка
+            { x: width * 0.2, y: height * 0.7 },   // Старик
+            { x: width * 0.3, y: height * 0.8 }    // Старуха
+        ];
+        
+        this.agents.forEach((agent, index) => {
+            if (positions[index]) {
+                agent.position.x = positions[index].x;
+                agent.position.y = positions[index].y;
+            } else {
+                agent.initializePosition();
+            }
+        });
+    }
+
+    start() {
+        if (!this.isRunning) {
+            this.isRunning = true;
+            this.gameLoop();
+            if (window.addLogEntry) {
+                window.addLogEntry('Симуляция запущена');
+            }
+        }
+    }
+
+    pause() {
+        this.isRunning = false;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        if (window.addLogEntry) {
+            window.addLogEntry('Симуляция приостановлена');
+        }
+    }
+
+    reset() {
+        this.pause();
+        this.frameCount = 0;
+        
+        // Сброс мира
+        if (this.world) {
+            this.world.reset();
+        }
+        
+        // Сброс агентов
+        if (this.agentsManager) {
+            this.agentsManager.reset();
+            this.agents = this.agentsManager.getAllAgents();
+            this.initializeAgentsPositions();
+        }
+        
+        // Перерисовка
+        if (this.world) {
+            this.world.draw();
+        }
+        
+        // Обновление UI
+        this.updateSidebar();
+        
+        if (window.addLogEntry) {
+            window.addLogEntry('Симуляция сброшена');
+        }
+    }
+
+    setSimulationSpeed(speed) {
+        this.simulationSpeed = speed;
+    }
+
+    gameLoop() {
+        if (!this.isRunning) return;
+
+        // Пропускаем кадры в зависимости от скорости симуляции
+        this.frameCount++;
+        const framesToSkip = 11 - this.simulationSpeed; // Чем выше скорость, тем меньше пропускаем
+        
+        if (this.frameCount % Math.max(1, framesToSkip) === 0 || this.simulationSpeed >= 10) {
+            // Обновление агентов
+            this.agents.forEach(agent => {
+                agent.update();
+                if (this.world) {
+                    agent.interactWithWorld(this.world);
+                }
+            });
+        }
+
+        // Отрисовка мира (включая агентов)
+        if (this.world) {
+            this.world.draw();
+        }
+
+        // Обновление панели управления
+        this.updateSidebar();
+
+        // Запрос следующего кадра
+        this.animationFrameId = requestAnimationFrame(() => this.gameLoop());
+    }
+
+    updateSidebar() {
+        // Обновление данных всех агентов во вкладке "Агенты"
+        this.agents.forEach(agent => {
+            this.updateAgentUI(agent);
+        });
+        
+        // Обновление статистики мира
+        if (this.world) {
+            this.updateWorldStats();
+        }
+    }
+
+    updateAgentUI(agent) {
+        const agentItem = document.querySelector(`[data-agent="${agent.type}"]`)?.closest('.agent-item');
+        if (!agentItem) return;
+
+        const nameSpan = agentItem.querySelector('.agent-name');
+        const ageSpan = agentItem.querySelector('.agent-age');
+        const stateSelect = agentItem.querySelector('.agent-state');
+        const psycheSelect = agentItem.querySelector('.agent-psyche');
+        const energySlider = agentItem.querySelector('.agent-energy');
+        const energyValue = agentItem.querySelector('.energy-value');
+        const hungerSlider = agentItem.querySelector('.agent-hunger');
+        const hungerValue = agentItem.querySelector('.hunger-value');
+        const statusSpan = agentItem.querySelector('.agent-status');
+
+        if (nameSpan) nameSpan.textContent = agent.name;
+        if (ageSpan) ageSpan.textContent = agent.age;
+        
+        // Обновление состояния на основе здоровья
+        if (stateSelect) {
+            const healthState = agent.health > 70 ? 'healthy' : 
+                              agent.health > 40 ? 'wounded' : 'sick';
+            stateSelect.value = healthState;
+        }
+        
+        // Обновление психики на основе настроения
+        if (psycheSelect) {
+            const psycheState = agent.mood === 'neutral' ? 'calm' :
+                               agent.mood === 'anxious' ? 'tense' : 'panic';
+            psycheSelect.value = psycheState;
+        }
+        
+        // Обновление энергии
+        if (energySlider) {
+            const energy = Math.floor(agent.energy);
+            energySlider.value = energy;
+            if (energyValue) energyValue.textContent = energy;
+        }
+        
+        // Обновление голода
+        if (hungerSlider) {
+            const hunger = Math.floor(agent.hunger);
+            hungerSlider.value = hunger;
+            if (hungerValue) hungerValue.textContent = hunger;
+        }
+        
+        // Обновление статуса
+        if (statusSpan) {
+            statusSpan.textContent = agent.getStateName();
+        }
+    }
+
+    updateWorldStats() {
+        const dayValue = document.getElementById('dayValue');
+        const timeOfDayValue = document.getElementById('timeOfDayValue');
+        const weatherSelect = document.getElementById('weatherSelect');
+
+        if (dayValue && this.world) {
+            dayValue.textContent = this.world.day;
+        }
+        if (timeOfDayValue && this.world) {
+            timeOfDayValue.textContent = this.world.timeOfDay === 'day' ? 'День' : 'Ночь';
+        }
+        if (weatherSelect && this.world) {
+            weatherSelect.value = this.world.weather;
+        }
+    }
+}
+
+// Глобальная переменная для симуляции
+let simulation = null;
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     initializeTabs();
@@ -7,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAgentAccordion();
     initializeWorldControls();
     initializeCanvas();
+    initializeSimulation();
 });
 
 // Управление вкладками
@@ -41,38 +249,28 @@ function initializeSimulationControls() {
     speedSlider.addEventListener('input', (e) => {
         const value = e.target.value;
         speedValue.textContent = value;
-        // Здесь будет логика изменения скорости симуляции
-        if (window.world) {
-            world.setSimulationSpeed(parseInt(value));
+        if (simulation) {
+            simulation.setSimulationSpeed(parseInt(value));
         }
     });
 
-    // Кнопки управления
+    // Кнопки управления - привязка к Simulation
     startBtn.addEventListener('click', () => {
-        console.log('Симуляция запущена');
-        if (window.world) {
-            world.start();
+        if (simulation) {
+            simulation.start();
         }
-        addLogEntry('Симуляция запущена');
     });
 
     pauseBtn.addEventListener('click', () => {
-        console.log('Симуляция приостановлена');
-        if (window.world) {
-            world.pause();
+        if (simulation) {
+            simulation.pause();
         }
-        addLogEntry('Симуляция приостановлена');
     });
 
     resetBtn.addEventListener('click', () => {
-        console.log('Симуляция сброшена');
-        if (window.world) {
-            world.reset();
+        if (simulation) {
+            simulation.reset();
         }
-        if (window.agents) {
-            agents.reset();
-        }
-        addLogEntry('Симуляция сброшена');
     });
 }
 
@@ -164,6 +362,9 @@ function initializeCanvas() {
             // Перегенерируем мир при изменении размера
             if (window.world) {
                 window.world.generateTerrain();
+                if (simulation) {
+                    simulation.initializeAgentsPositions();
+                }
                 window.world.draw();
             }
         };
@@ -175,16 +376,28 @@ function initializeCanvas() {
         if (!window.world) {
             window.world = new World(canvas);
             window.world.generateTerrain();
-            
-            // Инициализация позиций агентов после создания мира
-            if (window.agents) {
-                window.agents.getAllAgents().forEach(agent => {
-                    agent.initializePosition();
-                });
-            }
-            
             window.world.draw();
         }
+    }
+}
+
+// Инициализация симуляции
+function initializeSimulation() {
+    if (window.world && window.agents) {
+        simulation = new Simulation(window.world, window.agents);
+        window.simulation = simulation;
+        
+        // Первоначальная отрисовка
+        if (window.world) {
+            window.world.draw();
+        }
+        
+        // Обновление UI
+        if (simulation) {
+            simulation.updateSidebar();
+        }
+        
+        addLogEntry('Симуляция инициализирована');
     }
 }
 

@@ -43,6 +43,9 @@ class Agent {
 
     update() {
         // Основной цикл обновления агента
+        const oldHunger = this.hunger;
+        const oldHealth = this.health;
+        
         // Увеличиваем голод
         this.hunger += 0.5;
         if (this.hunger > 100) this.hunger = 100;
@@ -66,6 +69,22 @@ class Agent {
             this.speed = 2;
         }
         
+        // Логирование критических состояний
+        if (window.addLogEntry) {
+            // Критический голод
+            if (this.hunger > 90 && oldHunger <= 90) {
+                window.addLogEntry(`⚠️ ${this.name} очень голоден!`);
+            }
+            // Критическое здоровье
+            if (this.health < 20 && oldHealth >= 20) {
+                window.addLogEntry(`⚠️ ${this.name} в критическом состоянии!`);
+            }
+            // Смерть (если здоровье упало до 0)
+            if (this.health <= 0 && oldHealth > 0) {
+                window.addLogEntry(`💀 ${this.name} погиб от голода и истощения`);
+            }
+        }
+        
         // Принятие решений
         this.decide();
         
@@ -77,12 +96,24 @@ class Agent {
 
     decide() {
         // Простой конечный автомат для принятия решений
+        const oldState = this.state;
+        
         if (this.hunger > 70) {
             this.state = 'findFood';
         } else if (this.energy < 30) {
             this.state = 'rest';
         } else {
             this.state = 'explore';
+        }
+        
+        // Логирование смены состояния (только при изменении)
+        if (oldState !== this.state && window.addLogEntry) {
+            const stateNames = {
+                'explore': 'исследует',
+                'findFood': 'ищет еду',
+                'rest': 'отдыхает'
+            };
+            window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
         
         this.act();
@@ -173,6 +204,11 @@ class Agent {
                         x: resource.x,
                         y: resource.y
                     });
+                    
+                    // Логирование обнаружения ресурса
+                    if (window.addLogEntry && resource.type === 'berries') {
+                        window.addLogEntry(`${this.name} заметил ягоды поблизости`);
+                    }
                 }
             }
         });
@@ -212,7 +248,7 @@ class Agent {
                 
                 // Логирование
                 if (window.addLogEntry) {
-                    window.addLogEntry(`${this.name} нашел ягоды в (${Math.floor(resource.x)}, ${Math.floor(resource.y)})`);
+                    window.addLogEntry(`${this.name} нашел и съел ягоды (голод: ${Math.floor(this.hunger)})`);
                 }
             } else if (resource.type === 'wood') {
                 // Собираем дрова
@@ -229,7 +265,7 @@ class Agent {
                 
                 // Логирование
                 if (window.addLogEntry) {
-                    window.addLogEntry(`${this.name} собрал дрова в (${Math.floor(resource.x)}, ${Math.floor(resource.y)})`);
+                    window.addLogEntry(`${this.name} собрал дрова (в инвентаре: ${this.inventory.filter(i => i.type === 'wood').length})`);
                 }
             }
         }
