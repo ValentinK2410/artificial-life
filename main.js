@@ -8,7 +8,7 @@ class Simulation {
         this.agents = agentsManager.getAllAgents();
         this.isRunning = false;
         this.animationFrameId = null;
-        this.simulationSpeed = 5; // Скорость симуляции (1-10)
+        this.simulationSpeed = 20; // Скорость симуляции (1-50)
         this.frameCount = 0;
         
         // Инициализация агентов с разными стартовыми координатами
@@ -103,27 +103,37 @@ class Simulation {
     gameLoop() {
         if (!this.isRunning) return;
 
-        // Пропускаем кадры в зависимости от скорости симуляции
-        this.frameCount++;
-        const framesToSkip = 11 - this.simulationSpeed; // Чем выше скорость, тем меньше пропускаем
+        // Вычисляем количество обновлений за кадр в зависимости от скорости
+        // Скорость 1 = 1 обновление за 50 кадров (медленно)
+        // Скорость 25 = 1 обновление за 2 кадра (средне)
+        // Скорость 50 = несколько обновлений за кадр (быстро)
+        const updatesPerFrame = Math.max(1, Math.floor(this.simulationSpeed / 10));
+        const frameSkip = Math.max(1, Math.floor(51 / this.simulationSpeed));
         
-        if (this.frameCount % Math.max(1, framesToSkip) === 0 || this.simulationSpeed >= 10) {
-            // Обновление агентов
-            this.agents.forEach(agent => {
-                agent.update();
-                if (this.world) {
-                    agent.interactWithWorld(this.world);
-                }
-            });
+        this.frameCount++;
+        
+        // Обновляем агентов несколько раз за кадр при высокой скорости
+        if (this.frameCount % frameSkip === 0) {
+            for (let i = 0; i < updatesPerFrame; i++) {
+                // Обновление агентов
+                this.agents.forEach(agent => {
+                    agent.update();
+                    if (this.world) {
+                        agent.interactWithWorld(this.world);
+                    }
+                });
+            }
         }
 
-        // Отрисовка мира (включая агентов)
+        // Отрисовка мира (включая агентов) - всегда каждый кадр для плавности
         if (this.world) {
             this.world.draw();
         }
 
-        // Обновление панели управления
-        this.updateSidebar();
+        // Обновление панели управления (реже для производительности)
+        if (this.frameCount % 5 === 0) {
+            this.updateSidebar();
+        }
 
         // Запрос следующего кадра
         this.animationFrameId = requestAnimationFrame(() => this.gameLoop());
