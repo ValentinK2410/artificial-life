@@ -438,6 +438,20 @@ function initializeWorldControls() {
         if (window.world) world.addAnimal('bull');
         addLogEntry('Бык добавлен на карту');
     });
+
+    // Хищники
+    document.getElementById('addWolfBtn')?.addEventListener('click', () => {
+        if (window.world) world.addPredator('wolf');
+        addLogEntry('Волк добавлен на карту');
+    });
+    document.getElementById('addBearBtn')?.addEventListener('click', () => {
+        if (window.world) world.addPredator('bear');
+        addLogEntry('Медведь добавлен на карту');
+    });
+    document.getElementById('addFoxBtn')?.addEventListener('click', () => {
+        if (window.world) world.addPredator('fox');
+        addLogEntry('Лиса добавлена на карту');
+    });
 }
 
 // Получение названия погоды

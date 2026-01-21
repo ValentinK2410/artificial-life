@@ -13,6 +13,24 @@ class World {
         this.resources = [];
         this.fires = []; // Массив костров [{x, y, intensity}]
         this.animals = []; // Массив животных [{type, x, y, ...}]
+        this.predators = []; // Массив хищников
+        
+        // Система камеры для бесконечного мира
+        this.camera = {
+            x: 0,
+            y: 0,
+            scale: 1.0
+        };
+        
+        // Управление мышью
+        this.mouse = {
+            x: 0,
+            y: 0,
+            isDown: false,
+            dragStart: null,
+            draggedObject: null,
+            hoveredObject: null
+        };
         
         // Структура мира
         this.terrain = {
@@ -42,6 +60,192 @@ class World {
         
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
+        
+        // Обработчики событий мыши
+        this.setupMouseHandlers();
+    }
+    
+    setupMouseHandlers() {
+        if (!this.canvas) return;
+        
+        // Получение координат мыши с учетом камеры
+        const getWorldCoords = (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            return {
+                x: (e.clientX - rect.left) / this.camera.scale + this.camera.x,
+                y: (e.clientY - rect.top) / this.camera.scale + this.camera.y
+            };
+        };
+        
+        // Глобальные координаты мыши для подсказок
+        this.mouseScreenX = 0;
+        this.mouseScreenY = 0;
+        
+        // Наведение мыши
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseScreenX = e.clientX - rect.left;
+            this.mouseScreenY = e.clientY - rect.top;
+            this.canvas._lastMouseEvent = e; // Сохраняем событие для подсказок
+            const worldCoords = getWorldCoords(e);
+            this.mouse.x = worldCoords.x;
+            this.mouse.y = worldCoords.y;
+            
+            // Поиск объекта под курсором
+            this.mouse.hoveredObject = this.getObjectAt(worldCoords.x, worldCoords.y);
+            
+            // Перетаскивание объекта
+            if (this.mouse.isDown && this.mouse.draggedObject) {
+                this.mouse.draggedObject.x = worldCoords.x;
+                this.mouse.draggedObject.y = worldCoords.y;
+                if (this.mouse.draggedObject.position) {
+                    this.mouse.draggedObject.position.x = worldCoords.x;
+                    this.mouse.draggedObject.position.y = worldCoords.y;
+                }
+            }
+            // Перемещение камеры
+            else if (this.mouse.isDown && this.mouse.dragStart) {
+                const rect = this.canvas.getBoundingClientRect();
+                const dx = (e.clientX - this.mouse.dragStart.x) / this.camera.scale;
+                const dy = (e.clientY - this.mouse.dragStart.y) / this.camera.scale;
+                this.camera.x -= dx;
+                this.camera.y -= dy;
+                this.mouse.dragStart = { x: e.clientX, y: e.clientY };
+            }
+            
+            this.draw(); // Перерисовка для обновления подсказок
+        });
+        
+        // Нажатие мыши
+        this.canvas.addEventListener('mousedown', (e) => {
+            const worldCoords = getWorldCoords(e);
+            this.mouse.isDown = true;
+            
+            // Проверяем, есть ли объект под курсором
+            const obj = this.getObjectAt(worldCoords.x, worldCoords.y);
+            if (obj) {
+                this.mouse.draggedObject = obj;
+            } else {
+                // Начинаем перемещение камеры
+                this.mouse.dragStart = { x: e.clientX, y: e.clientY };
+            }
+        });
+        
+        // Отпускание мыши
+        this.canvas.addEventListener('mouseup', () => {
+            this.mouse.isDown = false;
+            this.mouse.draggedObject = null;
+            this.mouse.dragStart = null;
+        });
+        
+        // Выход мыши за пределы canvas
+        this.canvas.addEventListener('mouseleave', () => {
+            this.mouse.isDown = false;
+            this.mouse.draggedObject = null;
+            this.mouse.dragStart = null;
+            this.mouse.hoveredObject = null;
+        });
+        
+        // Масштабирование колесиком мыши
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            this.camera.scale *= delta;
+            this.camera.scale = Math.max(0.5, Math.min(2.0, this.camera.scale));
+            this.draw();
+        });
+    }
+    
+    getObjectAt(x, y) {
+        const searchRadius = 20 / this.camera.scale; // Учитываем масштаб
+        
+        // Проверяем агентов
+        if (window.agents) {
+            const agents = window.agents.getAllAgents();
+            for (let agent of agents) {
+                const ax = agent.position ? agent.position.x : agent.x;
+                const ay = agent.position ? agent.position.y : agent.y;
+                const dist = Math.sqrt(Math.pow(ax - x, 2) + Math.pow(ay - y, 2));
+                if (dist < searchRadius) {
+                    return { type: 'agent', obj: agent, name: agent.name };
+                }
+            }
+        }
+        
+        // Проверяем животных
+        for (let animal of this.animals) {
+            const dist = Math.sqrt(Math.pow(animal.x - x, 2) + Math.pow(animal.y - y, 2));
+            if (dist < searchRadius) {
+                return { type: 'animal', obj: animal, name: this.getAnimalName(animal.type) };
+            }
+        }
+        
+        // Проверяем хищников
+        for (let predator of this.predators) {
+            const dist = Math.sqrt(Math.pow(predator.x - x, 2) + Math.pow(predator.y - y, 2));
+            if (dist < searchRadius) {
+                return { type: 'predator', obj: predator, name: this.getPredatorName(predator.type) };
+            }
+        }
+        
+        // Проверяем ресурсы
+        for (let resource of this.resources) {
+            const dist = Math.sqrt(Math.pow(resource.x - x, 2) + Math.pow(resource.y - y, 2));
+            if (dist < searchRadius) {
+                return { type: 'resource', obj: resource, name: this.getResourceDisplayName(resource.type) };
+            }
+        }
+        
+        // Проверяем костры
+        for (let fire of this.fires) {
+            const dist = Math.sqrt(Math.pow(fire.x - x, 2) + Math.pow(fire.y - y, 2));
+            if (dist < 15 / this.camera.scale) {
+                return { type: 'fire', obj: fire, name: 'Костер' };
+            }
+        }
+        
+        return null;
+    }
+    
+    getAnimalName(type) {
+        const names = {
+            'cow': 'Корова',
+            'bull': 'Бык',
+            'goat': 'Коза',
+            'sheep': 'Овца',
+            'rooster': 'Петух',
+            'chicken': 'Курица',
+            'cat': 'Кошка'
+        };
+        return names[type] || type;
+    }
+    
+    getPredatorName(type) {
+        const names = {
+            'wolf': 'Волк',
+            'bear': 'Медведь',
+            'fox': 'Лиса'
+        };
+        return names[type] || type;
+    }
+    
+    getResourceDisplayName(type) {
+        const names = {
+            'saw': 'Пила',
+            'axe': 'Топор',
+            'hammer': 'Молоток',
+            'pickaxe': 'Кирка',
+            'shovel': 'Лопата',
+            'fishing_rod': 'Удочка',
+            'berries': 'Ягоды',
+            'wood': 'Дрова',
+            'money': 'Деньги',
+            'cooked_food': 'Готовая еда',
+            'meat': 'Мясо',
+            'bird': 'Птица',
+            'fish': 'Рыба'
+        };
+        return names[type] || type;
     }
 
     start() {
@@ -67,6 +271,7 @@ class World {
         this.resources = [];
         this.fires = []; // Очищаем костры
         this.animals = []; // Очищаем животных
+        this.predators = []; // Очищаем хищников
         this.generateTerrain();
         this.updateUI();
         this.draw();
@@ -84,19 +289,52 @@ class World {
     }
 
     addAnimal(type) {
-        // Добавление животного на карту
+        // Добавление животного на карту в центре видимой области
         if (!this.canvas) return;
         
-        const x = Math.random() * (this.canvas.width - 40) + 20;
-        const y = Math.random() * (this.canvas.height - 40) + 20;
+        // Добавляем животное в центре видимой области камеры
+        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
+        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
+        
+        const animalId = 'animal_' + Date.now() + '_' + Math.random();
         
         this.animals.push({
+            id: animalId,
             type: type,
             x: x,
             y: y,
             direction: Math.random() * Math.PI * 2, // Направление движения
             speed: 0.5 + Math.random() * 0.5, // Скорость движения
-            size: this.getAnimalSize(type)
+            size: this.getAnimalSize(type),
+            health: 100,
+            hunger: 0,
+            owner: null, // Владелец (если домашнее животное)
+            tamed: false // Приручено ли животное
+        });
+        this.draw();
+    }
+    
+    addPredator(type) {
+        // Добавление хищника на карту в центре видимой области
+        if (!this.canvas) return;
+        
+        // Добавляем хищника в центре видимой области камеры
+        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
+        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
+        
+        const predatorId = 'predator_' + Date.now() + '_' + Math.random();
+        
+        this.predators.push({
+            id: predatorId,
+            type: type,
+            x: x,
+            y: y,
+            direction: Math.random() * Math.PI * 2,
+            speed: 1.0 + Math.random() * 0.5,
+            size: type === 'bear' ? 25 : (type === 'wolf' ? 18 : 12),
+            health: 100,
+            hunger: 50,
+            target: null // Цель для атаки
         });
         this.draw();
     }
@@ -135,49 +373,50 @@ class World {
         const width = this.canvas.width;
         const height = this.canvas.height;
         
-        // Генерация леса (деревья)
+        // Генерация леса (деревья) - больше деревьев для бесконечного мира
         this.terrain.forest = [];
-        const treeCount = 25;
+        const treeCount = 100; // Увеличено для бесконечного мира
+        const worldSize = Math.max(width, height) * 3; // Генерируем в большем диапазоне
         for (let i = 0; i < treeCount; i++) {
             this.terrain.forest.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
+                x: (Math.random() - 0.5) * worldSize,
+                y: (Math.random() - 0.5) * worldSize,
                 size: 15 + Math.random() * 10 // Размер дерева
             });
         }
         
-        // Создание пруда (овал в центре)
+        // Создание пруда (овал в центре начальной области)
         this.terrain.pond = {
-            centerX: width / 2,
-            centerY: height / 2,
+            centerX: 0,
+            centerY: 0,
             radiusX: width * 0.15,
             radiusY: height * 0.12
         };
         
         // Полянка (область вокруг пруда)
         this.terrain.clearing = {
-            centerX: width / 2,
-            centerY: height / 2,
+            centerX: 0,
+            centerY: 0,
             radius: Math.min(width, height) * 0.2
         };
         
         // Генерация камней
         this.terrain.stones = [];
-        const stoneCount = 15;
+        const stoneCount = 50; // Увеличено
         for (let i = 0; i < stoneCount; i++) {
             this.terrain.stones.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
+                x: (Math.random() - 0.5) * worldSize,
+                y: (Math.random() - 0.5) * worldSize,
                 size: 5 + Math.random() * 8
             });
         }
         
         // Генерация кустов с ягодами
         this.terrain.berryBushes = [];
-        const bushCount = 12;
+        const bushCount = 40; // Увеличено
         for (let i = 0; i < bushCount; i++) {
-            const x = Math.random() * width;
-            const y = Math.random() * height;
+            const x = (Math.random() - 0.5) * worldSize;
+            const y = (Math.random() - 0.5) * worldSize;
             // Проверяем, чтобы кусты не попадали в пруд
             const distToPond = Math.sqrt(
                 Math.pow(x - this.terrain.pond.centerX, 2) + 
@@ -201,11 +440,12 @@ class World {
     }
 
     addResource(type) {
-        // Добавление ресурса на случайную позицию
+        // Добавление ресурса на позицию в центре видимой области
         if (!this.canvas) return;
         
-        const x = Math.random() * (this.canvas.width - 20) + 10;
-        const y = Math.random() * (this.canvas.height - 20) + 10;
+        // Добавляем ресурс в центре видимой области камеры
+        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
+        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
         
         // Определяем количество в зависимости от типа
         let amount = 1;
@@ -263,8 +503,21 @@ class World {
 
         // Очистка canvas
         this.ctx.clearRect(0, 0, width, height);
-
-        // Фон (трава/поляна) в зависимости от времени суток и погоды
+        
+        // Применяем трансформацию камеры
+        this.ctx.save();
+        this.ctx.scale(this.camera.scale, this.camera.scale);
+        this.ctx.translate(-this.camera.x, -this.camera.y);
+        
+        // Вычисляем видимую область мира
+        const viewLeft = this.camera.x;
+        const viewTop = this.camera.y;
+        const viewRight = viewLeft + width / this.camera.scale;
+        const viewBottom = viewTop + height / this.camera.scale;
+        const viewWidth = viewRight - viewLeft;
+        const viewHeight = viewBottom - viewTop;
+        
+        // Фон (трава/поляна) в зависимости от времени суток и погоды - для видимой области
         if (this.weather === 'night' || this.timeOfDay === 'night') {
             // Ночь - темно-синий фон
             this.ctx.fillStyle = '#0a0a1a';
@@ -273,19 +526,20 @@ class World {
             this.ctx.fillStyle = '#1a3a1a';
         } else {
             // День - реалистичный зеленый цвет травы
-            const gradient = this.ctx.createLinearGradient(0, 0, 0, height);
+            const gradient = this.ctx.createLinearGradient(viewLeft, viewTop, viewLeft, viewBottom);
             gradient.addColorStop(0, '#5a8a4a'); // Светлее сверху
             gradient.addColorStop(1, '#2a5a2a'); // Темнее снизу
             this.ctx.fillStyle = gradient;
         }
-        this.ctx.fillRect(0, 0, width, height);
+        this.ctx.fillRect(viewLeft, viewTop, viewWidth, viewHeight);
         
-        // Текстура травы (маленькие точки)
+        // Текстура травы (маленькие точки) для видимой области
         if (this.weather !== 'night' && this.timeOfDay !== 'night') {
             this.ctx.fillStyle = 'rgba(100, 150, 80, 0.3)';
-            for (let i = 0; i < 200; i++) {
-                const grassX = Math.random() * width;
-                const grassY = Math.random() * height;
+            const grassCount = Math.floor((viewWidth * viewHeight) / 1000);
+            for (let i = 0; i < grassCount; i++) {
+                const grassX = viewLeft + Math.random() * viewWidth;
+                const grassY = viewTop + Math.random() * viewHeight;
                 this.ctx.fillRect(grassX, grassY, 1, 2);
             }
         }
@@ -582,12 +836,155 @@ class World {
             this.drawAnimal(animal);
         });
 
+        // Отрисовка хищников
+        this.predators.forEach(predator => {
+            this.drawPredator(predator);
+        });
+
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
             });
+        }
+        
+        // Восстанавливаем контекст (убираем трансформацию камеры)
+        this.ctx.restore();
+        
+        // Отрисовка подсказок поверх всего (в координатах экрана)
+        if (this.mouse.hoveredObject) {
+            this.drawTooltip(this.mouse.hoveredObject);
+        }
+    }
+    
+    drawTooltip(obj) {
+        if (!this.ctx || !this.canvas) return;
+        
+        // Используем сохраненные координаты мыши
+        const screenX = this.mouseScreenX;
+        const screenY = this.mouseScreenY;
+        
+        let name = obj.name || 'Неизвестно';
+        let additionalInfo = '';
+        
+        // Дополнительная информация в зависимости от типа объекта
+        if (obj.type === 'agent') {
+            const agent = obj.obj;
+            additionalInfo = ` (Здоровье: ${Math.floor(agent.health)}%, Голод: ${Math.floor(agent.hunger)}%)`;
+        } else if (obj.type === 'animal') {
+            const animal = obj.obj;
+            if (animal.tamed) {
+                additionalInfo = ' (Приручено)';
+            }
+            additionalInfo += ` (Здоровье: ${Math.floor(animal.health)}%, Голод: ${Math.floor(animal.hunger)}%)`;
+        } else if (obj.type === 'predator') {
+            const predator = obj.obj;
+            additionalInfo = ` (Здоровье: ${Math.floor(predator.health)}%, Голод: ${Math.floor(predator.hunger)}%)`;
+        } else if (obj.type === 'resource') {
+            const resource = obj.obj;
+            if (resource.amount) {
+                additionalInfo = ` (Количество: ${resource.amount})`;
+            }
+        }
+        
+        const fullText = name + additionalInfo;
+        const padding = 8;
+        const fontSize = 12;
+        
+        this.ctx.font = `${fontSize}px Arial`;
+        const textWidth = this.ctx.measureText(fullText).width;
+        const tooltipWidth = textWidth + padding * 2;
+        const tooltipHeight = fontSize + padding * 2;
+        
+        // Фон подсказки
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+        this.ctx.fillRect(screenX - tooltipWidth / 2, screenY - tooltipHeight - 25, tooltipWidth, tooltipHeight);
+        
+        // Обводка подсказки
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(screenX - tooltipWidth / 2, screenY - tooltipHeight - 25, tooltipWidth, tooltipHeight);
+        
+        // Текст подсказки
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(fullText, screenX, screenY - 15);
+        this.ctx.textAlign = 'left';
+    }
+    
+    drawPredator(predator) {
+        if (!this.ctx) return;
+        
+        const x = predator.x;
+        const y = predator.y;
+        const time = Date.now() / 1000;
+        const size = predator.size || 15;
+        
+        // Анимация движения
+        const walkOffset = Math.sin(time * 3 + predator.x * 0.1) * 2;
+        
+        // Тень
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x + 2, y + size + 2, size * 0.6, size * 0.3, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        switch(predator.type) {
+            case 'wolf':
+                // Волк
+                this.ctx.fillStyle = '#4a4a4a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y + walkOffset, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.4, y + walkOffset, size * 0.3, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Уши
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - size * 0.5, y - size * 0.2 + walkOffset);
+                this.ctx.lineTo(x - size * 0.45, y - size * 0.4 + walkOffset);
+                this.ctx.lineTo(x - size * 0.35, y - size * 0.2 + walkOffset);
+                this.ctx.closePath();
+                this.ctx.fill();
+                // Глаза (красные)
+                this.ctx.fillStyle = '#ff0000';
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.45, y + walkOffset, 2, 0, Math.PI * 2);
+                this.ctx.fill();
+                break;
+            case 'bear':
+                // Медведь
+                this.ctx.fillStyle = '#5a3a2a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y + walkOffset, size * 0.7, size * 0.5, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.4, y + walkOffset, size * 0.35, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Уши
+                this.ctx.fillStyle = '#3a2a1a';
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.5, y - size * 0.15 + walkOffset, size * 0.15, 0, Math.PI * 2);
+                this.ctx.fill();
+                break;
+            case 'fox':
+                // Лиса
+                this.ctx.fillStyle = '#ff8a4a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y + walkOffset, size * 0.5, size * 0.35, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.35, y + walkOffset, size * 0.25, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Хвост
+                this.ctx.beginPath();
+                this.ctx.arc(x + size * 0.4, y + walkOffset, size * 0.3, 0, Math.PI * 2);
+                this.ctx.fill();
+                break;
         }
     }
 
@@ -597,6 +994,11 @@ class World {
         const x = animal.x;
         const y = animal.y;
         const size = animal.size;
+        const time = Date.now() / 1000;
+        
+        // Анимация движения (покачивание)
+        const walkOffset = Math.sin(time * 2 + animal.x * 0.1) * 1.5;
+        const headBob = Math.sin(time * 3 + animal.x * 0.1) * 0.5;
         
         // Тень животного
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
@@ -611,11 +1013,11 @@ class World {
                 // Корова/Бык
                 this.ctx.fillStyle = animal.type === 'bull' ? '#4a2a1a' : '#8a6a4a';
                 this.ctx.beginPath();
-                this.ctx.ellipse(x, y, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x, y + walkOffset, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Голова
                 this.ctx.beginPath();
-                this.ctx.ellipse(x - size * 0.4, y, size * 0.3, size * 0.25, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x - size * 0.4, y + headBob, size * 0.3, size * 0.25, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Рога (для быка)
                 if (animal.type === 'bull') {
@@ -631,23 +1033,23 @@ class World {
                 // Коза
                 this.ctx.fillStyle = '#6a5a4a';
                 this.ctx.beginPath();
-                this.ctx.ellipse(x, y, size * 0.5, size * 0.35, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x, y + walkOffset, size * 0.5, size * 0.35, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Голова
                 this.ctx.beginPath();
-                this.ctx.ellipse(x - size * 0.35, y, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x - size * 0.35, y + headBob, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 break;
             case 'sheep':
                 // Овца
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.beginPath();
-                this.ctx.ellipse(x, y, size * 0.55, size * 0.4, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x, y + walkOffset, size * 0.55, size * 0.4, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Голова
                 this.ctx.fillStyle = '#f0f0f0';
                 this.ctx.beginPath();
-                this.ctx.ellipse(x - size * 0.4, y, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x - size * 0.4, y + headBob, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 break;
             case 'rooster':
@@ -655,20 +1057,20 @@ class World {
                 // Петух/Курица
                 this.ctx.fillStyle = animal.type === 'rooster' ? '#ff6600' : '#ffaa00';
                 this.ctx.beginPath();
-                this.ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
+                this.ctx.arc(x, y + walkOffset, size * 0.4, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Голова
                 this.ctx.fillStyle = '#ff8800';
                 this.ctx.beginPath();
-                this.ctx.arc(x - size * 0.3, y, size * 0.25, 0, Math.PI * 2);
+                this.ctx.arc(x - size * 0.3, y + headBob, size * 0.25, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Гребешок (для петуха)
                 if (animal.type === 'rooster') {
                     this.ctx.fillStyle = '#ff0000';
                     this.ctx.beginPath();
-                    this.ctx.moveTo(x - size * 0.35, y - size * 0.2);
-                    this.ctx.lineTo(x - size * 0.25, y - size * 0.35);
-                    this.ctx.lineTo(x - size * 0.15, y - size * 0.2);
+                    this.ctx.moveTo(x - size * 0.35, y - size * 0.2 + headBob);
+                    this.ctx.lineTo(x - size * 0.25, y - size * 0.35 + headBob);
+                    this.ctx.lineTo(x - size * 0.15, y - size * 0.2 + headBob);
                     this.ctx.closePath();
                     this.ctx.fill();
                 }
@@ -677,17 +1079,17 @@ class World {
                 // Кошка
                 this.ctx.fillStyle = '#8a6a4a';
                 this.ctx.beginPath();
-                this.ctx.ellipse(x, y, size * 0.4, size * 0.3, 0, 0, Math.PI * 2);
+                this.ctx.ellipse(x, y + walkOffset, size * 0.4, size * 0.3, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Голова
                 this.ctx.beginPath();
-                this.ctx.arc(x - size * 0.3, y, size * 0.25, 0, Math.PI * 2);
+                this.ctx.arc(x - size * 0.3, y + headBob, size * 0.25, 0, Math.PI * 2);
                 this.ctx.fill();
                 // Уши
                 this.ctx.beginPath();
-                this.ctx.moveTo(x - size * 0.4, y - size * 0.15);
-                this.ctx.lineTo(x - size * 0.35, y - size * 0.3);
-                this.ctx.lineTo(x - size * 0.3, y - size * 0.15);
+                this.ctx.moveTo(x - size * 0.4, y - size * 0.15 + headBob);
+                this.ctx.lineTo(x - size * 0.35, y - size * 0.3 + headBob);
+                this.ctx.lineTo(x - size * 0.3, y - size * 0.15 + headBob);
                 this.ctx.closePath();
                 this.ctx.fill();
                 break;
@@ -881,6 +1283,7 @@ class World {
         const y = agent.position ? agent.position.y : (agent.y || 100);
         const state = agent.state || 'explore';
         const health = agent.health !== undefined ? agent.health : 100;
+        const time = Date.now() / 1000;
         
         // Определение типа агента и соответствующих цветов одежды
         const agentStyles = {
@@ -894,13 +1297,17 @@ class World {
         
         const style = agentStyles[agent.type] || agentStyles['man'];
         
+        // Анимация движения (покачивание при ходьбе)
+        const walkOffset = state !== 'rest' ? Math.sin(time * 4 + x * 0.1) * 1.5 : 0;
+        const headBob = state !== 'rest' ? Math.sin(time * 4 + x * 0.1) * 0.5 : 0;
+        
         // Тень человека
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         this.ctx.beginPath();
         this.ctx.ellipse(x + 2, y + 18, 6, 3, 0, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Определение позы в зависимости от состояния
+        // Определение позы в зависимости от состояния (с анимацией)
         let armAngle = 0;
         let legAngle = 0;
         if (state === 'rest') {
@@ -909,25 +1316,33 @@ class World {
             legAngle = 0;
         } else if (state === 'findFood') {
             // Быстро идет
-            armAngle = 0.5;
-            legAngle = 0.3;
+            armAngle = 0.5 + Math.sin(time * 6 + x * 0.1) * 0.2;
+            legAngle = 0.3 + Math.sin(time * 6 + x * 0.1) * 0.2;
         } else {
             // Идет нормально
-            armAngle = 0.3;
-            legAngle = 0.2;
+            armAngle = 0.3 + Math.sin(time * 4 + x * 0.1) * 0.15;
+            legAngle = 0.2 + Math.sin(time * 4 + x * 0.1) * 0.15;
         }
         
-        // Ноги (штаны)
+        // Ноги (штаны) с анимацией
         this.ctx.fillStyle = style.pants;
-        // Левая нога
-        this.ctx.fillRect(x - 3, y + 8, 3, 8);
-        // Правая нога
-        this.ctx.fillRect(x, y + 8, 3, 8);
+        // Левая нога (с анимацией)
+        this.ctx.save();
+        this.ctx.translate(x - 3, y + 8);
+        this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+        this.ctx.fillRect(0, 0, 3, 8);
+        this.ctx.restore();
+        // Правая нога (с анимацией)
+        this.ctx.save();
+        this.ctx.translate(x, y + 8);
+        this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+        this.ctx.fillRect(0, 0, 3, 8);
+        this.ctx.restore();
         
         // Ноги (обувь)
         this.ctx.fillStyle = '#2a1a1a';
-        this.ctx.fillRect(x - 4, y + 15, 2, 2);
-        this.ctx.fillRect(x + 2, y + 15, 2, 2);
+        this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
+        this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
         
         // Тело (туловище)
         this.ctx.fillStyle = style.clothes;
@@ -948,38 +1363,38 @@ class World {
         this.ctx.fillRect(0, 0, 2, 6);
         this.ctx.restore();
         
-        // Голова
+        // Голова (с анимацией покачивания)
         this.ctx.fillStyle = style.skin;
         this.ctx.beginPath();
-        this.ctx.arc(x, y - 8, 5, 0, Math.PI * 2);
+        this.ctx.arc(x, y - 8 + headBob, 5, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Волосы
         this.ctx.fillStyle = style.hair;
         this.ctx.beginPath();
-        this.ctx.arc(x, y - 9, 5, 0, Math.PI * 2);
+        this.ctx.arc(x, y - 9 + headBob, 5, 0, Math.PI * 2);
         this.ctx.fill();
         // Верхняя часть волос
-        this.ctx.fillRect(x - 5, y - 12, 10, 3);
+        this.ctx.fillRect(x - 5, y - 12 + headBob, 10, 3);
         
         // Лицо (глаза)
         this.ctx.fillStyle = '#ffffff';
         this.ctx.beginPath();
-        this.ctx.arc(x - 2, y - 9, 1, 0, Math.PI * 2);
-        this.ctx.arc(x + 2, y - 9, 1, 0, Math.PI * 2);
+        this.ctx.arc(x - 2, y - 9 + headBob, 1, 0, Math.PI * 2);
+        this.ctx.arc(x + 2, y - 9 + headBob, 1, 0, Math.PI * 2);
         this.ctx.fill();
         
         this.ctx.fillStyle = '#000000';
         this.ctx.beginPath();
-        this.ctx.arc(x - 2, y - 9, 0.5, 0, Math.PI * 2);
-        this.ctx.arc(x + 2, y - 9, 0.5, 0, Math.PI * 2);
+        this.ctx.arc(x - 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
+        this.ctx.arc(x + 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Рот (простая линия)
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 0.5;
         this.ctx.beginPath();
-        this.ctx.arc(x, y - 7, 1, 0, Math.PI);
+        this.ctx.arc(x, y - 7 + headBob, 1, 0, Math.PI);
         this.ctx.stroke();
         
         // Индикатор здоровья (маленький кружок справа вверху)
@@ -1021,10 +1436,155 @@ class World {
         // Обновление логики мира
         // Здесь будет логика обновления дня, времени суток и т.д.
         
+        // Обновление хищников
+        this.updatePredators();
+        
+        // Обновление животных
+        this.updateAnimals();
+        
         if (window.agents) {
             window.agents.update();
             window.agents.updateAllAgentsUI();
         }
+    }
+    
+    updatePredators() {
+        // Обновление логики хищников
+        this.predators.forEach(predator => {
+            // Увеличение голода
+            predator.hunger += 0.3;
+            if (predator.hunger > 100) predator.hunger = 100;
+            
+            // Поиск цели для атаки
+            if (!predator.target || predator.hunger > 70) {
+                predator.target = this.findNearestPrey(predator);
+            }
+            
+            // Движение к цели или случайное движение
+            if (predator.target) {
+                const dx = predator.target.x - predator.x;
+                const dy = predator.target.y - predator.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > predator.size) {
+                    // Движение к цели
+                    predator.x += (dx / distance) * predator.speed;
+                    predator.y += (dy / distance) * predator.speed;
+                } else {
+                    // Атака цели
+                    this.attackTarget(predator, predator.target);
+                }
+            } else {
+                // Случайное движение
+                predator.direction += (Math.random() - 0.5) * 0.2;
+                predator.x += Math.cos(predator.direction) * predator.speed * 0.5;
+                predator.y += Math.sin(predator.direction) * predator.speed * 0.5;
+            }
+            
+            // Бесконечный мир - не ограничиваем границами
+        });
+    }
+    
+    findNearestPrey(predator) {
+        let nearest = null;
+        let minDistance = Infinity;
+        
+        // Ищем агентов
+        if (window.agents) {
+            window.agents.getAllAgents().forEach(agent => {
+                const ax = agent.position ? agent.position.x : agent.x;
+                const ay = agent.position ? agent.position.y : agent.y;
+                const distance = Math.sqrt(Math.pow(ax - predator.x, 2) + Math.pow(ay - predator.y, 2));
+                if (distance < minDistance && distance < 200) {
+                    minDistance = distance;
+                    nearest = { x: ax, y: ay, type: 'agent', obj: agent };
+                }
+            });
+        }
+        
+        // Ищем животных
+        this.animals.forEach(animal => {
+            const distance = Math.sqrt(Math.pow(animal.x - predator.x, 2) + Math.pow(animal.y - predator.y, 2));
+            if (distance < minDistance && distance < 150) {
+                minDistance = distance;
+                nearest = { x: animal.x, y: animal.y, type: 'animal', obj: animal };
+            }
+        });
+        
+        return nearest;
+    }
+    
+    attackTarget(predator, target) {
+        if (target.type === 'agent') {
+            // Атака агента
+            const agent = target.obj;
+            agent.health -= 5;
+            if (agent.health < 0) agent.health = 0;
+            predator.hunger -= 20;
+            if (predator.hunger < 0) predator.hunger = 0;
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`⚠️ ${this.getPredatorName(predator.type)} атакует ${agent.name}!`);
+            }
+        } else if (target.type === 'animal') {
+            // Атака животного
+            const animal = target.obj;
+            animal.health -= 10;
+            if (animal.health <= 0) {
+                // Животное убито
+                const index = this.animals.indexOf(animal);
+                if (index > -1) {
+                    this.animals.splice(index, 1);
+                }
+                // Добавляем мясо на место убийства
+                this.resources.push({
+                    type: 'meat',
+                    x: animal.x,
+                    y: animal.y,
+                    amount: 3
+                });
+                predator.hunger -= 30;
+                if (predator.hunger < 0) predator.hunger = 0;
+                
+                if (window.addLogEntry) {
+                    window.addLogEntry(`💀 ${this.getPredatorName(predator.type)} убил ${this.getAnimalName(animal.type)}`);
+                }
+            }
+        }
+        predator.target = null;
+    }
+    
+    updateAnimals() {
+        // Обновление логики животных
+        this.animals.forEach(animal => {
+            // Увеличение голода
+            animal.hunger += 0.2;
+            if (animal.hunger > 100) animal.hunger = 100;
+            
+            // Если есть владелец, двигаемся к нему
+            if (animal.owner && window.agents) {
+                const owner = window.agents.getAgent(animal.owner);
+                if (owner) {
+                    const ax = owner.position ? owner.position.x : owner.x;
+                    const ay = owner.position ? owner.position.y : owner.y;
+                    const dx = ax - animal.x;
+                    const dy = ay - animal.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 30) {
+                        animal.x += (dx / distance) * animal.speed;
+                        animal.y += (dy / distance) * animal.speed;
+                    }
+                }
+            } else {
+                // Случайное движение
+                animal.direction += (Math.random() - 0.5) * 0.1;
+                animal.x += Math.cos(animal.direction) * animal.speed;
+                animal.y += Math.sin(animal.direction) * animal.speed;
+            }
+            
+            // Бесконечный мир - не ограничиваем границами
+        });
     }
 }
 

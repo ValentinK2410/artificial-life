@@ -20,6 +20,9 @@ class Agent {
         // Инвентарь и память
         this.inventory = [];
         this.memory = []; // [{type: 'berry', x: 100, y: 200}, ...]
+        this.foodStorage = []; // Запасы еды для себя
+        this.animalFoodStorage = []; // Запасы еды для животных
+        this.pets = []; // Домашние животные [{type, x, y, ...}]
         
         // Система опыта (разные виды опыта)
         this.experience = {
@@ -36,11 +39,13 @@ class Agent {
         };
         
         // Состояние для конечного автомата
-        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire
+        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood
         this.speed = 2; // Базовая скорость движения
         this.maxEnergy = 100;
         this.maxHealth = 100;
         this.canBuildFire = false; // Может ли разводить костер
+        this.defenseSkill = 0; // Навык обороны
+        this.nearbyPredator = null; // Ближайший хищник
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -89,6 +94,20 @@ class Agent {
             if (this.health < 0) this.health = 0;
         }
         
+        // Используем запасы еды если голодны
+        if (this.hunger > 60 && this.foodStorage.length > 0) {
+            const food = this.foodStorage[0];
+            this.hunger -= 25;
+            if (this.hunger < 0) this.hunger = 0;
+            food.amount--;
+            if (food.amount <= 0) {
+                this.foodStorage.shift();
+            }
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`🍽️ ${this.name} ест из запасов`);
+            }
+        }
+        
         // Если энергия < 20, снижаем скорость
         if (this.energy < 20) {
             this.speed = 1;
@@ -126,7 +145,51 @@ class Agent {
         // Взаимодействие с миром
         if (window.world) {
             this.interactWithWorld(window.world);
+            this.interactWithAnimals(window.world);
         }
+    }
+    
+    interactWithAnimals(world) {
+        // Взаимодействие с животными (приручение, кормление)
+        if (!world.animals) return;
+        
+        world.animals.forEach(animal => {
+            const dx = animal.x - this.position.x;
+            const dy = animal.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Если животное близко и не приручено
+            if (distance < 25 && !animal.tamed && !animal.owner) {
+                // Попытка приручения (старики более успешны)
+                const tamingChance = this.age > 60 ? 0.3 : (this.age > 30 ? 0.15 : 0.05);
+                
+                if (Math.random() < tamingChance) {
+                    animal.tamed = true;
+                    animal.owner = this.type;
+                    this.pets.push(animal.id);
+                    
+                    this.gainExperience('farming', 2);
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🐾 ${this.name} приручил ${world.getAnimalName(animal.type)}!`);
+                    }
+                }
+            }
+            
+            // Если животное наше и голодное - кормим автоматически
+            if (animal.owner === this.type && animal.hunger > 70 && distance < 20) {
+                const food = this.animalFoodStorage.find(f => f.amount > 0);
+                if (food) {
+                    animal.hunger -= 25;
+                    if (animal.hunger < 0) animal.hunger = 0;
+                    food.amount--;
+                    if (food.amount <= 0) {
+                        const index = this.animalFoodStorage.indexOf(food);
+                        if (index > -1) this.animalFoodStorage.splice(index, 1);
+                    }
+                }
+            }
+        });
     }
 
     updateTemperature() {
@@ -192,8 +255,14 @@ class Agent {
         // Простой конечный автомат для принятия решений
         const oldState = this.state;
         
-        // Приоритет: температура > голод > энергия
-        if (this.temperature < 32) {
+        // Проверяем наличие хищников поблизости
+        this.checkForPredators();
+        
+        // Приоритет: оборона > температура > голод > кормление животных > энергия > игра
+        if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
+            // Хищник близко - обороняемся
+            this.state = 'defend';
+        } else if (this.temperature < 32) {
             // Критически холодно - ищем тепло
             this.state = 'findHeat';
         } else if (this.temperature < 35 && this.canBuildFire && this.hasWoodForFire()) {
@@ -201,8 +270,17 @@ class Agent {
             this.state = 'buildFire';
         } else if (this.hunger > 70) {
             this.state = 'findFood';
+        } else if (this.hasHungryPets()) {
+            // Есть голодные домашние животные
+            this.state = 'feedAnimal';
+        } else if (this.hunger < 50 && this.foodStorage.length < 5) {
+            // Запасаем еду
+            this.state = 'storeFood';
         } else if (this.energy < 30) {
             this.state = 'rest';
+        } else if (this.pets.length > 0 && Math.random() < 0.1) {
+            // Иногда играем с домашними животными
+            this.state = 'playWithPet';
         } else {
             this.state = 'explore';
         }
@@ -214,12 +292,43 @@ class Agent {
                 'findFood': 'ищет еду',
                 'rest': 'отдыхает',
                 'findHeat': 'ищет источник тепла',
-                'buildFire': 'разводит костер'
+                'buildFire': 'разводит костер',
+                'defend': 'обороняется',
+                'feedAnimal': 'кормит животных',
+                'playWithPet': 'играет с питомцем',
+                'storeFood': 'запасает еду'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
         
         this.act();
+    }
+    
+    checkForPredators() {
+        // Проверка наличия хищников поблизости
+        this.nearbyPredator = null;
+        if (!window.world || !window.world.predators) return;
+        
+        let minDistance = Infinity;
+        window.world.predators.forEach(predator => {
+            const distance = Math.sqrt(
+                Math.pow(predator.x - this.position.x, 2) + 
+                Math.pow(predator.y - this.position.y, 2)
+            );
+            if (distance < minDistance && distance < 100) {
+                minDistance = distance;
+                this.nearbyPredator = { predator, distance };
+            }
+        });
+    }
+    
+    hasHungryPets() {
+        // Проверяем, есть ли голодные домашние животные
+        if (!window.world) return false;
+        return this.pets.some(petId => {
+            const pet = window.world.animals.find(a => a.id === petId);
+            return pet && pet.hunger > 60;
+        });
     }
     
     hasWoodForFire() {
@@ -264,6 +373,22 @@ class Agent {
                 // Разводим костер
                 this.buildFire();
                 break;
+            case 'defend':
+                // Оборона от хищника
+                this.defendAgainstPredator();
+                break;
+            case 'feedAnimal':
+                // Кормление домашних животных
+                this.feedPets();
+                break;
+            case 'playWithPet':
+                // Игра с домашним животным
+                this.playWithPets();
+                break;
+            case 'storeFood':
+                // Запасание еды
+                this.storeFood();
+                break;
             case 'rest':
                 // Восстановление энергии на месте
                 this.energy += 10;
@@ -271,6 +396,156 @@ class Agent {
                     this.energy = this.maxEnergy;
                 }
                 break;
+        }
+    }
+    
+    defendAgainstPredator() {
+        // Оборона от хищника
+        if (!this.nearbyPredator) return;
+        
+        const predator = this.nearbyPredator.predator;
+        const distance = this.nearbyPredator.distance;
+        
+        // Если хищник очень близко - отступаем
+        if (distance < 30) {
+            const dx = this.position.x - predator.x;
+            const dy = this.position.y - predator.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                this.position.x += (dx / dist) * this.speed * 1.5; // Быстрее отступаем
+                this.position.y += (dy / dist) * this.speed * 1.5;
+            }
+            
+            // Увеличиваем опыт обороны
+            this.defenseSkill += 0.5;
+            this.gainExperience('hunting', 0.3); // Опыт охоты/обороны
+            
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚔️ ${this.name} обороняется от хищника!`);
+            }
+        } else {
+            // Держим дистанцию
+            const dx = this.position.x - predator.x;
+            const dy = this.position.y - predator.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0 && dist < 40) {
+                this.position.x += (dx / dist) * this.speed;
+                this.position.y += (dy / dist) * this.speed;
+            }
+        }
+    }
+    
+    feedPets() {
+        // Кормление домашних животных
+        if (!window.world || this.pets.length === 0) return;
+        
+        // Ищем голодное животное
+        let hungryPet = null;
+        for (let petId of this.pets) {
+            const pet = window.world.animals.find(a => a.id === petId);
+            if (pet && pet.hunger > 60) {
+                hungryPet = pet;
+                break;
+            }
+        }
+        
+        if (!hungryPet) return;
+        
+        // Двигаемся к животному
+        const dx = hungryPet.x - this.position.x;
+        const dy = hungryPet.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 20) {
+            this.moveTo(hungryPet.x, hungryPet.y);
+        } else {
+            // Кормим животное
+            const food = this.animalFoodStorage.find(f => f.amount > 0);
+            if (food) {
+                hungryPet.hunger -= 30;
+                if (hungryPet.hunger < 0) hungryPet.hunger = 0;
+                food.amount--;
+                if (food.amount <= 0) {
+                    const index = this.animalFoodStorage.indexOf(food);
+                    if (index > -1) this.animalFoodStorage.splice(index, 1);
+                }
+                
+                this.gainExperience('farming', 0.5);
+                
+                if (window.addLogEntry && Math.random() < 0.3) {
+                    window.addLogEntry(`🥕 ${this.name} кормит ${window.world.getAnimalName(hungryPet.type)}`);
+                }
+            } else {
+                // Нет еды для животных - ищем
+                this.state = 'findFood';
+            }
+        }
+    }
+    
+    playWithPets() {
+        // Игра с домашним животным
+        if (!window.world || this.pets.length === 0) return;
+        
+        const petId = this.pets[Math.floor(Math.random() * this.pets.length)];
+        const pet = window.world.animals.find(a => a.id === petId);
+        
+        if (!pet) return;
+        
+        // Двигаемся к животному
+        const dx = pet.x - this.position.x;
+        const dy = pet.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 25) {
+            this.moveTo(pet.x, pet.y);
+        } else {
+            // Играем с животным
+            this.mood = 'happy';
+            this.energy += 5; // Игра восстанавливает энергию
+            if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
+            
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🎮 ${this.name} играет с ${window.world.getAnimalName(pet.type)}`);
+            }
+        }
+    }
+    
+    storeFood() {
+        // Запасание еды
+        // Ищем еду в инвентаре
+        const foodItems = this.inventory.filter(item => 
+            ['berries', 'cooked_food', 'meat', 'bird', 'fish'].includes(item.type)
+        );
+        
+        if (foodItems.length > 0) {
+            // Перемещаем еду в запасы (для себя и для животных)
+            const food = foodItems[0];
+            const index = this.inventory.indexOf(food);
+            if (index > -1) {
+                this.inventory.splice(index, 1);
+                
+                // Распределяем между запасами для себя и для животных
+                if (this.pets.length > 0 && Math.random() < 0.5) {
+                    // Часть еды для животных
+                    this.animalFoodStorage.push({
+                        type: food.type,
+                        amount: food.amount || 1
+                    });
+                } else {
+                    // Еда для себя
+                    this.foodStorage.push({
+                        type: food.type,
+                        amount: food.amount || 1
+                    });
+                }
+                
+                if (window.addLogEntry && Math.random() < 0.2) {
+                    window.addLogEntry(`📦 ${this.name} запасает еду`);
+                }
+            }
+        } else {
+            // Нет еды - ищем
+            this.state = 'findFood';
         }
     }
 
@@ -334,11 +609,8 @@ class Agent {
             this.position.y = y;
         }
         
-        // Ограничиваем позицию границами canvas
-        if (window.world && window.world.canvas) {
-            this.position.x = Math.max(0, Math.min(this.position.x, window.world.canvas.width));
-            this.position.y = Math.max(0, Math.min(this.position.y, window.world.canvas.height));
-        }
+        // Бесконечный мир - не ограничиваем границами
+        // Позиция может быть любой
     }
 
     moveToRandomPoint() {
@@ -593,8 +865,14 @@ class OldMan extends Agent {
     
     initializeExperience(multiplier) {
         // Инициализация опыта с множителем
+        // Старики имеют высокий опыт во всех навыках
         Object.keys(this.experience).forEach(key => {
+            // Базовый опыт 30-80, умноженный на множитель
             this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier);
+            // Старики имеют особо высокий опыт в определенных навыках
+            if (key === 'building' || key === 'farming' || key === 'cooking') {
+                this.experience[key] = Math.floor(60 + Math.random() * 40 * multiplier);
+            }
         });
     }
 
