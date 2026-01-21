@@ -289,12 +289,17 @@ class World {
     }
 
     addAnimal(type) {
-        // Добавление животного на карту в центре видимой области
+        // Добавление животного на случайную позицию в видимой области
         if (!this.canvas) return;
         
-        // Добавляем животное в центре видимой области камеры
-        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
-        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
+        // Вычисляем размеры видимой области
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        
+        // Случайная позиция в видимой области с отступом от краев
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
         
         const animalId = 'animal_' + Date.now() + '_' + Math.random();
         
@@ -315,12 +320,17 @@ class World {
     }
     
     addPredator(type) {
-        // Добавление хищника на карту в центре видимой области
+        // Добавление хищника на случайную позицию в видимой области
         if (!this.canvas) return;
         
-        // Добавляем хищника в центре видимой области камеры
-        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
-        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
+        // Вычисляем размеры видимой области
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        
+        // Случайная позиция в видимой области с отступом от краев
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
         
         const predatorId = 'predator_' + Date.now() + '_' + Math.random();
         
@@ -440,12 +450,17 @@ class World {
     }
 
     addResource(type) {
-        // Добавление ресурса на позицию в центре видимой области
+        // Добавление ресурса на случайную позицию в видимой области
         if (!this.canvas) return;
         
-        // Добавляем ресурс в центре видимой области камеры
-        const x = this.camera.x + (this.canvas.width / this.camera.scale) / 2;
-        const y = this.camera.y + (this.canvas.height / this.camera.scale) / 2;
+        // Вычисляем размеры видимой области
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        
+        // Случайная позиция в видимой области с отступом от краев
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
         
         // Определяем количество в зависимости от типа
         let amount = 1;
