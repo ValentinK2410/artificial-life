@@ -345,8 +345,8 @@ class World {
         const x = agent.position ? agent.position.x : (agent.x || 100);
         const y = agent.position ? agent.position.y : (agent.y || 100);
 
-        // Простая отрисовка агента как круга
-        const colors = {
+        // Базовые цвета для типов агентов (используются как основа)
+        const baseColors = {
             'man': '#4a9eff',
             'woman': '#ff4a9e',
             'boy': '#9eff4a',
@@ -355,7 +355,24 @@ class World {
             'oldwoman': '#ff4aff'
         };
 
-        this.ctx.fillStyle = colors[agent.type] || '#ffffff';
+        // Цвет в зависимости от состояния агента
+        let agentColor = baseColors[agent.type] || '#ffffff';
+        const state = agent.state || 'explore';
+        
+        // Визуализация состояний: меняем цвет в зависимости от состояния
+        if (state === 'findFood') {
+            // Голодный - красноватый оттенок
+            agentColor = '#ff6666';
+        } else if (state === 'rest') {
+            // Отдыхает - синий оттенок
+            agentColor = '#6666ff';
+        } else if (state === 'explore') {
+            // Исследует - зеленоватый оттенок
+            agentColor = '#66ff66';
+        }
+
+        // Отрисовка агента
+        this.ctx.fillStyle = agentColor;
         this.ctx.beginPath();
         this.ctx.arc(x, y, 12, 0, Math.PI * 2);
         this.ctx.fill();
@@ -370,15 +387,20 @@ class World {
         // Индикатор состояния (маленький кружок сверху)
         if (agent.state) {
             const stateColors = {
-                'explore': '#4a9eff',
-                'findFood': '#ffaa00',
-                'rest': '#00ff00'
+                'explore': '#00ff00',  // Зеленый - исследует
+                'findFood': '#ff6600', // Оранжевый - ищет еду
+                'rest': '#0066ff'      // Синий - отдыхает
             };
             this.ctx.fillStyle = stateColors[agent.state] || '#ffffff';
             this.ctx.beginPath();
             this.ctx.arc(x, y - 18, 4, 0, Math.PI * 2);
             this.ctx.fill();
         }
+        
+        // Отображение имени агента (опционально, для отладки)
+        // this.ctx.fillStyle = '#ffffff';
+        // this.ctx.font = '10px Arial';
+        // this.ctx.fillText(agent.name.substring(0, 4), x - 10, y - 22);
     }
 
     animate() {

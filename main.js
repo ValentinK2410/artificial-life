@@ -44,9 +44,10 @@ class Simulation {
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
+            this.frameCount = 0; // Сброс счетчика кадров
             this.gameLoop();
             if (window.addLogEntry) {
-                window.addLogEntry('Симуляция запущена');
+                window.addLogEntry('▶️ Симуляция запущена - агенты начали движение');
             }
         }
     }
@@ -57,8 +58,12 @@ class Simulation {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
+        // Финальная отрисовка после паузы
+        if (this.world) {
+            this.world.draw();
+        }
         if (window.addLogEntry) {
-            window.addLogEntry('Симуляция приостановлена');
+            window.addLogEntry('⏸️ Симуляция приостановлена');
         }
     }
 
@@ -376,6 +381,15 @@ function initializeCanvas() {
         if (!window.world) {
             window.world = new World(canvas);
             window.world.generateTerrain();
+            
+            // Инициализация позиций агентов после создания мира
+            if (window.agents) {
+                window.agents.getAllAgents().forEach(agent => {
+                    agent.initializePosition();
+                });
+            }
+            
+            // Первоначальная отрисовка статичной сцены
             window.world.draw();
         }
     }
@@ -383,22 +397,31 @@ function initializeCanvas() {
 
 // Инициализация симуляции
 function initializeSimulation() {
-    if (window.world && window.agents) {
-        simulation = new Simulation(window.world, window.agents);
-        window.simulation = simulation;
-        
-        // Первоначальная отрисовка
-        if (window.world) {
-            window.world.draw();
-        }
-        
-        // Обновление UI
-        if (simulation) {
-            simulation.updateSidebar();
-        }
-        
-        addLogEntry('Симуляция инициализирована');
+    // Убеждаемся, что мир и агенты созданы
+    if (!window.world || !window.agents) {
+        console.warn('Мир или агенты не готовы, повторная попытка через 100мс...');
+        setTimeout(initializeSimulation, 100);
+        return;
     }
+    
+    // Создание экземпляра Simulation
+    simulation = new Simulation(window.world, window.agents);
+    window.simulation = simulation;
+    
+    // Первоначальная отрисовка статичной сцены (мир + агенты)
+    if (window.world) {
+        window.world.draw();
+    }
+    
+    // Обновление UI
+    if (simulation) {
+        simulation.updateSidebar();
+    }
+    
+        addLogEntry('✅ Симуляция инициализирована. Нажмите "Старт" для начала.');
+        addLogEntry(`📊 Агентов на карте: ${simulation.agents.length}`);
+        console.log('Симуляция готова. Агенты:', simulation.agents.length);
+        console.log('Мир создан, агенты размещены. Статичная сцена отображена.');
 }
 
 // Функция для добавления записей в лог
