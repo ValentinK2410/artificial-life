@@ -151,7 +151,7 @@ function getWeatherName(weather) {
     return names[weather] || weather;
 }
 
-// Инициализация canvas
+// Инициализация canvas и мира
 function initializeCanvas() {
     const canvas = document.getElementById('worldCanvas');
     if (canvas) {
@@ -160,14 +160,22 @@ function initializeCanvas() {
             const container = canvas.parentElement;
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
+            
+            // Перегенерируем мир при изменении размера
+            if (window.world) {
+                window.world.generateTerrain();
+                window.world.draw();
+            }
         };
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
-        // Инициализация отрисовки
-        if (window.world) {
-            world.initializeCanvas(canvas);
+        // Создание и инициализация мира
+        if (!window.world) {
+            window.world = new World(canvas);
+            window.world.generateTerrain();
+            window.world.draw();
         }
     }
 }
