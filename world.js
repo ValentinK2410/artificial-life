@@ -11,6 +11,7 @@ class World {
         this.simulationSpeed = 5;
         this.animationFrameId = null;
         this.resources = [];
+        this.fires = []; // Массив костров [{x, y, intensity}]
         
         // Структура мира
         this.terrain = {
@@ -63,8 +64,20 @@ class World {
         this.timeOfDay = 'day';
         this.weather = 'sunny';
         this.resources = [];
+        this.fires = []; // Очищаем костры
         this.generateTerrain();
         this.updateUI();
+        this.draw();
+    }
+
+    addFire(x, y) {
+        // Добавление костра на карту
+        this.fires.push({
+            x: x,
+            y: y,
+            intensity: 1.0, // Интенсивность костра (для анимации)
+            time: Date.now() // Время создания для анимации
+        });
         this.draw();
     }
 
@@ -516,12 +529,93 @@ class World {
             }
         });
 
+        // Отрисовка костров
+        this.fires.forEach(fire => {
+            this.drawFire(fire);
+        });
+
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
             });
+        }
+    }
+
+    drawFire(fire) {
+        if (!this.ctx) return;
+        
+        const x = fire.x;
+        const y = fire.y;
+        const time = (Date.now() - fire.time) / 1000; // Время в секундах для анимации
+        
+        // Анимация интенсивности (пульсация)
+        const pulse = Math.sin(time * 2) * 0.1 + 0.9;
+        
+        // Тень костра
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x + 2, y + 2, 12 * pulse, 6, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Внешнее пламя (оранжевое)
+        const outerGradient = this.ctx.createRadialGradient(x, y, 0, x, y, 15 * pulse);
+        outerGradient.addColorStop(0, 'rgba(255, 200, 0, 0.8)');
+        outerGradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.6)');
+        outerGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+        this.ctx.fillStyle = outerGradient;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, 15 * pulse, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Среднее пламя (красное)
+        const middleGradient = this.ctx.createRadialGradient(x, y, 0, x, y, 10 * pulse);
+        middleGradient.addColorStop(0, 'rgba(255, 150, 0, 1)');
+        middleGradient.addColorStop(0.7, 'rgba(255, 50, 0, 0.7)');
+        middleGradient.addColorStop(1, 'rgba(200, 0, 0, 0)');
+        this.ctx.fillStyle = middleGradient;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, 10 * pulse, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Внутреннее пламя (желтое/белое)
+        const innerGradient = this.ctx.createRadialGradient(x, y - 2, 0, x, y, 6 * pulse);
+        innerGradient.addColorStop(0, 'rgba(255, 255, 200, 1)');
+        innerGradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.8)');
+        innerGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+        this.ctx.fillStyle = innerGradient;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - 2, 6 * pulse, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Угли (темные внизу)
+        this.ctx.fillStyle = '#1a1a1a';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x, y + 3, 4, 2, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Тлеющие угли (красные точки)
+        this.ctx.fillStyle = '#ff4444';
+        for (let i = 0; i < 3; i++) {
+            const angle = (time * 0.5 + i * 2) % (Math.PI * 2);
+            const coalX = x + Math.cos(angle) * 3;
+            const coalY = y + 3 + Math.sin(angle) * 1;
+            this.ctx.beginPath();
+            this.ctx.arc(coalX, coalY, 1, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        
+        // Искры (летящие вверх)
+        this.ctx.fillStyle = 'rgba(255, 200, 100, 0.8)';
+        for (let i = 0; i < 5; i++) {
+            const sparkX = x + (Math.sin(time * 3 + i) * 8);
+            const sparkY = y - 5 - (time * 10 + i * 2) % 15;
+            if (sparkY > y - 20) {
+                this.ctx.beginPath();
+                this.ctx.arc(sparkX, sparkY, 1, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         }
     }
 

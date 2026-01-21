@@ -11,6 +11,7 @@ class Agent {
         this.health = 100;
         this.energy = 100;
         this.hunger = 0;
+        this.temperature = 37; // Нормальная температура тела (градусы Цельсия)
         this.mood = 'neutral'; // neutral, happy, sad, anxious
         
         // Позиция
@@ -21,10 +22,11 @@ class Agent {
         this.memory = []; // [{type: 'berry', x: 100, y: 200}, ...]
         
         // Состояние для конечного автомата
-        this.state = 'explore'; // explore, findFood, rest
+        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire
         this.speed = 2; // Базовая скорость движения
         this.maxEnergy = 100;
         this.maxHealth = 100;
+        this.canBuildFire = false; // Может ли разводить костер
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -45,6 +47,7 @@ class Agent {
         // Основной цикл обновления агента
         const oldHunger = this.hunger;
         const oldHealth = this.health;
+        const oldTemperature = this.temperature;
         
         // Увеличиваем голод
         this.hunger += 0.5;
@@ -54,6 +57,16 @@ class Agent {
         if (this.state !== 'rest') {
             this.energy -= 0.3;
             if (this.energy < 0) this.energy = 0;
+        }
+        
+        // Система температуры: проверяем расстояние до источников тепла
+        this.updateTemperature();
+        
+        // Если температура слишком низкая, теряем здоровье
+        if (this.temperature < 35) {
+            const healthLoss = (35 - this.temperature) * 0.1; // Чем холоднее, тем больше теряем
+            this.health -= healthLoss;
+            if (this.health < 0) this.health = 0;
         }
         
         // Если голод > 80, начинаем терять здоровье
@@ -75,13 +88,21 @@ class Agent {
             if (this.hunger > 90 && oldHunger <= 90) {
                 window.addLogEntry(`⚠️ ${this.name} очень голоден!`);
             }
+            // Критическая температура
+            if (this.temperature < 35 && oldTemperature >= 35) {
+                window.addLogEntry(`❄️ ${this.name} замерзает!`);
+            }
+            if (this.temperature < 32 && oldTemperature >= 32) {
+                window.addLogEntry(`🥶 ${this.name} сильно замерзает!`);
+            }
             // Критическое здоровье
             if (this.health < 20 && oldHealth >= 20) {
                 window.addLogEntry(`⚠️ ${this.name} в критическом состоянии!`);
             }
             // Смерть (если здоровье упало до 0)
             if (this.health <= 0 && oldHealth > 0) {
-                window.addLogEntry(`💀 ${this.name} погиб от голода и истощения`);
+                const cause = this.temperature < 32 ? 'от переохлаждения' : 'от голода и истощения';
+                window.addLogEntry(`💀 ${this.name} погиб ${cause}`);
             }
         }
         
@@ -94,11 +115,77 @@ class Agent {
         }
     }
 
+    updateTemperature() {
+        // Базовая температура окружающей среды (холодно, особенно ночью)
+        let ambientTemp = 20; // Градусы Цельсия
+        if (window.world) {
+            if (window.world.weather === 'night' || window.world.timeOfDay === 'night') {
+                ambientTemp = 5; // Ночью холоднее
+            } else if (window.world.weather === 'rain') {
+                ambientTemp = 10; // В дождь холоднее
+            }
+        }
+        
+        // Ищем ближайший источник тепла (костер)
+        const nearestFire = this.findNearestFire();
+        let heatBonus = 0;
+        
+        if (nearestFire) {
+            const distance = Math.sqrt(
+                Math.pow(nearestFire.x - this.position.x, 2) + 
+                Math.pow(nearestFire.y - this.position.y, 2)
+            );
+            // Тепло от костра уменьшается с расстоянием
+            const fireRadius = 80; // Радиус действия костра
+            if (distance < fireRadius) {
+                heatBonus = (fireRadius - distance) / fireRadius * 25; // До +25 градусов у костра
+            }
+        }
+        
+        // Температура стремится к окружающей + тепло от костра
+        const targetTemp = ambientTemp + heatBonus;
+        const tempDiff = targetTemp - this.temperature;
+        
+        // Температура меняется постепенно
+        this.temperature += tempDiff * 0.05;
+        
+        // Ограничиваем температуру
+        if (this.temperature < 20) this.temperature = 20; // Минимум
+        if (this.temperature > 37) this.temperature = 37; // Нормальная температура тела
+    }
+
+    findNearestFire() {
+        if (!window.world || !window.world.fires) return null;
+        
+        let nearestFire = null;
+        let minDistance = Infinity;
+        
+        window.world.fires.forEach(fire => {
+            const distance = Math.sqrt(
+                Math.pow(fire.x - this.position.x, 2) + 
+                Math.pow(fire.y - this.position.y, 2)
+            );
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestFire = fire;
+            }
+        });
+        
+        return nearestFire;
+    }
+
     decide() {
         // Простой конечный автомат для принятия решений
         const oldState = this.state;
         
-        if (this.hunger > 70) {
+        // Приоритет: температура > голод > энергия
+        if (this.temperature < 32) {
+            // Критически холодно - ищем тепло
+            this.state = 'findHeat';
+        } else if (this.temperature < 35 && this.canBuildFire && this.hasWoodForFire()) {
+            // Холодно и можем развести костер - строим
+            this.state = 'buildFire';
+        } else if (this.hunger > 70) {
             this.state = 'findFood';
         } else if (this.energy < 30) {
             this.state = 'rest';
@@ -111,12 +198,20 @@ class Agent {
             const stateNames = {
                 'explore': 'исследует',
                 'findFood': 'ищет еду',
-                'rest': 'отдыхает'
+                'rest': 'отдыхает',
+                'findHeat': 'ищет источник тепла',
+                'buildFire': 'разводит костер'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
         
         this.act();
+    }
+    
+    hasWoodForFire() {
+        // Проверяем, есть ли дрова в инвентаре для костра
+        const woodCount = this.inventory.filter(item => item.type === 'wood').length;
+        return woodCount >= 3; // Нужно минимум 3 дрова для костра
     }
 
     act() {
@@ -135,6 +230,26 @@ class Agent {
                     this.scanForResources();
                 }
                 break;
+            case 'findHeat':
+                // Ищем ближайший костер
+                const nearestFire = this.findNearestFire();
+                if (nearestFire) {
+                    this.moveTo(nearestFire.x, nearestFire.y);
+                } else {
+                    // Если нет костров, ищем дрова для разведения
+                    if (this.canBuildFire) {
+                        this.moveToRandomPoint();
+                        this.scanForResources();
+                    } else {
+                        // Не можем развести костер - просто двигаемся
+                        this.moveToRandomPoint();
+                    }
+                }
+                break;
+            case 'buildFire':
+                // Разводим костер
+                this.buildFire();
+                break;
             case 'rest':
                 // Восстановление энергии на месте
                 this.energy += 10;
@@ -143,6 +258,50 @@ class Agent {
                 }
                 break;
         }
+    }
+
+    buildFire() {
+        // Разведение костра (только если есть дрова и можем разводить)
+        if (!this.canBuildFire || !this.hasWoodForFire()) {
+            return;
+        }
+        
+        if (!window.world) return;
+        
+        // Проверяем, нет ли уже костра рядом
+        const existingFire = window.world.fires.find(fire => {
+            const distance = Math.sqrt(
+                Math.pow(fire.x - this.position.x, 2) + 
+                Math.pow(fire.y - this.position.y, 2)
+            );
+            return distance < 30; // Не разводим костер слишком близко к другому
+        });
+        
+        if (existingFire) {
+            // Уже есть костер рядом - идем к нему
+            this.state = 'rest';
+            return;
+        }
+        
+        // Убираем дрова из инвентаря
+        let woodRemoved = 0;
+        for (let i = this.inventory.length - 1; i >= 0 && woodRemoved < 3; i--) {
+            if (this.inventory[i].type === 'wood') {
+                this.inventory.splice(i, 1);
+                woodRemoved++;
+            }
+        }
+        
+        // Создаем костер
+        if (window.world.addFire) {
+            window.world.addFire(this.position.x, this.position.y);
+            if (window.addLogEntry) {
+                window.addLogEntry(`🔥 ${this.name} развел костер в (${Math.floor(this.position.x)}, ${Math.floor(this.position.y)})`);
+            }
+        }
+        
+        // Переходим в состояние отдыха у костра
+        this.state = 'rest';
     }
 
     moveTo(x, y) {
@@ -321,6 +480,7 @@ class OldMan extends Agent {
         this.maxEnergy = 60;
         this.speed = 1; // Медленнее двигается
         this.maxHealth = 80;
+        this.canBuildFire = true; // Старик умеет разводить костер
     }
 
     update() {
@@ -328,6 +488,10 @@ class OldMan extends Agent {
         super.update();
         if (this.hunger > 60) {
             this.health -= 0.8; // Больше теряет здоровье
+        }
+        // Старик быстрее замерзает
+        if (this.temperature < 35) {
+            this.temperature -= 0.1; // Теряет температуру быстрее
         }
     }
 }
@@ -349,6 +513,7 @@ class OldWoman extends Agent {
         this.maxEnergy = 55;
         this.speed = 1; // Медленнее двигается
         this.maxHealth = 75;
+        this.canBuildFire = true; // Старуха умеет разводить костер
     }
 
     update() {
@@ -356,6 +521,10 @@ class OldWoman extends Agent {
         super.update();
         if (this.hunger > 60) {
             this.health -= 0.9; // Больше теряет здоровье
+        }
+        // Старуха быстрее замерзает
+        if (this.temperature < 35) {
+            this.temperature -= 0.1; // Теряет температуру быстрее
         }
     }
 }
