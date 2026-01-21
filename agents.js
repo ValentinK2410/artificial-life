@@ -21,6 +21,20 @@ class Agent {
         this.inventory = [];
         this.memory = []; // [{type: 'berry', x: 100, y: 200}, ...]
         
+        // Система опыта (разные виды опыта)
+        this.experience = {
+            saw: 0,           // Опыт работы с пилой
+            axe: 0,           // Опыт работы с топором
+            hammer: 0,        // Опыт работы с молотком
+            pickaxe: 0,       // Опыт работы с киркой
+            shovel: 0,        // Опыт работы с лопатой
+            fishing: 0,       // Опыт рыбалки
+            cooking: 0,       // Опыт готовки
+            building: 0,      // Опыт строительства
+            farming: 0,       // Опыт фермерства
+            hunting: 0        // Опыт охоты
+        };
+        
         // Состояние для конечного автомата
         this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire
         this.speed = 2; // Базовая скорость движения
@@ -373,6 +387,17 @@ class Agent {
         });
     }
 
+    gainExperience(skill, amount = 1) {
+        // Увеличение опыта в определенном навыке
+        if (this.experience.hasOwnProperty(skill)) {
+            this.experience[skill] += amount;
+            // Ограничиваем максимальный опыт
+            if (this.experience[skill] > 100) {
+                this.experience[skill] = 100;
+            }
+        }
+    }
+
     interactWithWorld(world) {
         // Взаимодействие с миром - проверка ресурсов под ногами
         const resource = world.getResourceAt(this.position.x, this.position.y);
@@ -415,6 +440,7 @@ class Agent {
                     type: 'wood',
                     amount: resource.amount || 1
                 });
+                this.gainExperience('axe', 0.5); // Опыт при сборе дров
                 
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource);
@@ -426,8 +452,79 @@ class Agent {
                 if (window.addLogEntry) {
                     window.addLogEntry(`${this.name} собрал дрова (в инвентаре: ${this.inventory.filter(i => i.type === 'wood').length})`);
                 }
+            } else {
+                // Обработка всех остальных ресурсов
+                const resourceType = resource.type;
+                
+                // Инструменты
+                if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(resourceType)) {
+                    this.inventory.push({ type: resourceType, amount: 1 });
+                    const skillMap = {
+                        'saw': 'saw',
+                        'axe': 'axe',
+                        'hammer': 'building',
+                        'pickaxe': 'building',
+                        'shovel': 'farming',
+                        'fishing_rod': 'fishing'
+                    };
+                    if (skillMap[resourceType]) {
+                        this.gainExperience(skillMap[resourceType], 1);
+                    }
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
+                    }
+                }
+                // Одежда
+                else if (['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(resourceType)) {
+                    this.inventory.push({ type: resourceType, amount: 1 });
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал одежду`);
+                    }
+                }
+                // Еда
+                else if (['cooked_food', 'meat', 'bird', 'fish'].includes(resourceType)) {
+                    this.inventory.push({ type: resourceType, amount: resource.amount || 1 });
+                    this.hunger -= resourceType === 'cooked_food' ? 30 : 25;
+                    if (this.hunger < 0) this.hunger = 0;
+                    if (resourceType === 'cooked_food') {
+                        this.gainExperience('cooking', 0.3);
+                    }
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
+                    }
+                }
+                // Деньги
+                else if (resourceType === 'money') {
+                    this.inventory.push({ type: 'money', amount: resource.amount || 10 });
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} нашел деньги`);
+                    }
+                }
+                
+                // Удаляем ресурс из мира
+                const index = world.resources.indexOf(resource);
+                if (index > -1) {
+                    world.resources.splice(index, 1);
+                }
             }
         }
+    }
+    
+    getResourceName(type) {
+        const names = {
+            'saw': 'пилу',
+            'axe': 'топор',
+            'hammer': 'молоток',
+            'pickaxe': 'кирку',
+            'shovel': 'лопату',
+            'fishing_rod': 'удочку',
+            'cooked_food': 'готовую еду',
+            'meat': 'мясо',
+            'bird': 'птицу',
+            'fish': 'рыбу',
+            'money': 'деньги'
+        };
+        return names[type] || type;
     }
 
     // Методы для совместимости со старым кодом
@@ -470,6 +567,15 @@ class YoungMan extends Agent {
         this.maxEnergy = 100;
         this.speed = 3; // Быстрее двигается
         this.maxHealth = 100;
+        // Молодые начинают с минимального опыта
+        this.initializeExperience(0.1); // 10% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        // Инициализация опыта с множителем
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(Math.random() * 10 * multiplier);
+        });
     }
 }
 
@@ -481,6 +587,15 @@ class OldMan extends Agent {
         this.speed = 1; // Медленнее двигается
         this.maxHealth = 80;
         this.canBuildFire = true; // Старик умеет разводить костер
+        // Старики начинают с максимального опыта
+        this.initializeExperience(1.5); // 150% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        // Инициализация опыта с множителем
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier);
+        });
     }
 
     update() {
@@ -503,6 +618,14 @@ class YoungWoman extends Agent {
         this.maxEnergy = 90;
         this.speed = 2.5; // Быстрее двигается
         this.maxHealth = 100;
+        // Молодые начинают с минимального опыта
+        this.initializeExperience(0.1); // 10% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(Math.random() * 10 * multiplier);
+        });
     }
 }
 
@@ -514,6 +637,14 @@ class OldWoman extends Agent {
         this.speed = 1; // Медленнее двигается
         this.maxHealth = 75;
         this.canBuildFire = true; // Старуха умеет разводить костер
+        // Старухи начинают с максимального опыта
+        this.initializeExperience(1.5); // 150% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier);
+        });
     }
 
     update() {
@@ -537,6 +668,14 @@ class MiddleAgedMan extends Agent {
         this.maxEnergy = 85;
         this.speed = 2;
         this.maxHealth = 100;
+        // Средний возраст - средний опыт
+        this.initializeExperience(0.5); // 50% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier);
+        });
     }
 }
 
@@ -547,6 +686,14 @@ class MiddleAgedWoman extends Agent {
         this.maxEnergy = 80;
         this.speed = 2;
         this.maxHealth = 100;
+        // Средний возраст - средний опыт
+        this.initializeExperience(0.5); // 50% от базового опыта
+    }
+    
+    initializeExperience(multiplier) {
+        Object.keys(this.experience).forEach(key => {
+            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier);
+        });
     }
 }
 

@@ -12,6 +12,7 @@ class World {
         this.animationFrameId = null;
         this.resources = [];
         this.fires = []; // Массив костров [{x, y, intensity}]
+        this.animals = []; // Массив животных [{type, x, y, ...}]
         
         // Структура мира
         this.terrain = {
@@ -65,6 +66,7 @@ class World {
         this.weather = 'sunny';
         this.resources = [];
         this.fires = []; // Очищаем костры
+        this.animals = []; // Очищаем животных
         this.generateTerrain();
         this.updateUI();
         this.draw();
@@ -79,6 +81,37 @@ class World {
             time: Date.now() // Время создания для анимации
         });
         this.draw();
+    }
+
+    addAnimal(type) {
+        // Добавление животного на карту
+        if (!this.canvas) return;
+        
+        const x = Math.random() * (this.canvas.width - 40) + 20;
+        const y = Math.random() * (this.canvas.height - 40) + 20;
+        
+        this.animals.push({
+            type: type,
+            x: x,
+            y: y,
+            direction: Math.random() * Math.PI * 2, // Направление движения
+            speed: 0.5 + Math.random() * 0.5, // Скорость движения
+            size: this.getAnimalSize(type)
+        });
+        this.draw();
+    }
+    
+    getAnimalSize(type) {
+        const sizes = {
+            'cow': 20,
+            'bull': 22,
+            'goat': 12,
+            'sheep': 15,
+            'rooster': 8,
+            'chicken': 7,
+            'cat': 6
+        };
+        return sizes[type] || 10;
     }
 
     setSimulationSpeed(speed) {
@@ -174,11 +207,18 @@ class World {
         const x = Math.random() * (this.canvas.width - 20) + 10;
         const y = Math.random() * (this.canvas.height - 20) + 10;
         
+        // Определяем количество в зависимости от типа
+        let amount = 1;
+        if (type === 'berries') amount = 10;
+        else if (['meat', 'bird', 'fish', 'cooked_food'].includes(type)) amount = 1;
+        else if (type === 'money') amount = 10 + Math.floor(Math.random() * 50);
+        else if (type === 'wood') amount = 5;
+        
         this.resources.push({
             type: type,
             x: x,
             y: y,
-            amount: type === 'berries' ? 10 : 5
+            amount: amount
         });
         
         this.draw();
@@ -526,6 +566,9 @@ class World {
                     this.ctx.arc(logX + 3, logY + 1.5, 1, 0, Math.PI * 2);
                     this.ctx.stroke();
                 }
+            } else {
+                // Отрисовка других ресурсов
+                this.drawResource(resource);
             }
         });
 
@@ -534,12 +577,224 @@ class World {
             this.drawFire(fire);
         });
 
+        // Отрисовка животных
+        this.animals.forEach(animal => {
+            this.drawAnimal(animal);
+        });
+
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
             });
+        }
+    }
+
+    drawAnimal(animal) {
+        if (!this.ctx) return;
+        
+        const x = animal.x;
+        const y = animal.y;
+        const size = animal.size;
+        
+        // Тень животного
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x + 1, y + size + 1, size * 0.6, size * 0.3, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Отрисовка в зависимости от типа животного
+        switch(animal.type) {
+            case 'cow':
+            case 'bull':
+                // Корова/Бык
+                this.ctx.fillStyle = animal.type === 'bull' ? '#4a2a1a' : '#8a6a4a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y, size * 0.6, size * 0.4, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.ellipse(x - size * 0.4, y, size * 0.3, size * 0.25, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Рога (для быка)
+                if (animal.type === 'bull') {
+                    this.ctx.strokeStyle = '#2a1a0a';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x - size * 0.5, y - size * 0.2);
+                    this.ctx.lineTo(x - size * 0.6, y - size * 0.4);
+                    this.ctx.stroke();
+                }
+                break;
+            case 'goat':
+                // Коза
+                this.ctx.fillStyle = '#6a5a4a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y, size * 0.5, size * 0.35, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.ellipse(x - size * 0.35, y, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                break;
+            case 'sheep':
+                // Овца
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y, size * 0.55, size * 0.4, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.fillStyle = '#f0f0f0';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x - size * 0.4, y, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                break;
+            case 'rooster':
+            case 'chicken':
+                // Петух/Курица
+                this.ctx.fillStyle = animal.type === 'rooster' ? '#ff6600' : '#ffaa00';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.fillStyle = '#ff8800';
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.3, y, size * 0.25, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Гребешок (для петуха)
+                if (animal.type === 'rooster') {
+                    this.ctx.fillStyle = '#ff0000';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x - size * 0.35, y - size * 0.2);
+                    this.ctx.lineTo(x - size * 0.25, y - size * 0.35);
+                    this.ctx.lineTo(x - size * 0.15, y - size * 0.2);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+                break;
+            case 'cat':
+                // Кошка
+                this.ctx.fillStyle = '#8a6a4a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y, size * 0.4, size * 0.3, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Голова
+                this.ctx.beginPath();
+                this.ctx.arc(x - size * 0.3, y, size * 0.25, 0, Math.PI * 2);
+                this.ctx.fill();
+                // Уши
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - size * 0.4, y - size * 0.15);
+                this.ctx.lineTo(x - size * 0.35, y - size * 0.3);
+                this.ctx.lineTo(x - size * 0.3, y - size * 0.15);
+                this.ctx.closePath();
+                this.ctx.fill();
+                break;
+        }
+    }
+
+    drawResource(resource) {
+        if (!this.ctx) return;
+        
+        const x = resource.x;
+        const y = resource.y;
+        const type = resource.type;
+        
+        // Инструменты
+        if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(type)) {
+            this.ctx.fillStyle = '#5a5a5a';
+            this.ctx.strokeStyle = '#3a3a3a';
+            this.ctx.lineWidth = 1;
+            
+            if (type === 'saw') {
+                // Пила - зубчатая линия
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 8, y);
+                for (let i = 0; i < 5; i++) {
+                    this.ctx.lineTo(x - 8 + i * 3, y - 2);
+                    this.ctx.lineTo(x - 8 + i * 3 + 1.5, y + 2);
+                }
+                this.ctx.lineTo(x + 8, y);
+                this.ctx.stroke();
+            } else if (type === 'axe') {
+                // Топор
+                this.ctx.fillRect(x - 3, y - 8, 6, 12);
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y - 8);
+                this.ctx.lineTo(x + 6, y - 12);
+                this.ctx.lineTo(x + 8, y - 10);
+                this.ctx.lineTo(x + 2, y - 6);
+                this.ctx.closePath();
+                this.ctx.fill();
+            } else if (type === 'hammer') {
+                // Молоток
+                this.ctx.fillRect(x - 2, y - 6, 4, 8);
+                this.ctx.fillRect(x - 4, y - 8, 8, 3);
+            } else if (type === 'pickaxe') {
+                // Кирка
+                this.ctx.fillRect(x - 2, y - 8, 4, 12);
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y - 8);
+                this.ctx.lineTo(x - 4, y - 12);
+                this.ctx.lineTo(x - 2, y - 10);
+                this.ctx.closePath();
+                this.ctx.fill();
+            } else if (type === 'shovel') {
+                // Лопата
+                this.ctx.fillRect(x - 1, y - 8, 2, 10);
+                this.ctx.fillRect(x - 4, y - 12, 8, 4);
+            } else if (type === 'fishing_rod') {
+                // Удочка - тонкая линия с леской
+                this.ctx.strokeStyle = '#8b4513';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x - 10, y - 15);
+                this.ctx.stroke();
+                this.ctx.strokeStyle = '#cccccc';
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 10, y - 15);
+                this.ctx.lineTo(x - 12, y - 20);
+                this.ctx.stroke();
+            }
+        }
+        // Еда
+        else if (type === 'cooked_food') {
+            this.ctx.fillStyle = '#ffaa44';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'meat') {
+            this.ctx.fillStyle = '#cc4444';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 4, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'bird') {
+            this.ctx.fillStyle = '#8a6a4a';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'fish') {
+            this.ctx.fillStyle = '#4a7a9a';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 6, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        // Деньги
+        else if (type === 'money') {
+            this.ctx.fillStyle = '#ffd700';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.font = '8px Arial';
+            this.ctx.fillText('$', x - 3, y + 3);
+        }
+        // Одежда (просто иконка)
+        else if (type.includes('clothes')) {
+            this.ctx.fillStyle = type.includes('winter') ? '#4a6a9a' : '#9a6a4a';
+            this.ctx.fillRect(x - 5, y - 3, 10, 6);
         }
     }
 
