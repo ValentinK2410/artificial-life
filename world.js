@@ -213,17 +213,43 @@ class World {
 
         // Фон (трава/поляна) в зависимости от времени суток и погоды
         if (this.weather === 'night' || this.timeOfDay === 'night') {
-            this.ctx.fillStyle = '#1a1a2e';
+            // Ночь - темно-синий фон
+            this.ctx.fillStyle = '#0a0a1a';
         } else if (this.weather === 'rain') {
-            this.ctx.fillStyle = '#2a3a2a';
+            // Дождь - темно-зеленый
+            this.ctx.fillStyle = '#1a3a1a';
         } else {
-            this.ctx.fillStyle = '#3a5a3a'; // Зеленый цвет травы
+            // День - реалистичный зеленый цвет травы
+            const gradient = this.ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#5a8a4a'); // Светлее сверху
+            gradient.addColorStop(1, '#2a5a2a'); // Темнее снизу
+            this.ctx.fillStyle = gradient;
         }
         this.ctx.fillRect(0, 0, width, height);
+        
+        // Текстура травы (маленькие точки)
+        if (this.weather !== 'night' && this.timeOfDay !== 'night') {
+            this.ctx.fillStyle = 'rgba(100, 150, 80, 0.3)';
+            for (let i = 0; i < 200; i++) {
+                const grassX = Math.random() * width;
+                const grassY = Math.random() * height;
+                this.ctx.fillRect(grassX, grassY, 1, 2);
+            }
+        }
 
-        // Отрисовка полянки (светлее фон)
+        // Отрисовка полянки (светлее фон, более реалистично)
         if (this.terrain.clearing) {
-            this.ctx.fillStyle = '#4a6a4a';
+            const clearingGradient = this.ctx.createRadialGradient(
+                this.terrain.clearing.centerX,
+                this.terrain.clearing.centerY,
+                0,
+                this.terrain.clearing.centerX,
+                this.terrain.clearing.centerY,
+                this.terrain.clearing.radius
+            );
+            clearingGradient.addColorStop(0, 'rgba(120, 180, 100, 0.4)');
+            clearingGradient.addColorStop(1, 'rgba(80, 140, 60, 0.2)');
+            this.ctx.fillStyle = clearingGradient;
             this.ctx.beginPath();
             this.ctx.arc(
                 this.terrain.clearing.centerX,
@@ -235,9 +261,21 @@ class World {
             this.ctx.fill();
         }
 
-        // Отрисовка пруда
+        // Отрисовка пруда (реалистичная вода)
         if (this.terrain.pond) {
-            this.ctx.fillStyle = '#2a4a6a'; // Синий цвет воды
+            // Градиент для воды
+            const waterGradient = this.ctx.createRadialGradient(
+                this.terrain.pond.centerX - this.terrain.pond.radiusX * 0.3,
+                this.terrain.pond.centerY - this.terrain.pond.radiusY * 0.3,
+                0,
+                this.terrain.pond.centerX,
+                this.terrain.pond.centerY,
+                Math.max(this.terrain.pond.radiusX, this.terrain.pond.radiusY)
+            );
+            waterGradient.addColorStop(0, '#4a7a9a'); // Светлее в центре
+            waterGradient.addColorStop(1, '#1a3a5a'); // Темнее по краям
+            
+            this.ctx.fillStyle = waterGradient;
             this.ctx.beginPath();
             this.ctx.ellipse(
                 this.terrain.pond.centerX,
@@ -250,56 +288,163 @@ class World {
             );
             this.ctx.fill();
             
-            // Обводка пруда
-            this.ctx.strokeStyle = '#1a3a5a';
-            this.ctx.lineWidth = 2;
+            // Берег пруда (темная обводка)
+            this.ctx.strokeStyle = '#1a2a1a';
+            this.ctx.lineWidth = 3;
             this.ctx.stroke();
+            
+            // Отражения/рябь на воде
+            this.ctx.fillStyle = 'rgba(150, 200, 255, 0.2)';
+            for (let i = 0; i < 5; i++) {
+                const rippleX = this.terrain.pond.centerX + (Math.random() - 0.5) * this.terrain.pond.radiusX;
+                const rippleY = this.terrain.pond.centerY + (Math.random() - 0.5) * this.terrain.pond.radiusY;
+                this.ctx.beginPath();
+                this.ctx.arc(rippleX, rippleY, 8 + Math.random() * 5, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         }
 
-        // Отрисовка деревьев (лес)
+        // Отрисовка деревьев (реалистичные)
         this.terrain.forest.forEach(tree => {
-            // Ствол дерева
-            this.ctx.fillStyle = '#5a3a2a';
-            this.ctx.fillRect(tree.x - 3, tree.y, 6, tree.size * 0.6);
-            
-            // Крона дерева
-            this.ctx.fillStyle = '#2a5a2a';
+            // Тень дерева
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             this.ctx.beginPath();
-            this.ctx.arc(tree.x, tree.y, tree.size * 0.5, 0, Math.PI * 2);
+            this.ctx.ellipse(tree.x + 3, tree.y + tree.size * 0.6 + 2, tree.size * 0.3, tree.size * 0.15, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Ствол дерева (коричневый, с текстурой)
+            const trunkHeight = tree.size * 0.6;
+            const trunkWidth = 4 + tree.size * 0.1;
+            
+            // Основной ствол
+            this.ctx.fillStyle = '#6b4a3a';
+            this.ctx.fillRect(tree.x - trunkWidth/2, tree.y, trunkWidth, trunkHeight);
+            
+            // Текстура ствола (темные линии)
+            this.ctx.strokeStyle = '#4a2a1a';
+            this.ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(tree.x - trunkWidth/2 + i * 2, tree.y);
+                this.ctx.lineTo(tree.x - trunkWidth/2 + i * 2, tree.y + trunkHeight);
+                this.ctx.stroke();
+            }
+            
+            // Крона дерева (несколько слоев для объема)
+            const crownRadius = tree.size * 0.5;
+            
+            // Внешний слой (темнее)
+            this.ctx.fillStyle = '#1a4a1a';
+            this.ctx.beginPath();
+            this.ctx.arc(tree.x, tree.y - 2, crownRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Средний слой
+            this.ctx.fillStyle = '#2a6a2a';
+            this.ctx.beginPath();
+            this.ctx.arc(tree.x - 2, tree.y - 4, crownRadius * 0.8, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Внутренний слой (светлее)
+            this.ctx.fillStyle = '#3a8a3a';
+            this.ctx.beginPath();
+            this.ctx.arc(tree.x + 2, tree.y - 3, crownRadius * 0.6, 0, Math.PI * 2);
             this.ctx.fill();
         });
 
-        // Отрисовка камней
+        // Отрисовка камней (реалистичные)
         this.terrain.stones.forEach(stone => {
-            this.ctx.fillStyle = '#5a5a5a';
+            // Тень камня
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            this.ctx.beginPath();
+            this.ctx.ellipse(stone.x + 2, stone.y + 2, stone.size * 0.8, stone.size * 0.5, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Основной камень (градиент для объема)
+            const stoneGradient = this.ctx.createRadialGradient(
+                stone.x - stone.size * 0.3,
+                stone.y - stone.size * 0.3,
+                0,
+                stone.x,
+                stone.y,
+                stone.size
+            );
+            stoneGradient.addColorStop(0, '#7a7a7a'); // Светлее
+            stoneGradient.addColorStop(1, '#4a4a4a'); // Темнее
+            
+            this.ctx.fillStyle = stoneGradient;
             this.ctx.beginPath();
             this.ctx.arc(stone.x, stone.y, stone.size, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Тень камня
-            this.ctx.fillStyle = '#3a3a3a';
+            // Текстура камня (темные линии)
+            this.ctx.strokeStyle = '#3a3a3a';
+            this.ctx.lineWidth = 1;
             this.ctx.beginPath();
-            this.ctx.arc(stone.x + 1, stone.y + 1, stone.size * 0.7, 0, Math.PI * 2);
-            this.ctx.fill();
+            this.ctx.arc(stone.x, stone.y, stone.size * 0.7, 0, Math.PI * 1.5);
+            this.ctx.stroke();
         });
 
-        // Отрисовка кустов с ягодами
+        // Отрисовка кустов с ягодами (реалистичные)
         this.terrain.berryBushes.forEach(bush => {
-            // Куст (зеленый круг)
-            this.ctx.fillStyle = '#3a6a2a';
+            // Тень куста
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             this.ctx.beginPath();
-            this.ctx.arc(bush.x, bush.y, 12, 0, Math.PI * 2);
+            this.ctx.ellipse(bush.x + 1, bush.y + 1, 12, 6, 0, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Ягоды на кусте
+            // Куст (несколько слоев листьев)
+            const bushRadius = 12;
+            
+            // Внешний слой (темнее)
+            this.ctx.fillStyle = '#2a5a1a';
+            this.ctx.beginPath();
+            this.ctx.arc(bush.x, bush.y, bushRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Средний слой
+            this.ctx.fillStyle = '#3a7a2a';
+            this.ctx.beginPath();
+            this.ctx.arc(bush.x - 2, bush.y - 1, bushRadius * 0.7, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Внутренний слой (светлее)
+            this.ctx.fillStyle = '#4a9a3a';
+            this.ctx.beginPath();
+            this.ctx.arc(bush.x + 2, bush.y, bushRadius * 0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Ягоды на кусте (реалистичные)
             if (bush.berries > 0) {
-                this.ctx.fillStyle = '#ff4444';
-                for (let i = 0; i < Math.min(bush.berries, 5); i++) {
-                    const angle = (i / 5) * Math.PI * 2;
+                const berryCount = Math.min(bush.berries, 8);
+                for (let i = 0; i < berryCount; i++) {
+                    const angle = (i / berryCount) * Math.PI * 2;
                     const berryX = bush.x + Math.cos(angle) * 8;
-                    const berryY = bush.y + Math.sin(angle) * 8;
+                    const berryY = bush.y + Math.sin(angle) * 7;
+                    
+                    // Тень ягоды
+                    this.ctx.fillStyle = 'rgba(150, 0, 0, 0.5)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(berryX + 1, berryY + 1, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Ягода (градиент)
+                    const berryGradient = this.ctx.createRadialGradient(
+                        berryX - 1, berryY - 1, 0,
+                        berryX, berryY, 3
+                    );
+                    berryGradient.addColorStop(0, '#ff6666');
+                    berryGradient.addColorStop(1, '#cc0000');
+                    
+                    this.ctx.fillStyle = berryGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(berryX, berryY, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Блик на ягоде
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(berryX - 1, berryY - 1, 1, 0, Math.PI * 2);
                     this.ctx.fill();
                 }
             }
@@ -308,25 +453,66 @@ class World {
         // Отрисовка дополнительных ресурсов (ягоды и дрова, добавленные вручную)
         this.resources.forEach(resource => {
             if (resource.type === 'berries') {
-                // Ягоды - красные круги
-                this.ctx.fillStyle = '#ff4444';
-                this.ctx.beginPath();
-                this.ctx.arc(resource.x, resource.y, 6, 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                // Обводка ягод
-                this.ctx.strokeStyle = '#cc0000';
-                this.ctx.lineWidth = 1;
-                this.ctx.stroke();
+                // Группа ягод (реалистичная)
+                const berryCount = 5;
+                for (let i = 0; i < berryCount; i++) {
+                    const offsetX = (Math.random() - 0.5) * 8;
+                    const offsetY = (Math.random() - 0.5) * 8;
+                    const berryX = resource.x + offsetX;
+                    const berryY = resource.y + offsetY;
+                    
+                    // Тень ягоды
+                    this.ctx.fillStyle = 'rgba(150, 0, 0, 0.4)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(berryX + 1, berryY + 1, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Ягода (градиент)
+                    const berryGradient = this.ctx.createRadialGradient(
+                        berryX - 1, berryY - 1, 0,
+                        berryX, berryY, 3
+                    );
+                    berryGradient.addColorStop(0, '#ff8888');
+                    berryGradient.addColorStop(1, '#cc0000');
+                    
+                    this.ctx.fillStyle = berryGradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(berryX, berryY, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Блик на ягоде
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(berryX - 1, berryY - 1, 1, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
             } else if (resource.type === 'wood') {
-                // Дрова - коричневые прямоугольники
-                this.ctx.fillStyle = '#8b4513';
-                this.ctx.fillRect(resource.x - 8, resource.y - 4, 16, 8);
-                
-                // Текстура дров
-                this.ctx.strokeStyle = '#6b3513';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(resource.x - 8, resource.y - 4, 16, 8);
+                // Дрова (реалистичные бревна)
+                const logCount = 3;
+                for (let i = 0; i < logCount; i++) {
+                    const logX = resource.x - 6 + i * 4;
+                    const logY = resource.y - 2 + (i % 2) * 2;
+                    
+                    // Тень бревна
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.fillRect(logX + 1, logY + 1, 6, 3);
+                    
+                    // Бревно (градиент)
+                    const woodGradient = this.ctx.createLinearGradient(logX, logY, logX + 6, logY);
+                    woodGradient.addColorStop(0, '#9b6533');
+                    woodGradient.addColorStop(0.5, '#8b4513');
+                    woodGradient.addColorStop(1, '#6b3513');
+                    
+                    this.ctx.fillStyle = woodGradient;
+                    this.ctx.fillRect(logX, logY, 6, 3);
+                    
+                    // Кольца на бревне
+                    this.ctx.strokeStyle = '#5b2513';
+                    this.ctx.lineWidth = 0.5;
+                    this.ctx.beginPath();
+                    this.ctx.arc(logX + 3, logY + 1.5, 1, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
             }
         });
 
@@ -344,63 +530,129 @@ class World {
 
         const x = agent.position ? agent.position.x : (agent.x || 100);
         const y = agent.position ? agent.position.y : (agent.y || 100);
-
-        // Базовые цвета для типов агентов (используются как основа)
-        const baseColors = {
-            'man': '#4a9eff',
-            'woman': '#ff4a9e',
-            'boy': '#9eff4a',
-            'girl': '#ff9e4a',
-            'oldman': '#9e4aff',
-            'oldwoman': '#ff4aff'
-        };
-
-        // Цвет в зависимости от состояния агента
-        let agentColor = baseColors[agent.type] || '#ffffff';
         const state = agent.state || 'explore';
-        
-        // Визуализация состояний: меняем цвет в зависимости от состояния
-        if (state === 'findFood') {
-            // Голодный - красноватый оттенок
-            agentColor = '#ff6666';
-        } else if (state === 'rest') {
-            // Отдыхает - синий оттенок
-            agentColor = '#6666ff';
-        } else if (state === 'explore') {
-            // Исследует - зеленоватый оттенок
-            agentColor = '#66ff66';
-        }
-
-        // Отрисовка агента
-        this.ctx.fillStyle = agentColor;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, 12, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Обводка в зависимости от здоровья
         const health = agent.health !== undefined ? agent.health : 100;
-        this.ctx.strokeStyle = health > 70 ? '#00ff00' : 
-                               health > 40 ? '#ffaa00' : '#ff0000';
-        this.ctx.lineWidth = 2;
+        
+        // Определение типа агента и соответствующих цветов одежды
+        const agentStyles = {
+            'man': { skin: '#f4c2a1', hair: '#3a2a1a', clothes: '#4a6a9a', pants: '#2a4a6a' },
+            'woman': { skin: '#f4c2a1', hair: '#8b6a4a', clothes: '#9a4a6a', pants: '#6a2a4a' },
+            'boy': { skin: '#f8d4b4', hair: '#2a1a0a', clothes: '#5a8a5a', pants: '#3a6a3a' },
+            'girl': { skin: '#f8d4b4', hair: '#ffcc99', clothes: '#ff8a9a', pants: '#cc6a7a' },
+            'oldman': { skin: '#d4a282', hair: '#6a5a4a', clothes: '#5a5a5a', pants: '#3a3a3a' },
+            'oldwoman': { skin: '#d4a282', hair: '#8a7a6a', clothes: '#7a5a7a', pants: '#5a3a5a' }
+        };
+        
+        const style = agentStyles[agent.type] || agentStyles['man'];
+        
+        // Тень человека
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x + 2, y + 18, 6, 3, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Определение позы в зависимости от состояния
+        let armAngle = 0;
+        let legAngle = 0;
+        if (state === 'rest') {
+            // Сидит или стоит спокойно
+            armAngle = 0.2;
+            legAngle = 0;
+        } else if (state === 'findFood') {
+            // Быстро идет
+            armAngle = 0.5;
+            legAngle = 0.3;
+        } else {
+            // Идет нормально
+            armAngle = 0.3;
+            legAngle = 0.2;
+        }
+        
+        // Ноги (штаны)
+        this.ctx.fillStyle = style.pants;
+        // Левая нога
+        this.ctx.fillRect(x - 3, y + 8, 3, 8);
+        // Правая нога
+        this.ctx.fillRect(x, y + 8, 3, 8);
+        
+        // Ноги (обувь)
+        this.ctx.fillStyle = '#2a1a1a';
+        this.ctx.fillRect(x - 4, y + 15, 2, 2);
+        this.ctx.fillRect(x + 2, y + 15, 2, 2);
+        
+        // Тело (туловище)
+        this.ctx.fillStyle = style.clothes;
+        this.ctx.fillRect(x - 4, y - 2, 8, 10);
+        
+        // Руки
+        this.ctx.fillStyle = style.skin;
+        // Левая рука
+        this.ctx.save();
+        this.ctx.translate(x - 4, y + 2);
+        this.ctx.rotate(-armAngle);
+        this.ctx.fillRect(0, 0, 2, 6);
+        this.ctx.restore();
+        // Правая рука
+        this.ctx.save();
+        this.ctx.translate(x + 4, y + 2);
+        this.ctx.rotate(armAngle);
+        this.ctx.fillRect(0, 0, 2, 6);
+        this.ctx.restore();
+        
+        // Голова
+        this.ctx.fillStyle = style.skin;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - 8, 5, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Волосы
+        this.ctx.fillStyle = style.hair;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - 9, 5, 0, Math.PI * 2);
+        this.ctx.fill();
+        // Верхняя часть волос
+        this.ctx.fillRect(x - 5, y - 12, 10, 3);
+        
+        // Лицо (глаза)
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.beginPath();
+        this.ctx.arc(x - 2, y - 9, 1, 0, Math.PI * 2);
+        this.ctx.arc(x + 2, y - 9, 1, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.fillStyle = '#000000';
+        this.ctx.beginPath();
+        this.ctx.arc(x - 2, y - 9, 0.5, 0, Math.PI * 2);
+        this.ctx.arc(x + 2, y - 9, 0.5, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Рот (простая линия)
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 0.5;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y - 7, 1, 0, Math.PI);
         this.ctx.stroke();
         
-        // Индикатор состояния (маленький кружок сверху)
-        if (agent.state) {
+        // Индикатор здоровья (маленький кружок справа вверху)
+        const healthColor = health > 70 ? '#00ff00' : 
+                           health > 40 ? '#ffaa00' : '#ff0000';
+        this.ctx.fillStyle = healthColor;
+        this.ctx.beginPath();
+        this.ctx.arc(x + 7, y - 12, 2, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Индикатор состояния (цветной фон за агентом)
+        if (state) {
             const stateColors = {
-                'explore': '#00ff00',  // Зеленый - исследует
-                'findFood': '#ff6600', // Оранжевый - ищет еду
-                'rest': '#0066ff'      // Синий - отдыхает
+                'explore': 'rgba(0, 255, 0, 0.2)',   // Зеленый - исследует
+                'findFood': 'rgba(255, 100, 0, 0.2)', // Оранжевый - ищет еду
+                'rest': 'rgba(0, 100, 255, 0.2)'     // Синий - отдыхает
             };
-            this.ctx.fillStyle = stateColors[agent.state] || '#ffffff';
+            this.ctx.fillStyle = stateColors[state] || 'rgba(255, 255, 255, 0.2)';
             this.ctx.beginPath();
-            this.ctx.arc(x, y - 18, 4, 0, Math.PI * 2);
+            this.ctx.arc(x, y, 10, 0, Math.PI * 2);
             this.ctx.fill();
         }
-        
-        // Отображение имени агента (опционально, для отладки)
-        // this.ctx.fillStyle = '#ffffff';
-        // this.ctx.font = '10px Arial';
-        // this.ctx.fillText(agent.name.substring(0, 4), x - 10, y - 22);
     }
 
     animate() {
