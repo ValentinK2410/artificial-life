@@ -26,6 +26,7 @@ class Agent {
         this.isPlayerControlled = false; // Управляется ли игроком
         this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный ID
         this.lastEatTime = 0; // Время последнего приема пищи (для ограничения частоты)
+        this.lastPosition = { x: 0, y: 0 }; // Предыдущая позиция для определения движения
         
         // Инвентарь и память
         this.inventory = [];
