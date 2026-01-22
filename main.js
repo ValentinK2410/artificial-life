@@ -674,6 +674,25 @@ class Simulation {
             
             // Проверка на смерть всех агентов
             this.checkAllAgentsDead();
+            
+            // Отправка обновлений агентов на сервер для мультиплеера
+            if (window.networkManager && window.networkManager.isConnected) {
+                const playerAgents = this.agentsManager ? this.agentsManager.getPlayerAgents() : this.agents.filter(a => a.ownerId);
+                playerAgents.forEach(agent => {
+                    if (agent && agent.ownerId) {
+                        window.networkManager.agentUpdate({
+                            id: agent.id,
+                            owner: agent.ownerId,
+                            position: agent.position,
+                            health: agent.health,
+                            energy: agent.energy,
+                            hunger: agent.hunger,
+                            state: agent.state,
+                            name: agent.name
+                        });
+                    }
+                });
+            }
         }
 
         // Запрос следующего кадра

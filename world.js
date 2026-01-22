@@ -14,6 +14,7 @@ class World {
         this.fires = []; // Массив костров [{x, y, intensity}]
         this.animals = []; // Массив животных [{type, x, y, ...}]
         this.predators = []; // Массив хищников
+        this.otherPlayersAgents = []; // Агенты других игроков для мультиплеера
         
         // Система камеры для бесконечного мира
         this.camera = {
