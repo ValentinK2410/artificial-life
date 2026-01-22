@@ -12,6 +12,11 @@ class Agent {
         this.health = 100;
         this.energy = 100;
         this.hunger = 0;
+        this.thirst = 0; // Жажда (0-100)
+        this.sweetDesire = 0; // Желание сладкого (0-100)
+        this.stamina = 100; // Выносливость (0-100)
+        this.immunity = 50; // Иммунитет (0-100)
+        this.appetite = 50; // Аппетит (0-100, влияет на эффективность еды)
         this.temperature = 37; // Нормальная температура тела (градусы Цельсия)
         this.mood = 'neutral'; // neutral, happy, sad, anxious
         
@@ -88,9 +93,38 @@ class Agent {
         this.hunger += HUNGER_CONFIG.INCREASE_RATE;
         if (this.hunger > 100) this.hunger = 100;
         
-        // Уменьшаем энергию при движении
+        // Увеличиваем жажду
+        this.thirst += 0.03;
+        if (this.thirst > 100) this.thirst = 100;
+        
+        // Увеличиваем желание сладкого
+        this.sweetDesire += 0.02;
+        if (this.sweetDesire > 100) this.sweetDesire = 100;
+        
+        // Восстановление выносливости при отдыхе
+        if (this.state === 'rest') {
+            this.stamina += 0.5;
+            if (this.stamina > 100) this.stamina = 100;
+        } else {
+            // Уменьшаем выносливость при активности
+            this.stamina -= 0.1;
+            if (this.stamina < 0) this.stamina = 0;
+        }
+        
+        // Постепенное снижение иммунитета (если не поддерживается)
+        if (this.immunity > 50) {
+            this.immunity -= 0.01; // Медленное снижение к базовому уровню
+        }
+        
+        // Постепенное снижение аппетита (если не поддерживается)
+        if (this.appetite > 50) {
+            this.appetite -= 0.01;
+        }
+        
+        // Уменьшаем энергию при движении (зависит от выносливости)
         if (this.state !== 'rest') {
-            this.energy -= 0.3;
+            const energyLoss = 0.3 * (1 - this.stamina / 200); // Чем больше выносливость, тем меньше потери
+            this.energy -= energyLoss;
             if (this.energy < 0) this.energy = 0;
         }
         
@@ -110,17 +144,39 @@ class Agent {
             if (this.health < 0) this.health = 0;
         }
         
-        // Используем запасы еды если голодны
-        if (this.hunger > HUNGER_CONFIG.AUTO_EAT_THRESHOLD && this.foodStorage.length > 0) {
-            const food = this.foodStorage[0];
-            this.hunger -= HUNGER_CONFIG.FOOD_RESTORE;
-            if (this.hunger < 0) this.hunger = 0;
-            food.amount--;
-            if (food.amount <= 0) {
-                this.foodStorage.shift();
+        // Используем запасы еды если голодны или хотим пить
+        if ((this.hunger > HUNGER_CONFIG.AUTO_EAT_THRESHOLD || this.thirst > 60) && this.foodStorage.length > 0) {
+            // Ищем подходящую еду
+            let foodToEat = null;
+            let foodIndex = -1;
+            
+            if (this.thirst > 60) {
+                // Ищем напитки
+                foodToEat = this.foodStorage.find((f, i) => {
+                    const props = window.FOOD_PROPERTIES?.[f.type];
+                    if (props && props.thirst) {
+                        foodIndex = i;
+                        return true;
+                    }
+                    return false;
+                });
             }
-            if (window.addLogEntry && Math.random() < 0.1) {
-                window.addLogEntry(`🍽️ ${this.name} ест из запасов`);
+            
+            if (!foodToEat) {
+                // Ищем любую еду
+                foodToEat = this.foodStorage[0];
+                foodIndex = 0;
+            }
+            
+            if (foodToEat) {
+                this.consumeFood(foodToEat.type);
+                foodToEat.amount--;
+                if (foodToEat.amount <= 0) {
+                    this.foodStorage.splice(foodIndex, 1);
+                }
+                if (window.addLogEntry && Math.random() < 0.1) {
+                    window.addLogEntry(`🍽️ ${this.name} ест из запасов: ${this.getFoodName(foodToEat.type)}`);
+                }
             }
         }
         
@@ -1007,6 +1063,78 @@ class Agent {
                 this.experience[skill] = 100;
             }
         }
+    }
+    
+    // Потребление еды с учетом её свойств
+    consumeFood(foodType) {
+        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
+        const props = FOOD_PROPERTIES[foodType];
+        
+        if (!props) {
+            // Если свойств нет - используем базовые значения
+            this.hunger = Math.max(0, this.hunger - 20);
+            this.energy = Math.min(100, this.energy + 10);
+            return;
+        }
+        
+        // Модификатор аппетита (чем выше аппетит, тем эффективнее еда)
+        const appetiteModifier = 1 + (this.appetite - 50) / 100;
+        
+        // Применяем свойства еды
+        if (props.hunger) {
+            this.hunger = Math.max(0, this.hunger + props.hunger * appetiteModifier);
+        }
+        if (props.energy) {
+            this.energy = Math.min(100, this.energy + props.energy * appetiteModifier);
+        }
+        if (props.health) {
+            this.health = Math.min(100, this.health + props.health);
+        }
+        if (props.stamina) {
+            this.stamina = Math.min(100, this.stamina + props.stamina);
+        }
+        if (props.immunity) {
+            this.immunity = Math.min(100, this.immunity + props.immunity);
+        }
+        if (props.thirst) {
+            this.thirst = Math.max(0, this.thirst + props.thirst);
+        }
+        if (props.sweetDesire) {
+            this.sweetDesire = Math.max(0, this.sweetDesire + props.sweetDesire);
+        }
+        if (props.appetite) {
+            this.appetite = Math.min(100, this.appetite + props.appetite);
+        }
+    }
+    
+    // Получить название еды
+    getFoodName(foodType) {
+        const foodNames = {
+            'honey': 'Мёд',
+            'milk': 'Молоко',
+            'water': 'Вода',
+            'bread': 'Хлеб',
+            'kebab': 'Шашлык',
+            'potato': 'Картофель',
+            'salad': 'Салат',
+            'mushrooms': 'Грибы',
+            'tea': 'Чай',
+            'banana': 'Банан',
+            'orange': 'Апельсин',
+            'apple': 'Яблоко',
+            'lemon': 'Лимон',
+            'rosehip': 'Шиповник',
+            'cabbage': 'Капуста',
+            'spices': 'Специи',
+            'mint': 'Мята',
+            'st_johns_wort': 'Зверобой',
+            'berries': 'Ягоды',
+            'meat': 'Мясо',
+            'bird': 'Птица',
+            'fish': 'Рыба',
+            'cooked_food': 'Готовая еда'
+        };
+        return foodNames[foodType] || foodType;
     }
 
     interactWithWorld(world) {
