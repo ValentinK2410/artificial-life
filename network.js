@@ -353,13 +353,19 @@ class NetworkManager {
     }
 
     // Обновление агента
-    updateAgent(agentData) {
+    agentUpdate(agentData) {
         if (this.socket && this.isConnected) {
             this.socket.emit('agentUpdate', {
                 id: agentData.id,
+                owner: this.socket.id, // Добавляем ID владельца
                 ...agentData
             });
         }
+    }
+    
+    // Старый метод для обратной совместимости
+    updateAgent(agentData) {
+        this.agentUpdate(agentData);
     }
 
     // Удаление ресурса
