@@ -624,27 +624,27 @@ class Agent {
                 this.scanForResources();
                 break;
             case 'findFood':
-                let foodLocation = this.memory.find(item => item.type === 'berry' || item.type === 'berries');
+                let foodLocation = this.memory.find(item => item.type === 'berry' || item.type === 'berries'); // Найденная в памяти локация еды (объект {type, x, y} или undefined)
                 if (foodLocation) {
-                    this.moveTo(foodLocation.x, foodLocation.y);
+                    this.moveTo(foodLocation.x, foodLocation.y); // Двигаемся к найденной еде
                 } else {
-                    this.moveToRandomPoint();
-                    this.scanForResources();
+                    this.moveToRandomPoint(); // Если еды в памяти нет - двигаемся случайно
+                    this.scanForResources(); // Сканируем ресурсы вокруг
                 }
                 break;
             case 'findHeat':
                 // Ищем ближайший костер
-                const nearestFire = this.findNearestFire();
+                const nearestFire = this.findNearestFire(); // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
                 if (nearestFire) {
-                    this.moveTo(nearestFire.x, nearestFire.y);
+                    this.moveTo(nearestFire.x, nearestFire.y); // Двигаемся к костру
                 } else {
                     // Если нет костров, ищем дрова для разведения
-                    if (this.canBuildFire) {
-                        this.moveToRandomPoint();
-                        this.scanForResources();
+                    if (this.canBuildFire) { // Если агент может разводить костер
+                        this.moveToRandomPoint(); // Двигаемся случайно
+                        this.scanForResources(); // Сканируем ресурсы (ищем дрова)
                     } else {
                         // Не можем развести костер - просто двигаемся
-                        this.moveToRandomPoint();
+                        this.moveToRandomPoint(); // Двигаемся случайно
                     }
                 }
                 break;
