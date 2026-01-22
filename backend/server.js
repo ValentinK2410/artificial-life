@@ -16,6 +16,16 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
+// Тестовый endpoint для проверки работы сервера
+app.get('/', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'Artificial Life Server is running',
+        websocket: 'ws://localhost:3000',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Хранилище игровых миров
 const gameWorlds = new Map(); // worldId -> { players, agents, resources, animals, predators, fires, buildings }
 
