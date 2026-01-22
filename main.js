@@ -351,6 +351,15 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
                             🌾 Фермерство
                         </button>
+                        ${agent.state === 'sleep' ? `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('wake')" style="background-color: #4caf50;">
+                            ☀️ Разбудить
+                        </button>
+                        ` : `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('sleep')">
+                            😴 Уложить спать
+                        </button>
+                        `}
                     </div>
                 </div>
             </div>
