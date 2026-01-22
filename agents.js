@@ -259,10 +259,11 @@ class Agent {
         // Простой конечный автомат для принятия решений
         const oldState = this.state;
         
-        // ПРИОРИТЕТ 1: Если игрок установил цель - двигаемся к ней
-        if (this.targetPosition && this.isPlayerControlled) {
+        // КРИТИЧЕСКИ ВАЖНО: Если игрок управляет агентом - НЕ принимаем решения ИИ
+        if (this.isPlayerControlled && this.targetPosition) {
+            // Игрок управляет - остаемся в состоянии движения к цели
             this.state = 'moveToPoint';
-            return; // Не меняем состояние, если есть цель от игрока
+            return; // Выходим, не меняя состояние
         }
         
         // Проверяем наличие хищников поблизости
@@ -352,10 +353,12 @@ class Agent {
         // Выполнение действий в зависимости от состояния
         switch(this.state) {
             case 'moveToPoint':
-                // Движение к точке, указанной игроком
-                if (this.targetPosition) {
+                // Движение к точке, указанной игроком - ПРИОРИТЕТ
+                if (this.targetPosition && this.isPlayerControlled) {
                     this.moveTo(this.targetPosition.x, this.targetPosition.y);
+                    return; // Выходим, не выполняя другие действия
                 }
+                // Если цель потеряна, переходим к обычному поведению
                 break;
             case 'explore':
                 this.moveToRandomPoint();
