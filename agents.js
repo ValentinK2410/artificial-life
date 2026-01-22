@@ -210,19 +210,7 @@ class Agent {
         // Если температура критически низкая - агент умирает от переохлаждения
         if (this.temperature < DEATH_TEMPERATURE && this.health > 0) {
             // Получаем температуру окружающей среды для установки после смерти
-            const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
-                AMBIENT_TEMP: { DEFAULT: 20, SUNNY: 25, CLOUDY: 18, RAIN: 10, NIGHT: 5 }
-            };
-            let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
-            if (window.world) {
-                const weather = window.world.weather || 'sunny';
-                const timeOfDay = window.world.timeOfDay || 'day';
-                if (weather === 'night' || timeOfDay === 'night') {
-                    ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.NIGHT;
-                } else {
-                    ambientTemp = TEMP_CONFIG.AMBIENT_TEMP[weather.toUpperCase()] || TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
-                }
-            }
+            const ambientTemp = this.getAmbientTemperature();
             
             // Устанавливаем температуру равной окружающей среде и убиваем агента
             this.temperature = ambientTemp;
@@ -508,8 +496,8 @@ class Agent {
         this.state = 'explore'; // Возвращаемся к обычному поведению
     }
 
-    updateTemperature() {
-        // Получаем настройки температуры из конфига
+    getAmbientTemperature() {
+        // Получаем температуру окружающей среды в зависимости от погоды
         const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
             AMBIENT_TEMP: {
                 SUNNY: 25,      // Температура окружающей среды в солнечную погоду (°C)
@@ -517,16 +505,9 @@ class Agent {
                 RAIN: 10,      // Температура окружающей среды в дождь (°C)
                 NIGHT: 5,      // Температура окружающей среды ночью (°C)
                 DEFAULT: 20    // Температура окружающей среды по умолчанию (°C)
-            },
-            TEMP_CHANGE_RATE: 0.05,        // Скорость изменения температуры тела (коэффициент плавности)
-            FIRE_HEAT_BONUS: 25,           // Максимальный бонус тепла от костра (°C)
-            FIRE_RADIUS: 80,               // Радиус действия тепла от костра (пиксели)
-            MIN_AMBIENT_TEMP: 20,          // Минимальная температура окружающей среды (°C)
-            MOVEMENT_HEAT_BONUS: 5,        // Бонус тепла при движении (°C)
-            MOVEMENT_THRESHOLD: 0.5        // Минимальное расстояние движения для получения бонуса тепла (пиксели)
+            }
         };
         
-        // Определяем температуру окружающей среды в зависимости от погоды
         let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT; // Температура окружающей среды (°C)
         
         if (window.world) {
@@ -553,6 +534,35 @@ class Agent {
                 }
             }
         }
+        
+        return ambientTemp; // Возвращаем температуру окружающей среды
+    }
+    
+    updateTemperature() {
+        // Если агент мертв - не обновляем температуру (она уже равна окружающей среде)
+        if (this.health <= 0 || this.state === 'dead') {
+            return;
+        }
+        
+        // Получаем настройки температуры из конфига
+        const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
+            AMBIENT_TEMP: {
+                SUNNY: 25,      // Температура окружающей среды в солнечную погоду (°C)
+                CLOUDY: 18,    // Температура окружающей среды в облачную погоду (°C)
+                RAIN: 10,      // Температура окружающей среды в дождь (°C)
+                NIGHT: 5,      // Температура окружающей среды ночью (°C)
+                DEFAULT: 20    // Температура окружающей среды по умолчанию (°C)
+            },
+            TEMP_CHANGE_RATE: 0.05,        // Скорость изменения температуры тела (коэффициент плавности)
+            FIRE_HEAT_BONUS: 25,           // Максимальный бонус тепла от костра (°C)
+            FIRE_RADIUS: 80,               // Радиус действия тепла от костра (пиксели)
+            MIN_AMBIENT_TEMP: 20,          // Минимальная температура окружающей среды (°C)
+            MOVEMENT_HEAT_BONUS: 5,        // Бонус тепла при движении (°C)
+            MOVEMENT_THRESHOLD: 0.5        // Минимальное расстояние движения для получения бонуса тепла (пиксели)
+        };
+        
+        // Определяем температуру окружающей среды в зависимости от погоды
+        let ambientTemp = this.getAmbientTemperature(); // Температура окружающей среды (°C)
         
         // Проверяем, движется ли агент
         let movementBonus = 0; // Бонус тепла от движения (°C, 0 или MOVEMENT_HEAT_BONUS)
