@@ -480,6 +480,33 @@ class Agent {
             return; // Выходим, не меняя состояние
         }
         
+        // Если агент спит - не принимаем решений (будет пробужден автоматически в update())
+        if (this.state === 'sleep') {
+            return;
+        }
+        
+        // Настройки сна для автоматического засыпания
+        const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
+            AUTO_SLEEP_ENERGY_THRESHOLD: 20,
+            AUTO_SLEEP_NIGHT: true
+        };
+        
+        // Автоматическое засыпание при низкой энергии или ночью
+        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night');
+        if ((this.energy < SLEEP_CONFIG.AUTO_SLEEP_ENERGY_THRESHOLD || 
+             (SLEEP_CONFIG.AUTO_SLEEP_NIGHT && isNight)) && 
+            this.state !== 'sleep') {
+            this.state = 'sleep';
+            this.sleepStartTime = Date.now();
+            if (!this.lastSleepTime) {
+                this.lastSleepTime = Date.now();
+            }
+            if (window.addLogEntry) {
+                window.addLogEntry(`😴 ${this.name} засыпает ${isNight ? 'на ночь' : 'от усталости'}`);
+            }
+            return;
+        }
+        
         // Проверяем наличие хищников поблизости
         this.checkForPredators();
         
