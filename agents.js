@@ -1642,33 +1642,33 @@ class Agent {
 
 class YoungMan extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'male', type, ownerId);
-        this.energy = 100;
-        this.maxEnergy = 100;
-        this.speed = 3; // Быстрее двигается
-        this.maxHealth = 100;
+        super(name, age, 'male', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 100; // Энергия молодого мужчины (100 - максимальная)
+        this.maxEnergy = 100; // Максимальная энергия молодого мужчины (100)
+        this.speed = 3; // Скорость движения молодого мужчины (3 пикселя за кадр, быстрее чем у других)
+        this.maxHealth = 100; // Максимальное здоровье молодого мужчины (100)
         // Молодые начинают с минимального опыта
-        this.initializeExperience(0.1); // 10% от базового опыта
+        this.initializeExperience(0.1); // Инициализируем опыт с множителем 0.1 (10% от базового опыта)
     }
     
     initializeExperience(multiplier) {
         // Инициализация опыта с множителем
         Object.keys(this.experience).forEach(key => {
-            this.experience[key] = Math.floor(Math.random() * 10 * multiplier);
+            this.experience[key] = Math.floor(Math.random() * 10 * multiplier); // Устанавливаем случайный опыт для каждого навыка (0-10 * множитель)
         });
     }
 }
 
 class OldMan extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'male', type, ownerId);
-        this.energy = 60; // Низкая базовая энергия
-        this.maxEnergy = 60;
-        this.speed = 1; // Медленнее двигается
-        this.maxHealth = 80;
-        this.canBuildFire = true; // Старик умеет разводить костер
+        super(name, age, 'male', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 60; // Энергия старика (60 - низкая базовая энергия)
+        this.maxEnergy = 60; // Максимальная энергия старика (60)
+        this.speed = 1; // Скорость движения старика (1 пиксель за кадр, медленнее чем у других)
+        this.maxHealth = 80; // Максимальное здоровье старика (80)
+        this.canBuildFire = true; // Старик умеет разводить костер (true)
         // Старики начинают с максимального опыта
-        this.initializeExperience(1.5); // 150% от базового опыта
+        this.initializeExperience(1.5); // Инициализируем опыт с множителем 1.5 (150% от базового опыта)
     }
     
     initializeExperience(multiplier) {
@@ -1676,72 +1676,72 @@ class OldMan extends Agent {
         // Старики имеют высокий опыт во всех навыках
         Object.keys(this.experience).forEach(key => {
             // Базовый опыт 30-80, умноженный на множитель
-            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier);
+            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier); // Устанавливаем случайный опыт для каждого навыка (30-80 * множитель)
             // Старики имеют особо высокий опыт в определенных навыках
             if (key === 'building' || key === 'farming' || key === 'cooking') {
-                this.experience[key] = Math.floor(60 + Math.random() * 40 * multiplier);
+                this.experience[key] = Math.floor(60 + Math.random() * 40 * multiplier); // Устанавливаем повышенный опыт для строительства, фермерства и готовки (60-100 * множитель)
             }
         });
     }
 
     update() {
         // Старик быстрее теряет здоровье
-        super.update();
+        super.update(); // Вызываем метод update() родительского класса
         if (this.hunger > 60) {
-            this.health -= 0.8; // Больше теряет здоровье
+            this.health -= 0.8; // Потеря здоровья старика при голоде (0.8 за кадр, больше чем у других)
         }
         // Старик быстрее замерзает
         if (this.temperature < 35) {
-            this.temperature -= 0.1; // Теряет температуру быстрее
+            this.temperature -= 0.1; // Потеря температуры старика при холоде (0.1°C за кадр, быстрее чем у других)
         }
     }
 }
 
 class YoungWoman extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'female', type, ownerId);
-        this.energy = 90;
-        this.maxEnergy = 90;
-        this.speed = 2.5; // Быстрее двигается
-        this.maxHealth = 100;
+        super(name, age, 'female', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 90; // Энергия молодой женщины (90)
+        this.maxEnergy = 90; // Максимальная энергия молодой женщины (90)
+        this.speed = 2.5; // Скорость движения молодой женщины (2.5 пикселя за кадр, быстрее двигается)
+        this.maxHealth = 100; // Максимальное здоровье молодой женщины (100)
         // Молодые начинают с минимального опыта
-        this.initializeExperience(0.1); // 10% от базового опыта
+        this.initializeExperience(0.1); // Инициализируем опыт с множителем 0.1 (10% от базового опыта)
     }
     
     initializeExperience(multiplier) {
         Object.keys(this.experience).forEach(key => {
-            this.experience[key] = Math.floor(Math.random() * 10 * multiplier);
+            this.experience[key] = Math.floor(Math.random() * 10 * multiplier); // Устанавливаем случайный опыт для каждого навыка (0-10 * множитель)
         });
     }
 }
 
 class OldWoman extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'female', type, ownerId);
-        this.energy = 55; // Низкая базовая энергия
-        this.maxEnergy = 55;
-        this.speed = 1; // Медленнее двигается
-        this.maxHealth = 75;
-        this.canBuildFire = true; // Старуха умеет разводить костер
+        super(name, age, 'female', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 55; // Энергия старухи (55 - низкая базовая энергия)
+        this.maxEnergy = 55; // Максимальная энергия старухи (55)
+        this.speed = 1; // Скорость движения старухи (1 пиксель за кадр, медленнее двигается)
+        this.maxHealth = 75; // Максимальное здоровье старухи (75)
+        this.canBuildFire = true; // Старуха умеет разводить костер (true)
         // Старухи начинают с максимального опыта
-        this.initializeExperience(1.5); // 150% от базового опыта
+        this.initializeExperience(1.5); // Инициализируем опыт с множителем 1.5 (150% от базового опыта)
     }
     
     initializeExperience(multiplier) {
         Object.keys(this.experience).forEach(key => {
-            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier);
+            this.experience[key] = Math.floor(30 + Math.random() * 50 * multiplier); // Устанавливаем случайный опыт для каждого навыка (30-80 * множитель)
         });
     }
 
     update() {
         // Старуха быстрее теряет здоровье
-        super.update();
+        super.update(); // Вызываем метод update() родительского класса
         if (this.hunger > 60) {
-            this.health -= 0.9; // Больше теряет здоровье
+            this.health -= 0.9; // Потеря здоровья старухи при голоде (0.9 за кадр, больше теряет здоровье)
         }
         // Старуха быстрее замерзает
         if (this.temperature < 35) {
-            this.temperature -= 0.1; // Теряет температуру быстрее
+            this.temperature -= 0.1; // Потеря температуры старухи при холоде (0.1°C за кадр, теряет температуру быстрее)
         }
     }
 }
@@ -1749,36 +1749,36 @@ class OldWoman extends Agent {
 // Класс для среднего возраста (для совместимости)
 class MiddleAgedMan extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'male', type, ownerId);
-        this.energy = 85;
-        this.maxEnergy = 85;
-        this.speed = 2;
-        this.maxHealth = 100;
+        super(name, age, 'male', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 85; // Энергия мужчины среднего возраста (85)
+        this.maxEnergy = 85; // Максимальная энергия мужчины среднего возраста (85)
+        this.speed = 2; // Скорость движения мужчины среднего возраста (2 пикселя за кадр)
+        this.maxHealth = 100; // Максимальное здоровье мужчины среднего возраста (100)
         // Средний возраст - средний опыт
-        this.initializeExperience(0.5); // 50% от базового опыта
+        this.initializeExperience(0.5); // Инициализируем опыт с множителем 0.5 (50% от базового опыта)
     }
     
     initializeExperience(multiplier) {
         Object.keys(this.experience).forEach(key => {
-            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier);
+            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier); // Устанавливаем случайный опыт для каждого навыка (10-40 * множитель)
         });
     }
 }
 
 class MiddleAgedWoman extends Agent {
     constructor(name, age, type, ownerId = null) {
-        super(name, age, 'female', type, ownerId);
-        this.energy = 80;
-        this.maxEnergy = 80;
-        this.speed = 2;
-        this.maxHealth = 100;
+        super(name, age, 'female', type, ownerId); // Вызываем конструктор родительского класса Agent
+        this.energy = 80; // Энергия женщины среднего возраста (80)
+        this.maxEnergy = 80; // Максимальная энергия женщины среднего возраста (80)
+        this.speed = 2; // Скорость движения женщины среднего возраста (2 пикселя за кадр)
+        this.maxHealth = 100; // Максимальное здоровье женщины среднего возраста (100)
         // Средний возраст - средний опыт
-        this.initializeExperience(0.5); // 50% от базового опыта
+        this.initializeExperience(0.5); // Инициализируем опыт с множителем 0.5 (50% от базового опыта)
     }
     
     initializeExperience(multiplier) {
         Object.keys(this.experience).forEach(key => {
-            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier);
+            this.experience[key] = Math.floor(10 + Math.random() * 30 * multiplier); // Устанавливаем случайный опыт для каждого навыка (10-40 * множитель)
         });
     }
 }
