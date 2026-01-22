@@ -45,19 +45,47 @@ app.get('/', (req, res) => {
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, '..');
 
 // Endpoint для админ-панели
 app.get('/admin', (req, res) => {
-    // В продакшене можно добавить проверку авторизации
-    res.sendFile(join(__dirname, '../admin.html'));
+    try {
+        const adminHtmlPath = join(projectRoot, 'admin.html');
+        res.sendFile(adminHtmlPath);
+    } catch (error) {
+        console.error('Ошибка при отправке admin.html:', error);
+        res.status(500).send('Ошибка загрузки админ-панели');
+    }
 });
 
 // Endpoint для статических файлов админ-панели
 app.get('/admin.js', (req, res) => {
-    res.sendFile(join(__dirname, '../admin.js'));
+    try {
+        const adminJsPath = join(projectRoot, 'admin.js');
+        res.sendFile(adminJsPath, { 
+            headers: { 'Content-Type': 'application/javascript' }
+        });
+    } catch (error) {
+        console.error('Ошибка при отправке admin.js:', error);
+        res.status(500).send('Ошибка загрузки admin.js');
+    }
+});
+
+// Endpoint для стилей (если нужны)
+app.get('/style.css', (req, res) => {
+    try {
+        const stylePath = join(projectRoot, 'style.css');
+        res.sendFile(stylePath, {
+            headers: { 'Content-Type': 'text/css' }
+        });
+    } catch (error) {
+        console.error('Ошибка при отправке style.css:', error);
+        res.status(500).send('Ошибка загрузки стилей');
+    }
 });
 
 // Хранилище игровых миров
