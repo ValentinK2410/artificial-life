@@ -129,5 +129,10 @@ export const SKILLS = {
     COOKING: 'cooking',
     BUILDING: 'building',
     FARMING: 'farming',
-    HUNTING: 'hunting'
+    HUNTING: 'hunting',
+    FIRE_BUILDING: 'fire_building', // Разжигание костра
+    BRING_WOOD: 'bring_wood', // Приносить дрова к костру
+    GATHER_WOOD: 'gather_wood', // Собирать дрова самостоятельно
+    GATHER_FISH: 'gather_fish', // Собирать рыбу
+    GATHER_ALL: 'gather_all' // Собирать все объекты
 };

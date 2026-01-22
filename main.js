@@ -214,6 +214,13 @@ class Simulation {
                     </div>
                 </div>
                 
+                <!-- Вкладка: Полученные навыки -->
+                <div class="agent-tab-panel" data-panel="learned">
+                    <div class="learned-skills-container">
+                        ${this.getLearnedSkillsHTML(agent)}
+                    </div>
+                </div>
+                
                 <!-- Вкладка: Команды -->
                 <div class="agent-tab-panel" data-panel="commands">
                     <div class="agent-commands">
@@ -223,8 +230,9 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('cook')">
                             🍳 Готовить еду
                         </button>
-                        <button class="command-btn" onclick="window.simulation.giveCommand('buildFire')">
-                            🔥 Разжечь костер
+                        <button class="command-btn" onclick="window.simulation.giveCommand('buildFire')" 
+                                ${agent.experience.fire_building <= 0 ? 'disabled style="opacity: 0.5;"' : ''}>
+                            🔥 Разжечь костер ${agent.experience.fire_building <= 0 ? '(нет навыка)' : ''}
                         </button>
                         <button class="command-btn" onclick="window.simulation.giveCommand('hunt')">
                             🎯 Охотиться

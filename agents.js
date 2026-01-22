@@ -45,8 +45,17 @@ class Agent {
             cooking: 0,       // Опыт готовки
             building: 0,      // Опыт строительства
             farming: 0,       // Опыт фермерства
-            hunting: 0        // Опыт охоты
+            hunting: 0,       // Опыт охоты
+            fire_building: 0, // Опыт разжигания костра
+            bring_wood: 0,    // Опыт принесения дров
+            gather_wood: 0,   // Опыт сбора дров
+            gather_fish: 0,   // Опыт сбора рыбы
+            gather_all: 0     // Опыт сбора всех объектов
         };
+        
+        // Эмоциональное состояние
+        this.fear = 0; // Страх (0-100)
+        this.panic = false; // Паника (true/false)
         
         // Состояние для конечного автомата
         this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood, cook, hunt, build, fish, farm

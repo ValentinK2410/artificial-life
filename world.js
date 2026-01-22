@@ -413,17 +413,57 @@ class World {
         this.draw();
     }
 
-    addFire(x, y) {
+    addFire(x, y, ownerId = null) {
         // Добавление костра на карту
         const fire = {
             x: x,
             y: y,
             intensity: 1.0, // Интенсивность костра (для анимации)
             time: Date.now(), // Время создания для анимации
-            id: 'fire_' + Date.now() + '_' + Math.random() // Уникальный ID для синхронизации
+            id: 'fire_' + Date.now() + '_' + Math.random(), // Уникальный ID для синхронизации
+            wood: 5, // Количество дров в костре
+            maxWood: 20, // Максимальное количество дров
+            ownerId: ownerId, // Владелец костра
+            heatRadius: 80 // Радиус действия тепла
         };
         this.fires.push(fire);
         this.draw();
+    }
+    
+    // Добавить дрова в костер
+    addWoodToFire(fireId, amount = 1) {
+        const fire = this.fires.find(f => f.id === fireId);
+        if (fire) {
+            fire.wood = Math.min(fire.maxWood, fire.wood + amount);
+            fire.intensity = Math.min(2.0, fire.intensity + 0.1);
+            fire.heatRadius = 80 + (fire.wood * 2); // Увеличиваем радиус с количеством дров
+            return true;
+        }
+        return false;
+    }
+    
+    // Обновление костров (потребление дров)
+    updateFires() {
+        this.fires.forEach(fire => {
+            // Дрова прогорают со временем
+            fire.wood -= 0.01; // Скорость прогорания
+            if (fire.wood < 0) fire.wood = 0;
+            
+            // Интенсивность уменьшается с дровами
+            fire.intensity = Math.max(0.1, fire.wood / 10);
+            fire.heatRadius = 80 + (fire.wood * 2);
+            
+            // Если дрова закончились - костер тухнет
+            if (fire.wood <= 0 && fire.intensity < 0.2) {
+                const index = this.fires.indexOf(fire);
+                if (index > -1) {
+                    this.fires.splice(index, 1);
+                    if (window.addLogEntry) {
+                        window.addLogEntry('🔥 Костер потух');
+                    }
+                }
+            }
+        });
     }
 
     addAnimal(type) {
@@ -1943,11 +1983,19 @@ class World {
             const agent = target.obj;
             agent.health -= 5;
             if (agent.health < 0) agent.health = 0;
+            
+            // Добавляем страх и панику
+            agent.fear = Math.min(100, (agent.fear || 0) + 30);
+            if (agent.fear > 70) {
+                agent.panic = true;
+                agent.mood = 'anxious';
+            }
+            
             predator.hunger -= 20;
             if (predator.hunger < 0) predator.hunger = 0;
             
             if (window.addLogEntry) {
-                window.addLogEntry(`⚠️ ${this.getPredatorName(predator.type)} атакует ${agent.name}!`);
+                window.addLogEntry(`⚠️ ${this.getPredatorName(predator.type)} атакует ${agent.name}! ${agent.panic ? '😱 ПАНИКА!' : '😨 Страх!'}`);
             }
         } else if (target.type === 'animal') {
             // Атака животного
