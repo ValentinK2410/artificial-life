@@ -1754,9 +1754,10 @@ class World {
         // Проверяем, мертв ли агент
         const isDead = agent.health <= 0;
         
-        // Анимация движения (покачивание при ходьбе) - только для живых
-        const walkOffset = (isDead || state === 'rest') ? 0 : Math.sin(time * 4 + x * 0.1) * 1.5;
-        const headBob = (isDead || state === 'rest') ? 0 : Math.sin(time * 4 + x * 0.1) * 0.5;
+        // Анимация движения (покачивание при ходьбе) - только для живых и активных
+        const isSleeping = state === 'sleep';
+        const walkOffset = (isDead || state === 'rest' || isSleeping) ? 0 : Math.sin(time * 4 + x * 0.1) * 1.5;
+        const headBob = (isDead || state === 'rest' || isSleeping) ? 0 : Math.sin(time * 4 + x * 0.1) * 0.5;
         
         // Тень человека
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
