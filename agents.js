@@ -372,8 +372,8 @@ class Agent {
         } else if (this.temperature < 32) {
             // Критически холодно - ищем тепло
             this.state = 'findHeat';
-        } else if (this.temperature < 35 && this.canBuildFire && this.hasWoodForFire()) {
-            // Холодно и можем развести костер - строим
+        } else if (this.temperature < 35 && this.experience.fire_building > 0 && this.hasWoodForFire()) {
+            // Холодно и есть навык разжигания костра и дрова - разводим костер автоматически
             this.state = 'buildFire';
         } else {
             const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
