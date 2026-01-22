@@ -829,6 +829,80 @@ function initializeWorldControls() {
         if (window.world) world.addResource('fish');
         addLogEntry('Рыба добавлена на карту');
     });
+    
+    // Новые продукты
+    document.getElementById('addHoneyBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('honey');
+        addLogEntry('Мёд добавлен на карту');
+    });
+    document.getElementById('addMilkBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('milk');
+        addLogEntry('Молоко добавлено на карту');
+    });
+    document.getElementById('addWaterBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('water');
+        addLogEntry('Вода добавлена на карту');
+    });
+    document.getElementById('addBreadBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('bread');
+        addLogEntry('Хлеб добавлен на карту');
+    });
+    document.getElementById('addKebabBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('kebab');
+        addLogEntry('Шашлык добавлен на карту');
+    });
+    document.getElementById('addPotatoBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('potato');
+        addLogEntry('Картофель добавлен на карту');
+    });
+    document.getElementById('addSaladBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('salad');
+        addLogEntry('Салат добавлен на карту');
+    });
+    document.getElementById('addMushroomsBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('mushrooms');
+        addLogEntry('Грибы добавлены на карту');
+    });
+    document.getElementById('addTeaBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('tea');
+        addLogEntry('Чай добавлен на карту');
+    });
+    document.getElementById('addBananaBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('banana');
+        addLogEntry('Банан добавлен на карту');
+    });
+    document.getElementById('addOrangeBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('orange');
+        addLogEntry('Апельсин добавлен на карту');
+    });
+    document.getElementById('addAppleBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('apple');
+        addLogEntry('Яблоко добавлено на карту');
+    });
+    document.getElementById('addLemonBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('lemon');
+        addLogEntry('Лимон добавлен на карту');
+    });
+    document.getElementById('addRosehipBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('rosehip');
+        addLogEntry('Шиповник добавлен на карту');
+    });
+    document.getElementById('addCabbageBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('cabbage');
+        addLogEntry('Капуста добавлена на карту');
+    });
+    document.getElementById('addSpicesBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('spices');
+        addLogEntry('Специи добавлены на карту');
+    });
+    document.getElementById('addMintBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('mint');
+        addLogEntry('Мята добавлена на карту');
+    });
+    document.getElementById('addStJohnsWortBtn')?.addEventListener('click', () => {
+        if (window.world) world.addResource('st_johns_wort');
+        addLogEntry('Зверобой добавлен на карту');
+    });
 
     // Животные
     document.getElementById('addCowBtn')?.addEventListener('click', () => {
