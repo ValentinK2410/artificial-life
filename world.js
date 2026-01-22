@@ -1630,9 +1630,12 @@ class World {
         
         const style = agentStyles[agent.type] || agentStyles['man'];
         
-        // Анимация движения (покачивание при ходьбе)
-        const walkOffset = state !== 'rest' ? Math.sin(time * 4 + x * 0.1) * 1.5 : 0;
-        const headBob = state !== 'rest' ? Math.sin(time * 4 + x * 0.1) * 0.5 : 0;
+        // Проверяем, мертв ли агент
+        const isDead = agent.health <= 0;
+        
+        // Анимация движения (покачивание при ходьбе) - только для живых
+        const walkOffset = (isDead || state === 'rest') ? 0 : Math.sin(time * 4 + x * 0.1) * 1.5;
+        const headBob = (isDead || state === 'rest') ? 0 : Math.sin(time * 4 + x * 0.1) * 0.5;
         
         // Тень человека
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
@@ -1640,95 +1643,157 @@ class World {
         this.ctx.ellipse(x + 2, y + 18, 6, 3, 0, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Определение позы в зависимости от состояния (с анимацией)
-        let armAngle = 0;
-        let legAngle = 0;
-        if (state === 'rest') {
-            // Сидит или стоит спокойно
-            armAngle = 0.2;
-            legAngle = 0;
-        } else if (state === 'findFood') {
-            // Быстро идет
-            armAngle = 0.5 + Math.sin(time * 6 + x * 0.1) * 0.2;
-            legAngle = 0.3 + Math.sin(time * 6 + x * 0.1) * 0.2;
+        // Если агент мертв - рисуем его лежащим
+        if (isDead) {
+            // Сохраняем контекст для поворота
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            this.ctx.rotate(Math.PI / 2); // Поворачиваем на 90 градусов
+            
+            // Тело (туловище) - лежащее
+            this.ctx.fillStyle = style.clothes;
+            this.ctx.fillRect(-4, -5, 8, 10);
+            
+            // Голова - лежащая
+            this.ctx.fillStyle = style.skin;
+            this.ctx.beginPath();
+            this.ctx.arc(0, -8, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Волосы
+            this.ctx.fillStyle = style.hair;
+            this.ctx.beginPath();
+            this.ctx.arc(0, -9, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Руки - вытянуты вдоль тела
+            this.ctx.fillStyle = style.skin;
+            this.ctx.fillRect(-6, -3, 2, 6);
+            this.ctx.fillRect(4, -3, 2, 6);
+            
+            // Ноги - вытянуты
+            this.ctx.fillStyle = style.pants;
+            this.ctx.fillRect(-3, 5, 3, 8);
+            this.ctx.fillRect(0, 5, 3, 8);
+            
+            // Обувь
+            this.ctx.fillStyle = '#2a1a1a';
+            this.ctx.fillRect(-4, 12, 2, 2);
+            this.ctx.fillRect(2, 12, 2, 2);
+            
+            // Закрытые глаза (мертвый)
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(-2, -9);
+            this.ctx.lineTo(-1, -9);
+            this.ctx.moveTo(1, -9);
+            this.ctx.lineTo(2, -9);
+            this.ctx.stroke();
+            
+            // Крест на индикаторе здоровья (мертв)
+            this.ctx.strokeStyle = '#ff0000';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(7, -12);
+            this.ctx.lineTo(9, -10);
+            this.ctx.moveTo(9, -12);
+            this.ctx.lineTo(7, -10);
+            this.ctx.stroke();
+            
+            this.ctx.restore();
         } else {
-            // Идет нормально
-            armAngle = 0.3 + Math.sin(time * 4 + x * 0.1) * 0.15;
-            legAngle = 0.2 + Math.sin(time * 4 + x * 0.1) * 0.15;
+            // Живой агент - обычная отрисовка
+            // Определение позы в зависимости от состояния (с анимацией)
+            let armAngle = 0;
+            let legAngle = 0;
+            if (state === 'rest') {
+                // Сидит или стоит спокойно
+                armAngle = 0.2;
+                legAngle = 0;
+            } else if (state === 'findFood') {
+                // Быстро идет
+                armAngle = 0.5 + Math.sin(time * 6 + x * 0.1) * 0.2;
+                legAngle = 0.3 + Math.sin(time * 6 + x * 0.1) * 0.2;
+            } else {
+                // Идет нормально
+                armAngle = 0.3 + Math.sin(time * 4 + x * 0.1) * 0.15;
+                legAngle = 0.2 + Math.sin(time * 4 + x * 0.1) * 0.15;
+            }
+            
+            // Ноги (штаны) с анимацией
+            this.ctx.fillStyle = style.pants;
+            // Левая нога (с анимацией)
+            this.ctx.save();
+            this.ctx.translate(x - 3, y + 8);
+            this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+            this.ctx.fillRect(0, 0, 3, 8);
+            this.ctx.restore();
+            // Правая нога (с анимацией)
+            this.ctx.save();
+            this.ctx.translate(x, y + 8);
+            this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+            this.ctx.fillRect(0, 0, 3, 8);
+            this.ctx.restore();
+            
+            // Ноги (обувь)
+            this.ctx.fillStyle = '#2a1a1a';
+            this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
+            this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
+            
+            // Тело (туловище)
+            this.ctx.fillStyle = style.clothes;
+            this.ctx.fillRect(x - 4, y - 2, 8, 10);
+            
+            // Руки
+            this.ctx.fillStyle = style.skin;
+            // Левая рука
+            this.ctx.save();
+            this.ctx.translate(x - 4, y + 2);
+            this.ctx.rotate(-armAngle);
+            this.ctx.fillRect(0, 0, 2, 6);
+            this.ctx.restore();
+            // Правая рука
+            this.ctx.save();
+            this.ctx.translate(x + 4, y + 2);
+            this.ctx.rotate(armAngle);
+            this.ctx.fillRect(0, 0, 2, 6);
+            this.ctx.restore();
+            
+            // Голова (с анимацией покачивания)
+            this.ctx.fillStyle = style.skin;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 8 + headBob, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Волосы
+            this.ctx.fillStyle = style.hair;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 9 + headBob, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+            // Верхняя часть волос
+            this.ctx.fillRect(x - 5, y - 12 + headBob, 10, 3);
+            
+            // Лицо (глаза)
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.beginPath();
+            this.ctx.arc(x - 2, y - 9 + headBob, 1, 0, Math.PI * 2);
+            this.ctx.arc(x + 2, y - 9 + headBob, 1, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = '#000000';
+            this.ctx.beginPath();
+            this.ctx.arc(x - 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
+            this.ctx.arc(x + 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Рот (простая линия)
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 0.5;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 7 + headBob, 1, 0, Math.PI);
+            this.ctx.stroke();
         }
-        
-        // Ноги (штаны) с анимацией
-        this.ctx.fillStyle = style.pants;
-        // Левая нога (с анимацией)
-        this.ctx.save();
-        this.ctx.translate(x - 3, y + 8);
-        this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
-        this.ctx.fillRect(0, 0, 3, 8);
-        this.ctx.restore();
-        // Правая нога (с анимацией)
-        this.ctx.save();
-        this.ctx.translate(x, y + 8);
-        this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
-        this.ctx.fillRect(0, 0, 3, 8);
-        this.ctx.restore();
-        
-        // Ноги (обувь)
-        this.ctx.fillStyle = '#2a1a1a';
-        this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
-        this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
-        
-        // Тело (туловище)
-        this.ctx.fillStyle = style.clothes;
-        this.ctx.fillRect(x - 4, y - 2, 8, 10);
-        
-        // Руки
-        this.ctx.fillStyle = style.skin;
-        // Левая рука
-        this.ctx.save();
-        this.ctx.translate(x - 4, y + 2);
-        this.ctx.rotate(-armAngle);
-        this.ctx.fillRect(0, 0, 2, 6);
-        this.ctx.restore();
-        // Правая рука
-        this.ctx.save();
-        this.ctx.translate(x + 4, y + 2);
-        this.ctx.rotate(armAngle);
-        this.ctx.fillRect(0, 0, 2, 6);
-        this.ctx.restore();
-        
-        // Голова (с анимацией покачивания)
-        this.ctx.fillStyle = style.skin;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y - 8 + headBob, 5, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Волосы
-        this.ctx.fillStyle = style.hair;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y - 9 + headBob, 5, 0, Math.PI * 2);
-        this.ctx.fill();
-        // Верхняя часть волос
-        this.ctx.fillRect(x - 5, y - 12 + headBob, 10, 3);
-        
-        // Лицо (глаза)
-        this.ctx.fillStyle = '#ffffff';
-        this.ctx.beginPath();
-        this.ctx.arc(x - 2, y - 9 + headBob, 1, 0, Math.PI * 2);
-        this.ctx.arc(x + 2, y - 9 + headBob, 1, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        this.ctx.fillStyle = '#000000';
-        this.ctx.beginPath();
-        this.ctx.arc(x - 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
-        this.ctx.arc(x + 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Рот (простая линия)
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 0.5;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y - 7 + headBob, 1, 0, Math.PI);
-        this.ctx.stroke();
         
         // Индикатор здоровья (маленький кружок справа вверху)
         const healthColor = health > 70 ? '#00ff00' : 

@@ -8,6 +8,7 @@ class Simulation {
         this.agents = agentsManager.getAllAgents();
         this.isRunning = false;
         this.animationFrameId = null;
+        this.colonyDeadShown = false; // Флаг для показа сообщения о гибели колонии
         this.simulationSpeed = 20; // Скорость симуляции (1-50)
         this.frameCount = 0;
         this.selectedAgent = null; // Выбранный агент для управления
@@ -519,6 +520,7 @@ class Simulation {
     reset() {
         this.pause();
         this.frameCount = 0;
+        this.colonyDeadShown = false; // Сбрасываем флаг при рестарте
         
         // Сброс мира
         if (this.world) {
@@ -587,10 +589,96 @@ class Simulation {
         // Обновление панели управления (реже для производительности)
         if (this.frameCount % 5 === 0) {
             this.updateSidebar();
+            
+            // Проверка на смерть всех агентов
+            this.checkAllAgentsDead();
         }
 
         // Запрос следующего кадра
         this.animationFrameId = requestAnimationFrame(() => this.gameLoop());
+    }
+    
+    // Проверка на смерть всех агентов
+    checkAllAgentsDead() {
+        const playerAgents = this.agentsManager.getPlayerAgents();
+        if (playerAgents.length === 0) return; // Нет агентов игрока
+        
+        const allDead = playerAgents.every(agent => agent.health <= 0);
+        
+        if (allDead && !this.colonyDeadShown) {
+            this.colonyDeadShown = true;
+            this.pause();
+            this.showColonyDeadMessage();
+        }
+    }
+    
+    // Показать сообщение о гибели колонии
+    showColonyDeadMessage() {
+        // Создаем модальное окно
+        const modal = document.createElement('div');
+        modal.id = 'colonyDeadModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background-color: #2a2a2a;
+            border: 3px solid #ff0000;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            color: #ffffff;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+        `;
+        
+        const title = document.createElement('h2');
+        title.textContent = '💀 Колония погибла';
+        title.style.cssText = 'color: #ff0000; margin-bottom: 20px; font-size: 28px;';
+        
+        const message = document.createElement('p');
+        message.textContent = 'К сожалению, вы не смогли достаточно позаботиться и вся ваша колония погибла.';
+        message.style.cssText = 'font-size: 18px; margin-bottom: 30px; line-height: 1.6;';
+        
+        const button = document.createElement('button');
+        button.textContent = 'Начать заново';
+        button.style.cssText = `
+            background-color: #4a9eff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        `;
+        button.onmouseover = () => button.style.backgroundColor = '#5aaeff';
+        button.onmouseout = () => button.style.backgroundColor = '#4a9eff';
+        button.onclick = () => {
+            this.colonyDeadShown = false;
+            this.reset();
+            document.body.removeChild(modal);
+        };
+        
+        content.appendChild(title);
+        content.appendChild(message);
+        content.appendChild(button);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        if (window.addLogEntry) {
+            window.addLogEntry('💀 Вся колония погибла!');
+        }
     }
 
     updateSidebar() {

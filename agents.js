@@ -73,6 +73,12 @@ class Agent {
     }
 
     update() {
+        // Если агент мертв - не обновляем его
+        if (this.health <= 0) {
+            this.state = 'dead';
+            return;
+        }
+        
         // Основной цикл обновления агента
         const oldHunger = this.hunger;
         const oldHealth = this.health;
