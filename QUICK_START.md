@@ -32,12 +32,12 @@
 1. В ISPmanager перейдите: **WWW → Домены → game.dekan.pro**
 2. Откройте **Настройки** или **Дополнительные настройки**
 3. Найдите раздел **Дополнительные директивы nginx**
-4. Добавьте следующую конфигурацию:
+4. Добавьте следующую конфигурацию **ПЕРЕД** блоком `location /`:
 
 ```nginx
-# Проксирование WebSocket для Socket.io
+# WebSocket для Socket.io
 location /socket.io/ {
-    proxy_pass http://localhost:3000;
+    proxy_pass http://unix:/var/www/www-root/data/nodejs/0.sock;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -45,20 +45,26 @@ location /socket.io/ {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Port $server_port;
     proxy_read_timeout 86400;
+    access_log off;
 }
 
-# Проксирование API запросов
+# API запросы
 location /api/ {
-    proxy_pass http://localhost:3000;
+    proxy_pass http://unix:/var/www/www-root/data/nodejs/0.sock;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Port $server_port;
 }
 ```
 
-**⚠️ ВАЖНО**: Замените `3000` на порт, который вы указали в настройках Node.js приложения!
+**⚠️ ВАЖНО**: 
+- ISPmanager использует Unix socket, поэтому используйте `http://unix:/var/www/www-root/data/nodejs/0.sock`
+- Блок `/socket.io/` должен быть **ПЕРЕД** общим `location /`
+- Порядок location блоков важен!
 
 5. Сохраните изменения
 6. Перезагрузите Nginx (ISPmanager сделает это автоматически)
