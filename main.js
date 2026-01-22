@@ -40,7 +40,7 @@ class Simulation {
             e.preventDefault();
             e.stopPropagation();
             
-            if (e.button !== 0 && e.button !== undefined) return; // Только левая кнопка
+            console.log('🔵 Двойной клик зарегистрирован!', e);
             
             isDoubleClickHandled = true;
             
@@ -51,26 +51,33 @@ class Simulation {
             }
             
             const worldCoords = getWorldCoords(e);
+            console.log('📍 Координаты двойного клика в мире:', worldCoords);
             
             // Проверяем, кликнули ли на агента
             let playerAgents = [];
             if (this.agentsManager) {
+                console.log('📋 agentsManager найден, playerId:', this.agentsManager.playerId);
                 playerAgents = this.agentsManager.getPlayerAgents();
+                console.log('👥 Агентов игрока:', playerAgents.length);
                 if (playerAgents.length === 0 || !this.agentsManager.playerId) {
                     playerAgents = this.agentsManager.getAllAgents();
+                    console.log('👥 Всего агентов:', playerAgents.length);
                 }
             } else if (this.agents) {
                 playerAgents = this.agents;
+                console.log('👥 Агентов из this.agents:', playerAgents.length);
+            } else {
+                console.error('❌ Нет agentsManager и this.agents!');
             }
             
-            console.log('Двойной клик на координатах:', worldCoords, 'Агентов для проверки:', playerAgents.length);
+            console.log('🔍 Проверяем', playerAgents.length, 'агентов на попадание клика');
             
             let clickedAgent = null;
             let minDistance = Infinity;
             
             for (let agent of playerAgents) {
                 if (!agent.position) {
-                    console.warn('Агент без позиции:', agent);
+                    console.warn('⚠️ Агент без позиции:', agent.name, agent);
                     continue;
                 }
                 
@@ -78,25 +85,31 @@ class Simulation {
                 const dy = agent.position.y - worldCoords.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                console.log(`Агент ${agent.name}: позиция (${agent.position.x}, ${agent.position.y}), расстояние: ${distance.toFixed(2)}`);
+                console.log(`  👤 Агент "${agent.name}": позиция (${Math.floor(agent.position.x)}, ${Math.floor(agent.position.y)}), расстояние: ${distance.toFixed(2)}`);
                 
-                if (distance < 30 && distance < minDistance) { // Увеличен радиус клика до 30
+                if (distance < 50 && distance < minDistance) { // Увеличен радиус клика до 50
                     clickedAgent = agent;
                     minDistance = distance;
+                    console.log(`  ✅ Найден ближайший агент: ${agent.name}, расстояние: ${distance.toFixed(2)}`);
                 }
             }
             
             if (clickedAgent) {
                 // Выбираем агента и показываем панель управления
                 this.selectedAgent = clickedAgent;
-                console.log('✅ Двойной клик - открыта панель управления для агента:', clickedAgent.name, clickedAgent.id);
-                this.showAgentControlPanel(clickedAgent);
+                console.log('✅✅✅ Двойной клик - открываю панель управления для агента:', clickedAgent.name, clickedAgent.id);
+                try {
+                    this.showAgentControlPanel(clickedAgent);
+                    console.log('✅ Панель управления должна быть открыта');
+                } catch (error) {
+                    console.error('❌ Ошибка при открытии панели управления:', error);
+                }
                 if (window.addLogEntry) {
                     window.addLogEntry(`👤 Открыта панель управления: ${clickedAgent.name}`);
                 }
                 this.world.draw(); // Перерисовка для выделения
             } else {
-                console.log('Двойной клик не попал на агента');
+                console.warn('⚠️ Двойной клик не попал на агента. Ближайший агент был дальше 50 пикселей.');
             }
             
             // Сбрасываем флаг через небольшую задержку
