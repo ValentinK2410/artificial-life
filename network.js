@@ -44,16 +44,20 @@ class NetworkManager {
             return;
         }
 
-        // Создаем подключение с опциями для лучшей совместимости
+        // Создаем подключение с опциями для лучшей совместимости с мобильными устройствами
         this.socket = io(serverUrl, {
-            transports: ['websocket', 'polling'], // Пробуем WebSocket, затем polling
+            transports: ['polling', 'websocket'], // Начинаем с polling для лучшей совместимости с мобильными
             upgrade: true,
-            rememberUpgrade: true,
-            timeout: 10000, // Таймаут подключения 10 секунд
+            rememberUpgrade: false, // Не запоминаем upgrade для мобильных устройств
+            timeout: 20000, // Увеличенный таймаут для мобильных устройств (20 секунд)
             reconnection: true,
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            reconnectionAttempts: 5
+            reconnectionDelayMax: 10000, // Увеличенная задержка для мобильных
+            reconnectionAttempts: Infinity, // Бесконечные попытки переподключения
+            forceNew: false,
+            // Дополнительные опции для мобильных
+            autoConnect: true,
+            withCredentials: false // Отключаем credentials для мобильных устройств
         });
 
         this.socket.on('connect', () => {
