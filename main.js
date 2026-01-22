@@ -1469,6 +1469,15 @@ function initializeWorldControls() {
         }
         addLogEntry(`Удочка добавлена на карту (${count} шт.)`);
     });
+    document.getElementById('addFirstAidKitBtn')?.addEventListener('click', () => {
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('first_aid_kit', 1);
+            }
+        }
+        addLogEntry(`Аптечка добавлена на карту (${count} шт.)`);
+    });
 
     // Одежда
     document.getElementById('addSummerClothesManBtn')?.addEventListener('click', () => {

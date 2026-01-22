@@ -97,7 +97,8 @@ export const ITEM_TYPES = {
     TOOLS: ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'],
     CLOTHES: ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'],
     FOOD: ['berries', 'cooked_food', 'meat', 'bird', 'fish', 'honey', 'milk', 'water', 'bread', 'kebab', 'potato', 'salad', 'mushrooms', 'tea', 'banana', 'orange', 'apple', 'lemon', 'rosehip', 'cabbage', 'spices', 'mint', 'st_johns_wort'],
-    RESOURCES: ['wood', 'money', 'stone']
+    RESOURCES: ['wood', 'money', 'stone'],
+    MEDICAL: ['first_aid_kit'] // Медицинские предметы (аптечка)
 };
 
 // Категории продуктов

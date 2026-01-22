@@ -60,7 +60,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -68,6 +68,7 @@ class Agent {
         this.canBuildFire = false; // Флаг возможности разведения костра (true = может разводить костер)
         this.defenseSkill = 0; // Навык обороны от хищников (число, увеличивается при обороне)
         this.nearbyPredator = null; // Ближайший хищник поблизости (null или объект {predator, distance})
+        this.sickAgent = null; // Больной агент, которого нужно вылечить (объект Agent или null)
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -511,10 +512,16 @@ class Agent {
         // Проверяем наличие хищников поблизости
         this.checkForPredators();
         
-        // Приоритет: оборона > температура > голод > кормление животных > энергия > игра
+        // Проверяем наличие больных агентов поблизости
+        this.checkForSickAgents();
+        
+        // Приоритет: оборона > лечение больных > температура > голод > кормление животных > энергия > игра
         if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
             // Хищник близко - обороняемся
             this.state = 'defend';
+        } else if (this.sickAgent && this.hasMedicalSupplies()) {
+            // Есть больной агент и есть медицинские принадлежности - лечим
+            this.state = 'heal';
         } else if (this.temperature < 32) {
             // Критически холодно - ищем тепло
             this.state = 'findHeat';
