@@ -703,9 +703,9 @@ class Agent {
         if (!window.world) return;
         
         // Проверяем, есть ли костер поблизости (для готовки нужен огонь)
-        const nearestFire = this.findNearestFire();
+        const nearestFire = this.findNearestFire(); // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
         const hasFireNearby = nearestFire && 
-            Math.sqrt(Math.pow(nearestFire.x - this.position.x, 2) + Math.pow(nearestFire.y - this.position.y, 2)) < 30;
+            Math.sqrt(Math.pow(nearestFire.x - this.position.x, 2) + Math.pow(nearestFire.y - this.position.y, 2)) < 30; // Флаг наличия костра поблизости (true/false, радиус 30 пикселей)
         
         if (!hasFireNearby) {
             // Нет костра - идем к ближайшему или разводим свой
@@ -729,7 +729,7 @@ class Agent {
         // Нужны ингредиенты (мясо, рыба, ягоды, картофель и т.д.)
         const ingredients = this.inventory.find(item => 
             ['meat', 'fish', 'bird', 'berries', 'potato', 'mushrooms'].includes(item.type)
-        );
+        ); // Найденные ингредиенты для готовки (объект {type, amount} или undefined)
         
         if (!ingredients) {
             // Нет ингредиентов - ищем их
@@ -742,13 +742,13 @@ class Agent {
         
         // Готовим еду (нужно время)
         if (!this.cookingProgress) {
-            this.cookingProgress = 0;
+            this.cookingProgress = 0; // Прогресс готовки (число кадров, 0 = начало готовки)
         }
         
-        this.cookingProgress += 1;
+        this.cookingProgress += 1; // Увеличиваем прогресс готовки
         
         // Готовка занимает примерно 10-20 кадров (зависит от навыка)
-        const cookingTime = 20 - Math.floor(this.experience.cooking / 10);
+        const cookingTime = 20 - Math.floor(this.experience.cooking / 10); // Время готовки в кадрах (зависит от опыта готовки)
         if (this.cookingProgress < cookingTime) {
             // Еще готовим
             return;
@@ -756,15 +756,15 @@ class Agent {
         
         // Готовка завершена
         const cookedFood = {
-            type: 'cooked_food',
-            amount: 1
+            type: 'cooked_food', // Тип готовой еды
+            amount: 1            // Количество готовой еды
         };
         
         // Убираем ингредиент
-        ingredients.amount--;
+        ingredients.amount--; // Уменьшаем количество ингредиента
         if (ingredients.amount <= 0) {
-            const index = this.inventory.indexOf(ingredients);
-            if (index > -1) this.inventory.splice(index, 1);
+            const index = this.inventory.indexOf(ingredients); // Индекс ингредиента в инвентаре
+            if (index > -1) this.inventory.splice(index, 1); // Удаляем ингредиент из инвентаря
         }
         
         // Добавляем готовую еду
@@ -784,19 +784,19 @@ class Agent {
         if (!window.world || !window.world.animals) return;
         
         // Ищем диких животных (не прирученных)
-        let target = null;
-        let minDistance = Infinity;
+        let target = null; // Целевое животное для охоты (объект животного или null)
+        let minDistance = Infinity; // Минимальное расстояние до цели (пиксели, изначально бесконечность)
         
         window.world.animals.forEach(animal => {
-            if (animal.tamed || animal.owner) return; // Пропускаем домашних
+            if (animal.tamed || animal.owner) return; // Пропускаем домашних животных
             
-            const dx = animal.x - this.position.x;
-            const dy = animal.y - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dx = animal.x - this.position.x; // Разница по оси X между агентом и животным (пиксели)
+            const dy = animal.y - this.position.y; // Разница по оси Y между агентом и животным (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до животного (пиксели)
             
-            if (distance < 50 && distance < minDistance) {
-                target = animal;
-                minDistance = distance;
+            if (distance < 50 && distance < minDistance) { // Если животное в радиусе 50 пикселей и ближе предыдущего
+                target = animal; // Обновляем цель
+                minDistance = distance; // Обновляем минимальное расстояние
             }
         });
         
@@ -806,15 +806,15 @@ class Agent {
                 this.moveTo(target.x, target.y);
             } else {
                 // Охотимся
-                const success = Math.random() < 0.3 + this.experience.hunting / 100;
+                const success = Math.random() < 0.3 + this.experience.hunting / 100; // Шанс успешной охоты (0-1, зависит от опыта)
                 if (success) {
                     // Успешная охота
-                    this.inventory.push({ type: 'meat', amount: 1 });
-                    this.gainExperience('hunting', 3);
+                    this.inventory.push({ type: 'meat', amount: 1 }); // Добавляем мясо в инвентарь
+                    this.gainExperience('hunting', 3); // Получаем опыт охоты
                     
                     // Удаляем животное
-                    const index = window.world.animals.indexOf(target);
-                    if (index > -1) window.world.animals.splice(index, 1);
+                    const index = window.world.animals.indexOf(target); // Индекс животного в массиве животных мира
+                    if (index > -1) window.world.animals.splice(index, 1); // Удаляем животное из мира
                     
                     if (window.addLogEntry) {
                         window.addLogEntry(`🎯 ${this.name} успешно охотится!`);
@@ -837,8 +837,8 @@ class Agent {
         if (!window.world) return;
         
         // Нужны материалы (дерево, камень)
-        const hasWood = this.inventory.some(item => item.type === 'wood');
-        const hasStone = this.inventory.some(item => item.type === 'stone');
+        const hasWood = this.inventory.some(item => item.type === 'wood'); // Флаг наличия дерева в инвентаре (true/false)
+        const hasStone = this.inventory.some(item => item.type === 'stone'); // Флаг наличия камня в инвентаре (true/false)
         
         if (!hasWood && !hasStone) {
             // Нет материалов - ищем
@@ -848,11 +848,11 @@ class Agent {
         
         // Строим (упрощенная версия)
         if (hasWood) {
-            const wood = this.inventory.find(item => item.type === 'wood');
-            wood.amount--;
+            const wood = this.inventory.find(item => item.type === 'wood'); // Найденное дерево в инвентаре (объект {type, amount})
+            wood.amount--; // Уменьшаем количество дерева
             if (wood.amount <= 0) {
-                const index = this.inventory.indexOf(wood);
-                if (index > -1) this.inventory.splice(index, 1);
+                const index = this.inventory.indexOf(wood); // Индекс дерева в инвентаре
+                if (index > -1) this.inventory.splice(index, 1); // Удаляем дерево из инвентаря
             }
         }
         
@@ -870,7 +870,7 @@ class Agent {
         if (!window.world) return;
         
         // Проверяем, есть ли удочка
-        const hasFishingRod = this.inventory.some(item => item.type === 'fishing_rod');
+        const hasFishingRod = this.inventory.some(item => item.type === 'fishing_rod'); // Флаг наличия удочки в инвентаре (true/false)
         if (!hasFishingRod) {
             // Нет удочки - прекращаем рыбалку
             if (window.addLogEntry && Math.random() < 0.2) {
@@ -881,13 +881,13 @@ class Agent {
         }
         
         // Ищем водоем (пруд) - в центре карты обычно есть пруд
-        const pondCenterX = window.world.canvas ? window.world.canvas.width / 2 : 400;
-        const pondCenterY = window.world.canvas ? window.world.canvas.height / 2 : 300;
-        const pondRadius = 100; // Радиус пруда
+        const pondCenterX = window.world.canvas ? window.world.canvas.width / 2 : 400; // Координата X центра пруда (пиксели)
+        const pondCenterY = window.world.canvas ? window.world.canvas.height / 2 : 300; // Координата Y центра пруда (пиксели)
+        const pondRadius = 100; // Радиус пруда (пиксели)
         
-        const dx = pondCenterX - this.position.x;
-        const dy = pondCenterY - this.position.y;
-        const distanceToPond = Math.sqrt(dx * dx + dy * dy);
+        const dx = pondCenterX - this.position.x; // Разница по оси X до центра пруда (пиксели)
+        const dy = pondCenterY - this.position.y; // Разница по оси Y до центра пруда (пиксели)
+        const distanceToPond = Math.sqrt(dx * dx + dy * dy); // Расстояние до центра пруда (пиксели)
         
         if (distanceToPond > pondRadius + 20) {
             // Далеко от пруда - идем к нему
@@ -897,27 +897,27 @@ class Agent {
         
         // У пруда - ловим рыбу
         if (!this.fishingProgress) {
-            this.fishingProgress = 0;
+            this.fishingProgress = 0; // Прогресс рыбалки (число кадров, 0 = начало рыбалки)
         }
         
-        this.fishingProgress += 1;
+        this.fishingProgress += 1; // Увеличиваем прогресс рыбалки
         
         // Рыбалка занимает время (зависит от навыка)
-        const fishingTime = 15 - Math.floor(this.experience.fishing / 10);
+        const fishingTime = 15 - Math.floor(this.experience.fishing / 10); // Время рыбалки в кадрах (зависит от опыта рыбалки)
         if (this.fishingProgress < fishingTime) {
             // Еще ловим
             return;
         }
         
         // Попытка поймать рыбу (зависит от навыка)
-        const successChance = 0.2 + (this.experience.fishing / 100);
-        const success = Math.random() < successChance;
+        const successChance = 0.2 + (this.experience.fishing / 100); // Шанс успешной рыбалки (0-1, базовый 20% + опыт)
+        const success = Math.random() < successChance; // Результат попытки (true/false)
         
         if (success) {
             // Успешная рыбалка
-            const fishCount = Math.random() < 0.3 ? 2 : 1; // Иногда 2 рыбы
-            this.inventory.push({ type: 'fish', amount: fishCount });
-            this.gainExperience('fishing', 3);
+            const fishCount = Math.random() < 0.3 ? 2 : 1; // Количество пойманной рыбы (1 или 2, 30% шанс на 2)
+            this.inventory.push({ type: 'fish', amount: fishCount }); // Добавляем рыбу в инвентарь
+            this.gainExperience('fishing', 3); // Получаем опыт рыбалки
             
             if (window.addLogEntry) {
                 window.addLogEntry(`🎣 ${this.name} поймал(а) ${fishCount} рыбу(ы)!`);
@@ -930,7 +930,7 @@ class Agent {
             this.gainExperience('fishing', 1); // Опыт даже при неудаче
         }
         
-        this.fishingProgress = 0;
+        this.fishingProgress = 0; // Сбрасываем прогресс рыбалки
         this.state = 'explore';
     }
     
@@ -939,11 +939,11 @@ class Agent {
         if (!window.world || !window.world.animals) return;
         
         // Ищем домашних животных
-        let farmAnimal = null;
+        let farmAnimal = null; // Домашнее животное для фермерства (объект животного или null)
         for (let petId of this.pets) {
-            const pet = window.world.animals.find(a => a.id === petId);
+            const pet = window.world.animals.find(a => a.id === petId); // Найденное животное по ID (объект животного или undefined)
             if (pet && (pet.type === 'cow' || pet.type === 'goat' || pet.type === 'sheep' || pet.type === 'chicken')) {
-                farmAnimal = pet;
+                farmAnimal = pet; // Находим подходящее животное для фермерства
                 break;
             }
         }
@@ -956,9 +956,9 @@ class Agent {
             return;
         }
         
-        const dx = farmAnimal.x - this.position.x;
-        const dy = farmAnimal.y - this.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx = farmAnimal.x - this.position.x; // Разница по оси X до животного (пиксели)
+        const dy = farmAnimal.y - this.position.y; // Разница по оси Y до животного (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до животного (пиксели)
         
         if (distance > 15) {
             // Идем к животному
@@ -989,33 +989,33 @@ class Agent {
         // Оборона от хищника
         if (!this.nearbyPredator) return;
         
-        const predator = this.nearbyPredator.predator;
-        const distance = this.nearbyPredator.distance;
+        const predator = this.nearbyPredator.predator; // Объект хищника (координаты x, y и другие свойства)
+        const distance = this.nearbyPredator.distance; // Расстояние до хищника (пиксели)
         
         // Если хищник очень близко - отступаем
         if (distance < 30) {
-            const dx = this.position.x - predator.x;
-            const dy = this.position.y - predator.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
+            const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
+            const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
             if (dist > 0) {
-                this.position.x += (dx / dist) * this.speed * 1.5; // Быстрее отступаем
+                this.position.x += (dx / dist) * this.speed * 1.5; // Отступаем быстрее (скорость * 1.5)
                 this.position.y += (dy / dist) * this.speed * 1.5;
             }
             
             // Увеличиваем опыт обороны
-            this.defenseSkill += 0.5;
-            this.gainExperience('hunting', 0.3); // Опыт охоты/обороны
+            this.defenseSkill += 0.5; // Увеличиваем навык обороны
+            this.gainExperience('hunting', 0.3); // Получаем опыт охоты/обороны
             
             if (window.addLogEntry && Math.random() < 0.1) {
                 window.addLogEntry(`⚔️ ${this.name} обороняется от хищника!`);
             }
         } else {
             // Держим дистанцию
-            const dx = this.position.x - predator.x;
-            const dy = this.position.y - predator.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 0 && dist < 40) {
-                this.position.x += (dx / dist) * this.speed;
+            const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
+            const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
+            const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
+            if (dist > 0 && dist < 40) { // Если хищник в радиусе 40 пикселей
+                this.position.x += (dx / dist) * this.speed; // Отступаем с обычной скоростью
                 this.position.y += (dy / dist) * this.speed;
             }
         }
@@ -1026,11 +1026,11 @@ class Agent {
         if (!window.world || this.pets.length === 0) return;
         
         // Ищем голодное животное
-        let hungryPet = null;
+        let hungryPet = null; // Голодное домашнее животное (объект животного или null)
         for (let petId of this.pets) {
-            const pet = window.world.animals.find(a => a.id === petId);
-            if (pet && pet.hunger > 60) {
-                hungryPet = pet;
+            const pet = window.world.animals.find(a => a.id === petId); // Найденное животное по ID (объект животного или undefined)
+            if (pet && pet.hunger > 60) { // Если животное голодно (голод > 60)
+                hungryPet = pet; // Находим голодное животное
                 break;
             }
         }
@@ -1038,22 +1038,22 @@ class Agent {
         if (!hungryPet) return;
         
         // Двигаемся к животному
-        const dx = hungryPet.x - this.position.x;
-        const dy = hungryPet.y - this.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx = hungryPet.x - this.position.x; // Разница по оси X до животного (пиксели)
+        const dy = hungryPet.y - this.position.y; // Разница по оси Y до животного (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до животного (пиксели)
         
         if (distance > 20) {
             this.moveTo(hungryPet.x, hungryPet.y);
         } else {
             // Кормим животное
-            const food = this.animalFoodStorage.find(f => f.amount > 0);
+            const food = this.animalFoodStorage.find(f => f.amount > 0); // Найденная еда для животных (объект {type, amount} или undefined)
             if (food) {
-                hungryPet.hunger -= 30;
-                if (hungryPet.hunger < 0) hungryPet.hunger = 0;
-                food.amount--;
+                hungryPet.hunger -= 30; // Уменьшаем голод животного на 30
+                if (hungryPet.hunger < 0) hungryPet.hunger = 0; // Не даем голоду уйти в минус
+                food.amount--; // Уменьшаем количество еды
                 if (food.amount <= 0) {
-                    const index = this.animalFoodStorage.indexOf(food);
-                    if (index > -1) this.animalFoodStorage.splice(index, 1);
+                    const index = this.animalFoodStorage.indexOf(food); // Индекс еды в массиве запасов для животных
+                    if (index > -1) this.animalFoodStorage.splice(index, 1); // Удаляем пустую еду
                 }
                 
                 this.gainExperience('farming', 0.5);
@@ -1072,15 +1072,15 @@ class Agent {
         // Игра с домашним животным
         if (!window.world || this.pets.length === 0) return;
         
-        const petId = this.pets[Math.floor(Math.random() * this.pets.length)];
-        const pet = window.world.animals.find(a => a.id === petId);
+        const petId = this.pets[Math.floor(Math.random() * this.pets.length)]; // Случайный ID питомца из списка
+        const pet = window.world.animals.find(a => a.id === petId); // Найденное животное по ID (объект животного или undefined)
         
         if (!pet) return;
         
         // Двигаемся к животному
-        const dx = pet.x - this.position.x;
-        const dy = pet.y - this.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx = pet.x - this.position.x; // Разница по оси X до животного (пиксели)
+        const dy = pet.y - this.position.y; // Разница по оси Y до животного (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до животного (пиксели)
         
         if (distance > 25) {
             this.moveTo(pet.x, pet.y);
@@ -1101,27 +1101,27 @@ class Agent {
         // Ищем еду в инвентаре
         const foodItems = this.inventory.filter(item => 
             ['berries', 'cooked_food', 'meat', 'bird', 'fish'].includes(item.type)
-        );
+        ); // Массив еды из инвентаря (массив объектов {type, amount})
         
         if (foodItems.length > 0) {
             // Перемещаем еду в запасы (для себя и для животных)
-            const food = foodItems[0];
-            const index = this.inventory.indexOf(food);
+            const food = foodItems[0]; // Первая найденная еда (объект {type, amount})
+            const index = this.inventory.indexOf(food); // Индекс еды в инвентаре
             if (index > -1) {
-                this.inventory.splice(index, 1);
+                this.inventory.splice(index, 1); // Удаляем еду из инвентаря
                 
                 // Распределяем между запасами для себя и для животных
                 if (this.pets.length > 0 && Math.random() < 0.5) {
-                    // Часть еды для животных
+                    // Часть еды для животных (50% шанс, если есть питомцы)
                     this.animalFoodStorage.push({
-                        type: food.type,
-                        amount: food.amount || 1
+                        type: food.type,        // Тип еды
+                        amount: food.amount || 1 // Количество еды (по умолчанию 1)
                     });
                 } else {
                     // Еда для себя
                     this.foodStorage.push({
-                        type: food.type,
-                        amount: food.amount || 1
+                        type: food.type,        // Тип еды
+                        amount: food.amount || 1 // Количество еды (по умолчанию 1)
                     });
                 }
                 
