@@ -304,7 +304,9 @@ class Agent {
             TEMP_CHANGE_RATE: 0.05,
             FIRE_HEAT_BONUS: 25,
             FIRE_RADIUS: 80,
-            MIN_AMBIENT_TEMP: 20
+            MIN_AMBIENT_TEMP: 20,
+            MOVEMENT_HEAT_BONUS: 5,
+            MOVEMENT_THRESHOLD: 0.5
         };
         
         // Определяем температуру окружающей среды в зависимости от погоды
@@ -335,6 +337,19 @@ class Agent {
             }
         }
         
+        // Проверяем, движется ли агент
+        let movementBonus = 0;
+        if (this.lastPosition && this.position) {
+            const dx = this.position.x - this.lastPosition.x;
+            const dy = this.position.y - this.lastPosition.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Если агент движется (преодолел минимальное расстояние), добавляем бонус тепла
+            if (distance > TEMP_CONFIG.MOVEMENT_THRESHOLD) {
+                movementBonus = TEMP_CONFIG.MOVEMENT_HEAT_BONUS;
+            }
+        }
+        
         // Ищем ближайший источник тепла (костер)
         const nearestFire = this.findNearestFire();
         let heatBonus = 0;
@@ -352,18 +367,31 @@ class Agent {
             }
         }
         
-        // Температура стремится к окружающей + тепло от костра
-        const targetTemp = ambientTemp + heatBonus;
+        // Температура стремится к окружающей + тепло от костра + бонус от движения
+        // При движении температура не может понижаться ниже текущей + бонус движения
+        const targetTemp = ambientTemp + heatBonus + movementBonus;
         const tempDiff = targetTemp - this.temperature;
         
-        // Температура меняется постепенно
-        this.temperature += tempDiff * TEMP_CONFIG.TEMP_CHANGE_RATE;
+        // Если агент движется, температура не может понижаться
+        if (movementBonus > 0 && tempDiff < 0) {
+            // При движении температура может только повышаться или оставаться на месте
+            const minTempWithMovement = this.temperature + movementBonus * TEMP_CONFIG.TEMP_CHANGE_RATE;
+            this.temperature = Math.max(this.temperature, minTempWithMovement);
+        } else {
+            // Температура меняется постепенно
+            this.temperature += tempDiff * TEMP_CONFIG.TEMP_CHANGE_RATE;
+        }
         
         // Ограничиваем температуру
         const MIN_TEMP = TEMP_CONFIG.MIN_AMBIENT_TEMP || 20;
         const MAX_TEMP = window.GAME_CONFIG?.AGENTS?.MAX_TEMPERATURE || 37;
         if (this.temperature < MIN_TEMP) this.temperature = MIN_TEMP;
         if (this.temperature > MAX_TEMP) this.temperature = MAX_TEMP;
+        
+        // Сохраняем текущую позицию для следующего обновления
+        if (this.position) {
+            this.lastPosition = { x: this.position.x, y: this.position.y };
+        }
     }
 
     findNearestFire() {
