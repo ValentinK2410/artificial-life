@@ -2,71 +2,72 @@
 
 class Agent {
     constructor(name, age, gender, type, ownerId = null) {
-        this.name = name;
-        this.age = age;
-        this.gender = gender;
-        this.type = type;
-        this.ownerId = ownerId; // ID игрока-владельца (null = NPC)
+        // Основные характеристики агента
+        this.name = name; // Имя агента (строка)
+        this.age = age; // Возраст агента (число, лет)
+        this.gender = gender; // Пол агента ('male' или 'female')
+        this.type = type; // Тип агента ('man', 'woman', 'boy', 'girl', 'oldman', 'oldwoman')
+        this.ownerId = ownerId; // ID игрока-владельца (null = NPC, не принадлежит игроку)
         
-        // Характеристики
-        this.health = 100;
-        this.energy = 100;
-        this.hunger = 0;
-        this.thirst = 0; // Жажда (0-100)
-        this.sweetDesire = 0; // Желание сладкого (0-100)
-        this.stamina = 100; // Выносливость (0-100)
-        this.immunity = 50; // Иммунитет (0-100)
-        this.appetite = 50; // Аппетит (0-100, влияет на эффективность еды)
-        this.temperature = 37; // Нормальная температура тела (градусы Цельсия)
-        this.mood = 'neutral'; // neutral, happy, sad, anxious
+        // Характеристики здоровья и выживания
+        this.health = 100; // Здоровье агента (0-100, при 0 агент умирает)
+        this.energy = 100; // Энергия агента (0-100, влияет на скорость и активность)
+        this.hunger = 0; // Голод агента (0-100, при высоком значении теряется здоровье)
+        this.thirst = 0; // Жажда агента (0-100, при высоком значении требуется вода)
+        this.sweetDesire = 0; // Желание сладкого (0-100, влияет на предпочтения в еде)
+        this.stamina = 100; // Выносливость агента (0-100, влияет на потерю энергии)
+        this.immunity = 50; // Иммунитет агента (0-100, влияет на сопротивляемость болезням)
+        this.appetite = 50; // Аппетит агента (0-100, влияет на эффективность потребления еды)
+        this.temperature = 37; // Температура тела агента (градусы Цельсия, нормальная 37°C)
+        this.mood = 'neutral'; // Настроение агента ('neutral', 'happy', 'sad', 'anxious')
         
-        // Позиция
-        this.position = { x: 0, y: 0 };
-        this.targetPosition = null; // Целевая позиция для ручного управления
-        this.isPlayerControlled = false; // Управляется ли игроком
-        this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный ID
-        this.lastEatTime = 0; // Время последнего приема пищи (для ограничения частоты)
-        this.lastPosition = { x: 0, y: 0 }; // Предыдущая позиция для определения движения
+        // Позиция и движение
+        this.position = { x: 0, y: 0 }; // Текущая позиция агента на карте (координаты x, y)
+        this.targetPosition = null; // Целевая позиция для ручного управления игроком (null или {x, y})
+        this.isPlayerControlled = false; // Флаг управления игроком (true = игрок управляет, false = ИИ управляет)
+        this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный идентификатор агента
+        this.lastEatTime = 0; // Время последнего приема пищи (timestamp, для ограничения частоты еды)
+        this.lastPosition = { x: 0, y: 0 }; // Предыдущая позиция агента (для определения движения и расчета тепла)
         
         // Инвентарь и память
-        this.inventory = [];
-        this.memory = []; // [{type: 'berry', x: 100, y: 200}, ...]
-        this.foodStorage = []; // Запасы еды для себя
-        this.animalFoodStorage = []; // Запасы еды для животных
-        this.pets = []; // Домашние животные [{type, x, y, ...}]
+        this.inventory = []; // Инвентарь агента (массив предметов: инструменты, одежда, ресурсы, деньги)
+        this.memory = []; // Память агента о найденных ресурсах (массив объектов {type, x, y})
+        this.foodStorage = []; // Запасы еды для самого агента (массив объектов {type, amount})
+        this.animalFoodStorage = []; // Запасы еды для домашних животных (массив объектов {type, amount})
+        this.pets = []; // Массив ID домашних животных, принадлежащих агенту
         
-        // Система опыта (разные виды опыта)
+        // Система опыта (разные виды опыта для разных навыков)
         this.experience = {
-            saw: 0,           // Опыт работы с пилой
-            axe: 0,           // Опыт работы с топором
-            hammer: 0,        // Опыт работы с молотком
-            pickaxe: 0,       // Опыт работы с киркой
-            shovel: 0,        // Опыт работы с лопатой
-            fishing: 0,       // Опыт рыбалки
-            cooking: 0,       // Опыт готовки
-            building: 0,      // Опыт строительства
-            farming: 0,       // Опыт фермерства
-            hunting: 0,       // Опыт охоты
-            fire_building: 0, // Опыт разжигания костра
-            bring_wood: 0,    // Опыт принесения дров
-            gather_wood: 0,   // Опыт сбора дров
-            gather_fish: 0,   // Опыт сбора рыбы
-            gather_all: 0     // Опыт сбора всех объектов
+            saw: 0,           // Опыт работы с пилой (0-100)
+            axe: 0,           // Опыт работы с топором (0-100)
+            hammer: 0,        // Опыт работы с молотком (0-100)
+            pickaxe: 0,       // Опыт работы с киркой (0-100)
+            shovel: 0,        // Опыт работы с лопатой (0-100)
+            fishing: 0,       // Опыт рыбалки (0-100)
+            cooking: 0,       // Опыт готовки (0-100)
+            building: 0,      // Опыт строительства (0-100)
+            farming: 0,       // Опыт фермерства (0-100)
+            hunting: 0,       // Опыт охоты (0-100)
+            fire_building: 0, // Опыт разжигания костра (0-100)
+            bring_wood: 0,    // Опыт принесения дров к костру (0-100)
+            gather_wood: 0,   // Опыт сбора дров (0-100)
+            gather_fish: 0,   // Опыт сбора рыбы (0-100)
+            gather_all: 0     // Опыт сбора всех объектов (0-100)
         };
         
         // Эмоциональное состояние
-        this.fear = 0; // Страх (0-100)
-        this.panic = false; // Паника (true/false)
+        this.fear = 0; // Уровень страха агента (0-100, увеличивается при встрече с хищниками)
+        this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
-        // Состояние для конечного автомата
-        this.state = 'explore'; // explore, findFood, rest, sleep, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood, cook, hunt, build, fish, farm
-        this.sleepStartTime = 0; // Время начала сна (для определения длительности)
-        this.speed = 2; // Базовая скорость движения
-        this.maxEnergy = 100;
-        this.maxHealth = 100;
-        this.canBuildFire = false; // Может ли разводить костер
-        this.defenseSkill = 0; // Навык обороны
-        this.nearbyPredator = null; // Ближайший хищник
+        // Состояние для конечного автомата (определяет текущее поведение агента)
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead'
+        this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
+        this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
+        this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
+        this.maxHealth = 100; // Максимальное здоровье агента (верхний предел для this.health)
+        this.canBuildFire = false; // Флаг возможности разведения костра (true = может разводить костер)
+        this.defenseSkill = 0; // Навык обороны от хищников (число, увеличивается при обороне)
+        this.nearbyPredator = null; // Ближайший хищник поблизости (null или объект {predator, distance})
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -91,20 +92,20 @@ class Agent {
         }
         
         // Основной цикл обновления агента
-        const oldHunger = this.hunger;
-        const oldHealth = this.health;
-        const oldTemperature = this.temperature;
+        const oldHunger = this.hunger; // Сохраняем старое значение голода (для определения изменений)
+        const oldHealth = this.health; // Сохраняем старое значение здоровья (для определения изменений)
+        const oldTemperature = this.temperature; // Сохраняем старое значение температуры (для определения изменений)
         
         // Получаем настройки голода (если доступны, иначе используем значения по умолчанию)
         const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {
-            INCREASE_RATE: 0.005,       // Исправлено: было 0.5 (слишком много!)
-            CRITICAL_THRESHOLD: 85,
-            HEALTH_LOSS_RATE: 0.1,      // Исправлено: было 0.5 (слишком много!)
-            AUTO_EAT_THRESHOLD: 50,
-            FOOD_RESTORE: 25,
-            SEARCH_FOOD_THRESHOLD: 60,
-            STORE_FOOD_THRESHOLD: 40,
-            WARNING_THRESHOLD: 90
+            INCREASE_RATE: 0.005,       // Скорость увеличения голода за кадр (исправлено: было 0.5, слишком много!)
+            CRITICAL_THRESHOLD: 85,     // Порог критического голода (при превышении теряется здоровье)
+            HEALTH_LOSS_RATE: 0.1,      // Скорость потери здоровья при критическом голоде (исправлено: было 0.5, слишком много!)
+            AUTO_EAT_THRESHOLD: 50,     // Порог автоматического приема пищи из запасов
+            FOOD_RESTORE: 25,           // Количество голода, которое восстанавливает еда
+            SEARCH_FOOD_THRESHOLD: 60,  // Порог, при котором агент начинает искать еду
+            STORE_FOOD_THRESHOLD: 40,   // Порог, при котором агент начинает запасать еду
+            WARNING_THRESHOLD: 90       // Порог для предупреждения о критическом голоде
         };
         
         // Увеличиваем голод
@@ -141,21 +142,21 @@ class Agent {
         
         // Уменьшаем энергию при активности (зависит от выносливости)
         const ENERGY_CONFIG = window.GAME_CONFIG?.AGENTS?.ENERGY || {
-            BASE_LOSS_RATE: 0.05,
-            REST_RESTORE_RATE: 0.5,
-            LOW_ENERGY_THRESHOLD: 30,
-            CRITICAL_ENERGY_THRESHOLD: 20,
-            STAMINA_REDUCTION_FACTOR: 0.5
+            BASE_LOSS_RATE: 0.05,              // Базовая скорость потери энергии при активности (за кадр)
+            REST_RESTORE_RATE: 0.5,            // Скорость восстановления энергии при отдыхе (за кадр)
+            LOW_ENERGY_THRESHOLD: 30,          // Порог низкой энергии (когда агент начинает отдыхать)
+            CRITICAL_ENERGY_THRESHOLD: 20,     // Критический порог энергии (когда скорость снижается)
+            STAMINA_REDUCTION_FACTOR: 0.5      // Коэффициент снижения потерь энергии от выносливости (0-1)
         };
         
         // Настройки сна
         const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
-            ENERGY_RESTORE_RATE: 1.5,
-            HEALTH_RESTORE_RATE: 0.1,
-            STAMINA_RESTORE_RATE: 1.0,
-            MIN_SLEEP_DURATION: 100,
-            AUTO_SLEEP_ENERGY_THRESHOLD: 20,
-            AUTO_SLEEP_NIGHT: true
+            ENERGY_RESTORE_RATE: 1.5,          // Скорость восстановления энергии во сне (за кадр, быстрее чем отдых)
+            HEALTH_RESTORE_RATE: 0.1,          // Скорость восстановления здоровья во сне (за кадр)
+            STAMINA_RESTORE_RATE: 1.0,         // Скорость восстановления выносливости во сне (за кадр)
+            MIN_SLEEP_DURATION: 100,           // Минимальная длительность сна (в кадрах обновления)
+            AUTO_SLEEP_ENERGY_THRESHOLD: 20,   // Порог энергии для автоматического засыпания
+            AUTO_SLEEP_NIGHT: true             // Автоматическое засыпание ночью (true/false)
         };
         
         if (this.state === 'sleep') {
@@ -170,9 +171,9 @@ class Agent {
             if (this.stamina > 100) this.stamina = 100;
             
             // Автоматическое пробуждение, если энергия восстановлена и прошло достаточно времени
-            const currentTime = Date.now();
-            const sleepDuration = currentTime - (this.sleepStartTime || currentTime);
-            const minSleepDurationMs = SLEEP_CONFIG.MIN_SLEEP_DURATION * 16; // Примерно 16мс на кадр
+            const currentTime = Date.now(); // Текущее время в миллисекундах
+            const sleepDuration = currentTime - (this.sleepStartTime || currentTime); // Длительность сна в миллисекундах
+            const minSleepDurationMs = SLEEP_CONFIG.MIN_SLEEP_DURATION * 16; // Минимальная длительность сна в миллисекундах (примерно 16мс на кадр)
             
             if (this.energy >= 90 && sleepDuration >= minSleepDurationMs) {
                 // Пробуждаемся автоматически
@@ -193,8 +194,8 @@ class Agent {
             // Уменьшаем энергию при активности
             // Чем больше выносливость, тем меньше потери энергии
             // Формула: базовые потери * (1 - выносливость/100 * коэффициент)
-            const staminaReduction = (this.stamina / 100) * ENERGY_CONFIG.STAMINA_REDUCTION_FACTOR;
-            const energyLoss = ENERGY_CONFIG.BASE_LOSS_RATE * (1 - staminaReduction);
+            const staminaReduction = (this.stamina / 100) * ENERGY_CONFIG.STAMINA_REDUCTION_FACTOR; // Коэффициент снижения потерь от выносливости (0-0.5)
+            const energyLoss = ENERGY_CONFIG.BASE_LOSS_RATE * (1 - staminaReduction); // Финальная потеря энергии с учетом выносливости
             this.energy -= energyLoss;
             if (this.energy < 0) this.energy = 0;
         }
@@ -204,22 +205,22 @@ class Agent {
         
         // Если температура слишком низкая, теряем здоровье (уменьшена скорость потери)
         if (this.temperature < 35) {
-            const healthLoss = (35 - this.temperature) * 0.02; // Уменьшено с 0.1 до 0.02
+            const healthLoss = (35 - this.temperature) * 0.02; // Потеря здоровья от холода (уменьшено с 0.1 до 0.02 для баланса)
             this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
         
         // Если голод критический, начинаем терять здоровье
         if (this.hunger > HUNGER_CONFIG.CRITICAL_THRESHOLD) {
-            this.health -= HUNGER_CONFIG.HEALTH_LOSS_RATE;
+            this.health -= HUNGER_CONFIG.HEALTH_LOSS_RATE; // Потеря здоровья от голода
             if (this.health < 0) this.health = 0;
         }
         
         // Используем запасы еды если голодны или хотим пить
         if ((this.hunger > HUNGER_CONFIG.AUTO_EAT_THRESHOLD || this.thirst > 60) && this.foodStorage.length > 0) {
             // Ищем подходящую еду
-            let foodToEat = null;
-            let foodIndex = -1;
+            let foodToEat = null; // Найденная еда для потребления (объект {type, amount} или null)
+            let foodIndex = -1; // Индекс найденной еды в массиве foodStorage
             
             if (this.thirst > 60) {
                 // Ищем напитки
