@@ -756,6 +756,20 @@ function initializeGameWithServerData(data) {
     // Создаем мир
     initializeCanvas();
     
+    // Получаем playerId из networkManager
+    const playerId = window.networkManager && window.networkManager.socket ? 
+                     window.networkManager.socket.id : null;
+    
+    // Создаем агентов с playerId (семья для текущего игрока)
+    if (window.agents && playerId) {
+        window.agents.playerId = playerId;
+        window.agents.initializeAgents(playerId);
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`👨‍👩‍👧‍👦 Создана ваша семья (${window.agents.getPlayerAgents().length} человек)`);
+        }
+    }
+    
     // Загружаем состояние мира с сервера
     if (data.world) {
         // Загружаем ресурсы
