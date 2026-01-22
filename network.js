@@ -12,7 +12,18 @@ class NetworkManager {
     }
 
     // Подключение к серверу
-    connect(serverUrl = 'http://localhost:3000') {
+    // Автоматически определяет URL: localhost для разработки, текущий домен для продакшена
+    connect(serverUrl = null) {
+        // Если URL не указан, определяем автоматически
+        if (!serverUrl) {
+            // В продакшене используем текущий домен, в разработке - localhost
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                serverUrl = 'http://localhost:3000';
+            } else {
+                // Используем текущий протокол и домен
+                serverUrl = window.location.origin;
+            }
+        }
         if (this.socket && this.isConnected) {
             console.log('Уже подключен к серверу');
             return;

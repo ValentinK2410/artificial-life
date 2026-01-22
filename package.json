@@ -1,0 +1,18 @@
+{
+  "name": "artificial-life",
+  "version": "1.0.0",
+  "description": "Artificial Life - Сетевая симуляция жизни",
+  "main": "backend/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && node --watch server.js",
+    "install-deps": "cd backend && npm install"
+  },
+  "keywords": ["game", "multiplayer", "websocket", "simulation"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
