@@ -764,10 +764,8 @@ class Simulation {
     }
 
     updateSidebar() {
-        // Обновление данных всех агентов во вкладке "Агенты"
-        this.agents.forEach(agent => {
-            this.updateAgentUI(agent);
-        });
+        // Обновление компактного списка агентов
+        this.updateAgentsCompactList();
         
         // Обновление статистики мира
         if (this.world) {
@@ -775,54 +773,121 @@ class Simulation {
         }
     }
 
-    updateAgentUI(agent) {
-        const agentItem = document.querySelector(`[data-agent="${agent.type}"]`)?.closest('.agent-item');
-        if (!agentItem) return;
-
-        const nameSpan = agentItem.querySelector('.agent-name');
-        const ageSpan = agentItem.querySelector('.agent-age');
-        const stateSelect = agentItem.querySelector('.agent-state');
-        const psycheSelect = agentItem.querySelector('.agent-psyche');
-        const energySlider = agentItem.querySelector('.agent-energy');
-        const energyValue = agentItem.querySelector('.energy-value');
-        const hungerSlider = agentItem.querySelector('.agent-hunger');
-        const hungerValue = agentItem.querySelector('.hunger-value');
-        const statusSpan = agentItem.querySelector('.agent-status');
-
-        if (nameSpan) nameSpan.textContent = agent.name;
-        if (ageSpan) ageSpan.textContent = agent.age;
+    updateAgentsCompactList() {
+        const container = document.getElementById('agentsListContainer');
+        if (!container) return;
         
-        // Обновление состояния на основе здоровья
-        if (stateSelect) {
-            const healthState = agent.health > 70 ? 'healthy' : 
-                              agent.health > 40 ? 'wounded' : 'sick';
-            stateSelect.value = healthState;
+        // Получаем агентов из менеджера или напрямую
+        let playerAgents = [];
+        if (this.agentsManager) {
+            playerAgents = this.agentsManager.getPlayerAgents();
+            if (playerAgents.length === 0) {
+                playerAgents = this.agentsManager.getAllAgents();
+            }
+        } else if (this.agents) {
+            playerAgents = this.agents;
         }
         
-        // Обновление психики на основе настроения
-        if (psycheSelect) {
-            const psycheState = agent.mood === 'neutral' ? 'calm' :
-                               agent.mood === 'anxious' ? 'tense' : 'panic';
-            psycheSelect.value = psycheState;
+        if (playerAgents.length === 0) {
+            container.innerHTML = '<p style="color: #b0b0b0; text-align: center; padding: 20px;">Нет агентов</p>';
+            return;
         }
         
-        // Обновление энергии
-        if (energySlider) {
-            const energy = Math.floor(agent.energy);
-            energySlider.value = energy;
-            if (energyValue) energyValue.textContent = energy;
-        }
-        
-        // Обновление голода
-        if (hungerSlider) {
-            const hunger = Math.floor(agent.hunger);
-            hungerSlider.value = hunger;
-            if (hungerValue) hungerValue.textContent = hunger;
-        }
-        
-        // Обновление статуса
-        if (statusSpan) {
-            statusSpan.textContent = agent.getStateName();
+        container.innerHTML = playerAgents.map(agent => {
+            const health = Math.floor(agent.health || 0);
+            const energy = Math.floor(agent.energy || 0);
+            const hunger = Math.floor(agent.hunger || 0);
+            const thirst = Math.floor(agent.thirst || 0);
+            const temperature = Math.floor(agent.temperature || 37);
+            const fear = Math.floor(agent.fear || 0);
+            
+            // Цвета для индикаторов
+            const healthColor = health > 70 ? '#4caf50' : health > 40 ? '#ff9800' : '#f44336';
+            const energyColor = energy > 50 ? '#4caf50' : energy > 20 ? '#ff9800' : '#f44336';
+            const hungerColor = hunger < 50 ? '#4caf50' : hunger < 80 ? '#ff9800' : '#f44336';
+            const thirstColor = thirst < 50 ? '#2196f3' : thirst < 80 ? '#ff9800' : '#f44336';
+            const tempColor = temperature >= 35 ? '#4caf50' : temperature >= 32 ? '#ff9800' : '#f44336';
+            
+            // Состояние
+            const stateName = this.getStateName(agent.state || 'explore');
+            const healthState = health > 70 ? 'Здоров' : health > 40 ? 'Ранен' : 'Болен';
+            const moodState = agent.panic ? '😱 Паника' : 
+                             fear > 70 ? '😨 Сильный страх' :
+                             fear > 40 ? '😰 Страх' :
+                             agent.mood === 'happy' ? '😊 Счастлив' :
+                             agent.mood === 'anxious' ? '😟 Напряжен' : '😐 Спокоен';
+            
+            return `
+                <div class="agent-compact-card" data-agent-id="${agent.id}" onclick="window.simulation.selectAgentForControl('${agent.id}')">
+                    <div class="agent-compact-header">
+                        <div class="agent-compact-name">
+                            <strong>${agent.name}</strong>
+                            <span class="agent-compact-age">${agent.age} лет</span>
+                        </div>
+                        <div class="agent-compact-status" style="background-color: ${healthColor}20; color: ${healthColor};">
+                            ${healthState}
+                        </div>
+                    </div>
+                    <div class="agent-compact-stats">
+                        <div class="agent-stat-row">
+                            <span class="stat-label">❤️ Здоровье:</span>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: ${health}%; background-color: ${healthColor};"></div>
+                                <span class="stat-value">${health}%</span>
+                            </div>
+                        </div>
+                        <div class="agent-stat-row">
+                            <span class="stat-label">⚡ Энергия:</span>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: ${energy}%; background-color: ${energyColor};"></div>
+                                <span class="stat-value">${energy}%</span>
+                            </div>
+                        </div>
+                        <div class="agent-stat-row">
+                            <span class="stat-label">🍖 Голод:</span>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: ${hunger}%; background-color: ${hungerColor};"></div>
+                                <span class="stat-value">${hunger}%</span>
+                            </div>
+                        </div>
+                        <div class="agent-stat-row">
+                            <span class="stat-label">💧 Жажда:</span>
+                            <div class="stat-bar-container">
+                                <div class="stat-bar" style="width: ${thirst}%; background-color: ${thirstColor};"></div>
+                                <span class="stat-value">${thirst}%</span>
+                            </div>
+                        </div>
+                        <div class="agent-stat-row">
+                            <span class="stat-label">🌡️ Температура:</span>
+                            <span class="stat-value" style="color: ${tempColor};">${temperature}°C</span>
+                        </div>
+                        <div class="agent-stat-row">
+                            <span class="stat-label">📍 Состояние:</span>
+                            <span class="stat-value">${stateName}</span>
+                        </div>
+                        ${fear > 0 ? `
+                        <div class="agent-stat-row">
+                            <span class="stat-label">😨 Страх:</span>
+                            <span class="stat-value" style="color: ${fear > 70 ? '#f44336' : '#ff9800'};">${fear}%</span>
+                        </div>
+                        ` : ''}
+                        <div class="agent-stat-row">
+                            <span class="stat-label">😊 Настроение:</span>
+                            <span class="stat-value">${moodState}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    selectAgentForControl(agentId) {
+        const agent = this.agentsManager ? 
+            this.agentsManager.getAllAgents().find(a => a.id === agentId) :
+            this.agents.find(a => a.id === agentId);
+        if (agent) {
+            this.selectedAgent = agent;
+            this.showAgentControlPanel(agent);
         }
     }
 
