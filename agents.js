@@ -1,11 +1,12 @@
 // Модуль для работы с агентами
 
 class Agent {
-    constructor(name, age, gender, type) {
+    constructor(name, age, gender, type, ownerId = null) {
         this.name = name;
         this.age = age;
         this.gender = gender;
         this.type = type;
+        this.ownerId = ownerId; // ID игрока-владельца (null = NPC)
         
         // Характеристики
         this.health = 100;
@@ -16,6 +17,9 @@ class Agent {
         
         // Позиция
         this.position = { x: 0, y: 0 };
+        this.targetPosition = null; // Целевая позиция для ручного управления
+        this.isPlayerControlled = false; // Управляется ли игроком
+        this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный ID
         
         // Инвентарь и память
         this.inventory = [];
@@ -613,10 +617,25 @@ class Agent {
             // Достигли цели
             this.position.x = x;
             this.position.y = y;
+            this.targetPosition = null; // Цель достигнута
         }
         
         // Бесконечный мир - не ограничиваем границами
         // Позиция может быть любой
+    }
+    
+    // Установка цели для ручного управления
+    setTarget(x, y) {
+        this.targetPosition = { x, y };
+        this.isPlayerControlled = true;
+        // Переключаемся на ручное управление
+        this.state = 'explore'; // Можно добавить специальное состояние 'playerControl'
+    }
+    
+    // Очистка цели
+    clearTarget() {
+        this.targetPosition = null;
+        this.isPlayerControlled = false;
     }
 
     moveToRandomPoint() {
@@ -851,8 +870,8 @@ class Agent {
 // Дочерние классы
 
 class YoungMan extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'male', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'male', type, ownerId);
         this.energy = 100;
         this.maxEnergy = 100;
         this.speed = 3; // Быстрее двигается
@@ -870,8 +889,8 @@ class YoungMan extends Agent {
 }
 
 class OldMan extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'male', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'male', type, ownerId);
         this.energy = 60; // Низкая базовая энергия
         this.maxEnergy = 60;
         this.speed = 1; // Медленнее двигается
@@ -908,8 +927,8 @@ class OldMan extends Agent {
 }
 
 class YoungWoman extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'female', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'female', type, ownerId);
         this.energy = 90;
         this.maxEnergy = 90;
         this.speed = 2.5; // Быстрее двигается
@@ -926,8 +945,8 @@ class YoungWoman extends Agent {
 }
 
 class OldWoman extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'female', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'female', type, ownerId);
         this.energy = 55; // Низкая базовая энергия
         this.maxEnergy = 55;
         this.speed = 1; // Медленнее двигается
@@ -958,8 +977,8 @@ class OldWoman extends Agent {
 
 // Класс для среднего возраста (для совместимости)
 class MiddleAgedMan extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'male', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'male', type, ownerId);
         this.energy = 85;
         this.maxEnergy = 85;
         this.speed = 2;
@@ -976,8 +995,8 @@ class MiddleAgedMan extends Agent {
 }
 
 class MiddleAgedWoman extends Agent {
-    constructor(name, age, type) {
-        super(name, age, 'female', type);
+    constructor(name, age, type, ownerId = null) {
+        super(name, age, 'female', type, ownerId);
         this.energy = 80;
         this.maxEnergy = 80;
         this.speed = 2;
@@ -994,21 +1013,39 @@ class MiddleAgedWoman extends Agent {
 }
 
 class AgentsManager {
-    constructor() {
+    constructor(playerId = null) {
         this.agents = [];
+        this.playerId = playerId; // ID текущего игрока
         this.initializeAgents();
     }
 
-    initializeAgents() {
+    initializeAgents(playerId = null) {
+        // Если передан playerId, создаем семью для этого игрока
+        if (playerId) {
+            this.playerId = playerId;
+        }
+        
         // Инициализация 6 агентов с использованием дочерних классов
+        // Если есть playerId, все агенты принадлежат этому игроку
         this.agents = [
-            new MiddleAgedMan('Мужчина', 35, 'man'),
-            new MiddleAgedWoman('Женщина', 32, 'woman'),
-            new YoungMan('Парень', 18, 'boy'),
-            new YoungWoman('Девушка', 17, 'girl'),
-            new OldMan('Старик', 68, 'oldman'),
-            new OldWoman('Старуха', 65, 'oldwoman')
+            new MiddleAgedMan('Мужчина', 35, 'man', this.playerId),
+            new MiddleAgedWoman('Женщина', 32, 'woman', this.playerId),
+            new YoungMan('Парень', 18, 'boy', this.playerId),
+            new YoungWoman('Девушка', 17, 'girl', this.playerId),
+            new OldMan('Старик', 68, 'oldman', this.playerId),
+            new OldWoman('Старуха', 65, 'oldwoman', this.playerId)
         ];
+    }
+    
+    // Получить агентов текущего игрока
+    getPlayerAgents() {
+        if (!this.playerId) return [];
+        return this.agents.filter(agent => agent.ownerId === this.playerId);
+    }
+    
+    // Получить агента по ID
+    getAgentById(agentId) {
+        return this.agents.find(agent => agent.id === agentId);
     }
 
     update() {

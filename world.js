@@ -1305,6 +1305,45 @@ class World {
         const health = agent.health !== undefined ? agent.health : 100;
         const time = Date.now() / 1000;
         
+        // Проверяем, выбран ли этот агент
+        const isSelected = window.simulation && window.simulation.selectedAgent === agent;
+        
+        // Визуальное выделение выбранного агента
+        if (isSelected) {
+            // Рисуем круговое выделение вокруг агента
+            this.ctx.strokeStyle = '#00ff00';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 5, 20, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Рисуем второй круг для эффекта пульсации
+            const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+            this.ctx.strokeStyle = `rgba(0, 255, 0, ${pulse * 0.5})`;
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 5, 25, 0, Math.PI * 2);
+            this.ctx.stroke();
+        }
+        
+        // Если есть целевая позиция, рисуем линию к ней
+        if (agent.targetPosition && agent.isPlayerControlled) {
+            this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(agent.targetPosition.x, agent.targetPosition.y);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Рисуем маркер цели
+            this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            this.ctx.beginPath();
+            this.ctx.arc(agent.targetPosition.x, agent.targetPosition.y, 5, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        
         // Определение типа агента и соответствующих цветов одежды
         const agentStyles = {
             'man': { skin: '#f4c2a1', hair: '#3a2a1a', clothes: '#4a6a9a', pants: '#2a4a6a' },
