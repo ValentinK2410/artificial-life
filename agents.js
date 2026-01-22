@@ -364,9 +364,12 @@ class Agent {
         switch(this.state) {
             case 'moveToPoint':
                 // Движение к точке, указанной игроком - ПРИОРИТЕТ
-                if (this.targetPosition && this.isPlayerControlled) {
+                if (this.targetPosition) {
                     this.moveTo(this.targetPosition.x, this.targetPosition.y);
                     return; // Выходим, не выполняя другие действия
+                } else {
+                    // Цель потеряна - очищаем флаг управления
+                    this.isPlayerControlled = false;
                 }
                 // Если цель потеряна, переходим к обычному поведению
                 break;
