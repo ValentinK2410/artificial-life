@@ -142,7 +142,12 @@ class Simulation {
             'cooking': 'Готовка',
             'building': 'Строительство',
             'farming': 'Фермерство',
-            'hunting': 'Охота'
+            'hunting': 'Охота',
+            'fire_building': 'Разжигание костра',
+            'bring_wood': 'Принесение дров',
+            'gather_wood': 'Сбор дров',
+            'gather_fish': 'Сбор рыбы',
+            'gather_all': 'Сбор ресурсов'
         };
         
         // Иконки навыков

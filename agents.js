@@ -920,8 +920,20 @@ class Agent {
     }
 
     buildFire() {
-        // Разведение костра (только если есть дрова и можем разводить)
-        if (!this.canBuildFire || !this.hasWoodForFire()) {
+        // Разведение костра (требуется навык fire_building)
+        if (this.experience.fire_building <= 0) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name} не умеет разжигать костер`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        if (!this.hasWoodForFire()) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name} нет дров для костра`);
+            }
+            this.state = 'explore';
             return;
         }
         
@@ -937,23 +949,44 @@ class Agent {
         });
         
         if (existingFire) {
-            // Уже есть костер рядом - идем к нему
+            // Уже есть костер рядом - можем добавить дров
+            const woodItem = this.inventory.find(item => item.type === 'wood');
+            if (woodItem && woodItem.amount > 0 && window.world.addWoodToFire) {
+                window.world.addWoodToFire(existingFire.id, 1);
+                woodItem.amount--;
+                if (woodItem.amount <= 0) {
+                    const index = this.inventory.indexOf(woodItem);
+                    if (index > -1) this.inventory.splice(index, 1);
+                }
+                this.gainExperience('bring_wood', 0.5);
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🔥 ${this.name} подбросил(а) дров в костер`);
+                }
+            }
             this.state = 'rest';
             return;
         }
         
         // Убираем дрова из инвентаря
+        const woodNeeded = 2;
         let woodRemoved = 0;
-        for (let i = this.inventory.length - 1; i >= 0 && woodRemoved < 3; i--) {
+        for (let i = this.inventory.length - 1; i >= 0 && woodRemoved < woodNeeded; i--) {
             if (this.inventory[i].type === 'wood') {
-                this.inventory.splice(i, 1);
-                woodRemoved++;
+                const item = this.inventory[i];
+                if (item.amount <= woodNeeded - woodRemoved) {
+                    woodRemoved += item.amount;
+                    this.inventory.splice(i, 1);
+                } else {
+                    item.amount -= (woodNeeded - woodRemoved);
+                    woodRemoved = woodNeeded;
+                }
             }
         }
         
         // Создаем костер
         if (window.world.addFire) {
-            window.world.addFire(this.position.x, this.position.y);
+            window.world.addFire(this.position.x, this.position.y, this.ownerId);
+            this.gainExperience('fire_building', 2); // Опыт разжигания костра
             
             // Отправляем уведомление на сервер
             if (window.networkManager && window.networkManager.isConnected) {
@@ -1319,6 +1352,59 @@ class Agent {
         this.position.y = value;
     }
 
+    gatherResources() {
+        // Собирать все ресурсы поблизости
+        if (!window.world) return;
+        
+        const gatherRadius = 30;
+        const resources = window.world.resources;
+        let gathered = false;
+        
+        resources.forEach(resource => {
+            const dx = resource.x - this.position.x;
+            const dy = resource.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= gatherRadius) {
+                gathered = true;
+                
+                // Собираем ресурс
+                if (resource.type === 'fish') {
+                    this.gainExperience('gather_fish', 1);
+                } else if (resource.type === 'wood') {
+                    this.gainExperience('gather_wood', 1);
+                }
+                this.gainExperience('gather_all', 0.5);
+                
+                // Добавляем в инвентарь
+                const existingItem = this.inventory.find(item => item.type === resource.type);
+                if (existingItem) {
+                    existingItem.amount += resource.amount || 1;
+                } else {
+                    this.inventory.push({
+                        type: resource.type,
+                        amount: resource.amount || 1
+                    });
+                }
+                
+                // Удаляем ресурс
+                const index = resources.indexOf(resource);
+                if (index > -1) {
+                    if (window.networkManager && window.networkManager.isConnected && resource.id) {
+                        window.networkManager.removeResource(resource.id);
+                    }
+                    resources.splice(index, 1);
+                }
+            }
+        });
+        
+        if (gathered && window.addLogEntry && Math.random() < 0.3) {
+            window.addLogEntry(`🌿 ${this.name} собрал(а) ресурсы`);
+        }
+        
+        this.state = 'explore';
+    }
+    
     getStateName() {
         if (this.health > 70) return 'Здоров';
         if (this.health > 40) return 'Ранен';
@@ -1326,6 +1412,9 @@ class Agent {
     }
 
     getPsycheName() {
+        if (this.panic) return 'Паника';
+        if (this.fear > 70) return 'Сильный страх';
+        if (this.fear > 40) return 'Страх';
         if (this.mood === 'neutral') return 'Спокоен';
         if (this.mood === 'anxious') return 'Напряжен';
         if (this.mood === 'happy') return 'Счастлив';
