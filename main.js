@@ -1171,76 +1171,166 @@ function initializeWorldControls() {
     
     // Новые продукты
     document.getElementById('addHoneyBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('honey');
-        addLogEntry('Мёд добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('honey', 1);
+            }
+        }
+        addLogEntry(`Мёд добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addMilkBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('milk');
-        addLogEntry('Молоко добавлено на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('milk', 1);
+            }
+        }
+        addLogEntry(`Молоко добавлено на карту (${count} шт.)`);
     });
     document.getElementById('addWaterBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('water');
-        addLogEntry('Вода добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('water', 1);
+            }
+        }
+        addLogEntry(`Вода добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addBreadBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('bread');
-        addLogEntry('Хлеб добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('bread', 1);
+            }
+        }
+        addLogEntry(`Хлеб добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addKebabBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('kebab');
-        addLogEntry('Шашлык добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('kebab', 1);
+            }
+        }
+        addLogEntry(`Шашлык добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addPotatoBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('potato');
-        addLogEntry('Картофель добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('potato', 1);
+            }
+        }
+        addLogEntry(`Картофель добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addSaladBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('salad');
-        addLogEntry('Салат добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('salad', 1);
+            }
+        }
+        addLogEntry(`Салат добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addMushroomsBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('mushrooms');
-        addLogEntry('Грибы добавлены на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('mushrooms', 1);
+            }
+        }
+        addLogEntry(`Грибы добавлены на карту (${count} шт.)`);
     });
     document.getElementById('addTeaBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('tea');
-        addLogEntry('Чай добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('tea', 1);
+            }
+        }
+        addLogEntry(`Чай добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addBananaBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('banana');
-        addLogEntry('Банан добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('banana', 1);
+            }
+        }
+        addLogEntry(`Банан добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addOrangeBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('orange');
-        addLogEntry('Апельсин добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('orange', 1);
+            }
+        }
+        addLogEntry(`Апельсин добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addAppleBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('apple');
-        addLogEntry('Яблоко добавлено на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('apple', 1);
+            }
+        }
+        addLogEntry(`Яблоко добавлено на карту (${count} шт.)`);
     });
     document.getElementById('addLemonBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('lemon');
-        addLogEntry('Лимон добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('lemon', 1);
+            }
+        }
+        addLogEntry(`Лимон добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addRosehipBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('rosehip');
-        addLogEntry('Шиповник добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('rosehip', 1);
+            }
+        }
+        addLogEntry(`Шиповник добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addCabbageBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('cabbage');
-        addLogEntry('Капуста добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('cabbage', 1);
+            }
+        }
+        addLogEntry(`Капуста добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addSpicesBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('spices');
-        addLogEntry('Специи добавлены на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('spices', 1);
+            }
+        }
+        addLogEntry(`Специи добавлены на карту (${count} шт.)`);
     });
     document.getElementById('addMintBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('mint');
-        addLogEntry('Мята добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('mint', 1);
+            }
+        }
+        addLogEntry(`Мята добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addStJohnsWortBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('st_johns_wort');
-        addLogEntry('Зверобой добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('st_johns_wort', 1);
+            }
+        }
+        addLogEntry(`Зверобой добавлен на карту (${count} шт.)`);
     });
 
     // Животные
