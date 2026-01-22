@@ -347,6 +347,133 @@ class Agent {
             }
         });
     }
+    
+    checkForSickAgents() {
+        // Проверка наличия больных агентов поблизости (здоровье < 30)
+        this.sickAgent = null; // Сбрасываем больного агента
+        if (!window.agents || !window.agents.getAllAgents) return;
+        
+        const allAgents = window.agents.getAllAgents(); // Получаем всех агентов
+        const CRITICAL_HEALTH_THRESHOLD = 30; // Порог критического здоровья (ниже этого значения агент считается больным)
+        
+        let minDistance = Infinity; // Минимальное расстояние до больного агента (пиксели, изначально бесконечность)
+        
+        allAgents.forEach(agent => {
+            // Пропускаем себя и мертвых агентов
+            if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') return;
+            
+            // Проверяем, что агент сильно болен (здоровье < 30)
+            if (agent.health < CRITICAL_HEALTH_THRESHOLD) {
+                const dx = agent.position.x - this.position.x; // Разница по оси X до больного агента (пиксели)
+                const dy = agent.position.y - this.position.y; // Разница по оси Y до больного агента (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до больного агента (пиксели)
+                
+                // Если больной агент в радиусе 100 пикселей и ближе предыдущего
+                if (distance < 100 && distance < minDistance) {
+                    minDistance = distance; // Обновляем минимальное расстояние
+                    this.sickAgent = agent; // Сохраняем больного агента
+                }
+            }
+        });
+    }
+    
+    hasMedicalSupplies() {
+        // Проверяем, есть ли у агента аптечка и лечебные травы
+        const hasFirstAidKit = this.inventory.some(item => item.type === 'first_aid_kit'); // Флаг наличия аптечки в инвентаре (true/false)
+        
+        if (!hasFirstAidKit) {
+            return false; // Без аптечки нельзя лечить
+        }
+        
+        // Проверяем наличие лечебных трав (шиповник, зверобой, мята, лимон)
+        const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey']; // Массив типов лечебных трав
+        const hasHerbs = this.inventory.some(item => healingHerbs.includes(item.type)); // Флаг наличия лечебных трав в инвентаре (true/false)
+        
+        return hasHerbs; // Возвращаем true, если есть и аптечка, и травы
+    }
+    
+    heal() {
+        // Лечение больного агента
+        if (!this.sickAgent || this.sickAgent.health <= 0) {
+            // Нет больного агента или он уже мертв
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем наличие медицинских принадлежностей
+        if (!this.hasMedicalSupplies()) {
+            // Нет аптечки или лечебных трав
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`💊 ${this.name} нужна аптечка и лечебные травы для лечения`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем расстояние до больного агента
+        const dx = this.sickAgent.position.x - this.position.x; // Разница по оси X до больного агента (пиксели)
+        const dy = this.sickAgent.position.y - this.position.y; // Разница по оси Y до больного агента (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до больного агента (пиксели)
+        
+        if (distance > 30) {
+            // Далеко от больного - идем к нему
+            this.moveTo(this.sickAgent.position.x, this.sickAgent.position.y);
+            return;
+        }
+        
+        // Рядом с больным - лечим
+        if (!this.healingProgress) {
+            this.healingProgress = 0; // Прогресс лечения (число кадров, 0 = начало лечения)
+        }
+        
+        this.healingProgress += 1; // Увеличиваем прогресс лечения
+        
+        // Лечение занимает время (10-15 кадров)
+        const healingTime = 15; // Время лечения в кадрах
+        if (this.healingProgress < healingTime) {
+            // Еще лечим
+            return;
+        }
+        
+        // Лечение завершено - используем лечебные травы
+        const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey']; // Массив типов лечебных трав
+        const herbItem = this.inventory.find(item => healingHerbs.includes(item.type)); // Найденная лечебная трава в инвентаре (объект {type, amount} или undefined)
+        
+        if (herbItem) {
+            // Используем траву для лечения
+            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+            const props = FOOD_PROPERTIES[herbItem.type]; // Свойства лечебной травы (объект {health, immunity, ...} или undefined)
+            
+            if (props) {
+                // Восстанавливаем здоровье больного агента
+                const healthRestore = props.health || 0; // Количество восстанавливаемого здоровья
+                const immunityRestore = props.immunity || 0; // Количество восстанавливаемого иммунитета
+                
+                this.sickAgent.health = Math.min(100, this.sickAgent.health + healthRestore); // Восстанавливаем здоровье (не выше 100)
+                if (immunityRestore > 0) {
+                    this.sickAgent.immunity = Math.min(100, this.sickAgent.immunity + immunityRestore); // Восстанавливаем иммунитет (не выше 100)
+                }
+                
+                // Убираем использованную траву из инвентаря
+                herbItem.amount--; // Уменьшаем количество травы
+                if (herbItem.amount <= 0) {
+                    const index = this.inventory.indexOf(herbItem); // Индекс травы в инвентаре
+                    if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
+                }
+                
+                // Получаем опыт лечения
+                this.gainExperience('healing', 3); // Получаем опыт лечения (если такой навык будет добавлен)
+                
+                if (window.addLogEntry) {
+                    window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${this.getFoodName(herbItem.type)}. Здоровье: ${Math.floor(this.sickAgent.health)}%`);
+                }
+            }
+        }
+        
+        this.healingProgress = 0; // Сбрасываем прогресс лечения
+        this.sickAgent = null; // Очищаем ссылку на больного агента
+        this.state = 'explore'; // Возвращаемся к обычному поведению
+    }
 
     updateTemperature() {
         // Получаем настройки температуры из конфига
@@ -701,6 +828,10 @@ class Agent {
             case 'farm':
                 // Фермерство
                 this.farm();
+                break;
+            case 'heal':
+                // Лечение больного агента
+                this.heal();
                 break;
         }
     }
@@ -1501,6 +1632,13 @@ class Agent {
                         window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
                     }
                 }
+                // Медицинские предметы
+                else if (resourceType === 'first_aid_kit') {
+                    this.inventory.push({ type: 'first_aid_kit', amount: 1 }); // Добавляем аптечку в инвентарь
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал аптечку`);
+                    }
+                }
                 // Одежда
                 else if (['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(resourceType)) {
                     this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем одежду в инвентарь
@@ -1549,6 +1687,7 @@ class Agent {
             'pickaxe': 'кирку',
             'shovel': 'лопату',
             'fishing_rod': 'удочку',
+            'first_aid_kit': 'аптечку',
             'cooked_food': 'готовую еду',
             'meat': 'мясо',
             'bird': 'птицу',

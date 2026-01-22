@@ -335,6 +335,11 @@ class Simulation {
                             😴 Уложить спать
                         </button>
                         `}
+                        ${this.canHealAgent(agent) ? `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('heal')" style="background-color: #e74c3c; font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">
+                            💊 Вылечить больного
+                        </button>
+                        ` : ''}
                         <button class="command-btn" onclick="window.simulation.giveCommand('teachSkill')">
                             📚 Обучить навыку (10 монет)
                         </button>
@@ -394,6 +399,33 @@ class Simulation {
         panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
     
+    // Проверка возможности лечения других агентов
+    canHealAgent(agent) {
+        // Проверяем наличие аптечки
+        const hasFirstAidKit = agent.inventory.some(item => item.type === 'first_aid_kit');
+        if (!hasFirstAidKit) return false;
+        
+        // Проверяем наличие лечебных трав
+        const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey'];
+        const hasHerbs = agent.inventory.some(item => healingHerbs.includes(item.type));
+        
+        // Проверяем наличие больных агентов поблизости
+        if (!window.agents || !window.agents.getAllAgents) return false;
+        const allAgents = window.agents.getAllAgents();
+        const hasSickAgent = allAgents.some(otherAgent => {
+            if (otherAgent.id === agent.id || otherAgent.health <= 0 || otherAgent.state === 'dead') return false;
+            if (otherAgent.health < 30) {
+                const dx = otherAgent.position.x - agent.position.x;
+                const dy = otherAgent.position.y - agent.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < 100;
+            }
+            return false;
+        });
+        
+        return hasHerbs && hasSickAgent;
+    }
+    
     // Получить HTML для инвентаря и запасов
     getInventoryHTML(agent) {
         const inventory = agent.inventory || [];
@@ -409,6 +441,7 @@ class Simulation {
             'pickaxe': 'Кирка',
             'shovel': 'Лопата',
             'fishing_rod': 'Удочка',
+            'first_aid_kit': 'Аптечка',
             // Одежда
             'summer_clothes_man': 'Летняя одежда (мужская)',
             'summer_clothes_woman': 'Летняя одежда (женская)',
@@ -447,7 +480,7 @@ class Simulation {
         let html = '';
         
         // Инвентарь (инструменты, одежда, ресурсы)
-        const tools = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(item.type));
+        const tools = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit'].includes(item.type));
         const clothes = inventory.filter(item => ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(item.type));
         const resources = inventory.filter(item => ['wood', 'stone', 'money'].includes(item.type));
         
@@ -533,7 +566,7 @@ class Simulation {
         const woodCount = inventory.filter(item => item.type === 'wood').reduce((sum, item) => sum + (item.amount || 1), 0);
         const foodCount = foodStorage.reduce((sum, item) => sum + (item.amount || 1), 0);
         const animalFoodCount = animalFoodStorage.reduce((sum, item) => sum + (item.amount || 1), 0);
-        const toolsCount = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(item.type)).length;
+        const toolsCount = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit'].includes(item.type)).length;
         
         let html = '';
         
@@ -625,7 +658,8 @@ class Simulation {
             'hunt': 'Охотится',
             'build': 'Строит',
             'fish': 'Рыбачит',
-            'farm': 'Занимается фермерством'
+            'farm': 'Занимается фермерством',
+            'heal': 'Лечит'
         };
         return stateNames[state] || state;
     }
@@ -665,6 +699,9 @@ class Simulation {
                 break;
             case 'wake':
                 this.wakeAgent();
+                break;
+            case 'heal':
+                this.healAgent();
                 break;
             case 'cook':
                 // Проверяем наличие ингредиентов
@@ -805,6 +842,44 @@ class Simulation {
         if (document.getElementById('agentControlPanel')?.style.display === 'block') {
             this.showAgentControlPanel(this.selectedAgent);
         }
+    }
+    
+    healAgent() {
+        if (!this.selectedAgent) return;
+        
+        // Проверяем наличие медицинских принадлежностей
+        const hasFirstAidKit = this.selectedAgent.inventory.some(item => item.type === 'first_aid_kit');
+        if (!hasFirstAidKit) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У ${this.selectedAgent.name} нет аптечки для лечения`);
+            }
+            return;
+        }
+        
+        const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey'];
+        const hasHerbs = this.selectedAgent.inventory.some(item => healingHerbs.includes(item.type));
+        if (!hasHerbs) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У ${this.selectedAgent.name} нет лечебных трав (нужны: шиповник, зверобой, мята, лимон или мёд)`);
+            }
+            return;
+        }
+        
+        // Проверяем наличие больных агентов
+        this.selectedAgent.checkForSickAgents();
+        if (!this.selectedAgent.sickAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Нет больных агентов поблизости (нужно здоровье < 30% в радиусе 100 пикселей)`);
+            }
+            return;
+        }
+        
+        // Устанавливаем состояние лечения
+        this.selectedAgent.state = 'heal';
+        if (window.addLogEntry) {
+            window.addLogEntry(`💊 ${this.selectedAgent.name} начинает лечить ${this.selectedAgent.sickAgent.name}`);
+        }
+        this.hideAgentControlPanel();
     }
     
     // Обучение навыку
