@@ -1148,9 +1148,8 @@ class Agent {
             const foodProps = FOOD_PROPERTIES[resource.type];
             
             if (foodProps || resource.type === 'berries' || resource.type === 'berry') {
-                // Это еда - потребляем её
+                // Это еда - добавляем в запасы или инвентарь (НЕ потребляем сразу)
                 const foodType = resource.type === 'berry' ? 'berries' : resource.type;
-                this.consumeFood(foodType);
                 
                 // Добавляем в инвентарь или запасы
                 const foodItem = {
