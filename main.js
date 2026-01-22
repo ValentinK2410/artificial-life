@@ -385,6 +385,135 @@ class Simulation {
         panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
     
+    // Получить HTML для инвентаря и запасов
+    getInventoryHTML(agent) {
+        const inventory = agent.inventory || [];
+        const foodStorage = agent.foodStorage || [];
+        const animalFoodStorage = agent.animalFoodStorage || [];
+        
+        // Названия предметов
+        const itemNames = {
+            // Инструменты
+            'saw': 'Пила',
+            'axe': 'Топор',
+            'hammer': 'Молоток',
+            'pickaxe': 'Кирка',
+            'shovel': 'Лопата',
+            'fishing_rod': 'Удочка',
+            // Одежда
+            'summer_clothes_man': 'Летняя одежда (мужская)',
+            'summer_clothes_woman': 'Летняя одежда (женская)',
+            'winter_clothes_man': 'Зимняя одежда (мужская)',
+            'winter_clothes_woman': 'Зимняя одежда (женская)',
+            // Ресурсы
+            'wood': 'Дрова',
+            'stone': 'Камень',
+            'money': 'Деньги',
+            // Еда
+            'berries': 'Ягоды',
+            'meat': 'Мясо',
+            'bird': 'Птица',
+            'fish': 'Рыба',
+            'cooked_food': 'Готовая еда',
+            'honey': 'Мед',
+            'milk': 'Молоко',
+            'water': 'Вода',
+            'bread': 'Хлеб',
+            'kebab': 'Шашлык',
+            'potato': 'Картофель',
+            'salad': 'Салат',
+            'mushrooms': 'Грибы',
+            'tea': 'Чай',
+            'banana': 'Бананы',
+            'orange': 'Апельсины',
+            'apple': 'Яблоки',
+            'lemon': 'Лимон',
+            'rosehip': 'Шиповник',
+            'cabbage': 'Капуста',
+            'spices': 'Специи',
+            'mint': 'Мята',
+            'st_johns_wort': 'Зверобой'
+        };
+        
+        let html = '';
+        
+        // Инвентарь (инструменты, одежда, ресурсы)
+        const tools = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(item.type));
+        const clothes = inventory.filter(item => ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(item.type));
+        const resources = inventory.filter(item => ['wood', 'stone', 'money'].includes(item.type));
+        
+        if (tools.length > 0 || clothes.length > 0 || resources.length > 0) {
+            html += '<div class="inventory-section">';
+            html += '<h4 style="color: #4a9eff; margin-top: 0; margin-bottom: 10px;">📦 Инвентарь</h4>';
+            
+            if (tools.length > 0) {
+                html += '<div class="inventory-category"><strong>🔧 Инструменты:</strong><ul class="inventory-list">';
+                tools.forEach(item => {
+                    const amount = item.amount || 1;
+                    html += `<li>${itemNames[item.type] || item.type} × ${amount}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            if (clothes.length > 0) {
+                html += '<div class="inventory-category"><strong>👕 Одежда:</strong><ul class="inventory-list">';
+                clothes.forEach(item => {
+                    const amount = item.amount || 1;
+                    html += `<li>${itemNames[item.type] || item.type} × ${amount}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            if (resources.length > 0) {
+                html += '<div class="inventory-category"><strong>🌲 Ресурсы:</strong><ul class="inventory-list">';
+                resources.forEach(item => {
+                    const amount = item.amount || 1;
+                    const icon = item.type === 'wood' ? '🪵' : item.type === 'stone' ? '🪨' : item.type === 'money' ? '💰' : '';
+                    html += `<li>${icon} ${itemNames[item.type] || item.type} × ${amount}</li>`;
+                });
+                html += '</ul></div>';
+            }
+            
+            html += '</div>';
+        }
+        
+        // Запасы еды для агента
+        if (foodStorage.length > 0) {
+            html += '<div class="inventory-section" style="margin-top: 15px;">';
+            html += '<h4 style="color: #4caf50; margin-top: 0; margin-bottom: 10px;">🍽️ Запасы еды</h4>';
+            html += '<ul class="inventory-list">';
+            foodStorage.forEach(item => {
+                const amount = item.amount || 1;
+                const name = itemNames[item.type] || item.type;
+                html += `<li>${name} × ${amount}</li>`;
+            });
+            html += '</ul></div>';
+        } else {
+            html += '<div class="inventory-section" style="margin-top: 15px;">';
+            html += '<p style="color: #888; text-align: center; padding: 10px;">Нет запасов еды</p>';
+            html += '</div>';
+        }
+        
+        // Запасы еды для животных
+        if (animalFoodStorage.length > 0) {
+            html += '<div class="inventory-section" style="margin-top: 15px;">';
+            html += '<h4 style="color: #ff9800; margin-top: 0; margin-bottom: 10px;">🐾 Запасы для животных</h4>';
+            html += '<ul class="inventory-list">';
+            animalFoodStorage.forEach(item => {
+                const amount = item.amount || 1;
+                const name = itemNames[item.type] || item.type;
+                html += `<li>${name} × ${amount}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        if (inventory.length === 0 && foodStorage.length === 0 && animalFoodStorage.length === 0) {
+            html = '<p style="color: #888; text-align: center; padding: 20px;">Нет запасов</p>';
+        }
+        
+        return html;
+    }
+    
     // Получить HTML для полученных навыков
     getCompactInventoryInfo(agent) {
         const inventory = agent.inventory || [];
