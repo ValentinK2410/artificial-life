@@ -15,7 +15,19 @@ export const GAME_CONFIG = {
         DEFAULT_HUNGER: 0,
         DEFAULT_TEMPERATURE: 37,
         MIN_TEMPERATURE: 32, // Смерть от переохлаждения
-        MAX_HUNGER: 100
+        MAX_HUNGER: 100,
+        
+        // Настройки голода
+        HUNGER: {
+            INCREASE_RATE: 0.5,        // Скорость увеличения голода за обновление
+            CRITICAL_THRESHOLD: 80,     // Порог, когда начинает теряться здоровье
+            HEALTH_LOSS_RATE: 0.5,      // Скорость потери здоровья при критическом голоде
+            AUTO_EAT_THRESHOLD: 60,     // Порог, когда агент начинает есть из запасов
+            FOOD_RESTORE: 25,           // Сколько голода восстанавливает еда из запасов
+            SEARCH_FOOD_THRESHOLD: 70,  // Порог, когда агент начинает искать еду
+            STORE_FOOD_THRESHOLD: 50,   // Порог, когда агент начинает запасать еду
+            WARNING_THRESHOLD: 90       // Порог для предупреждения о критическом голоде
+        }
     },
     
     // Настройки обучения

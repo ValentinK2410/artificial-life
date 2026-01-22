@@ -72,8 +72,20 @@ class Agent {
         const oldHealth = this.health;
         const oldTemperature = this.temperature;
         
+        // Получаем настройки голода (если доступны, иначе используем значения по умолчанию)
+        const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {
+            INCREASE_RATE: 0.5,
+            CRITICAL_THRESHOLD: 80,
+            HEALTH_LOSS_RATE: 0.5,
+            AUTO_EAT_THRESHOLD: 60,
+            FOOD_RESTORE: 25,
+            SEARCH_FOOD_THRESHOLD: 70,
+            STORE_FOOD_THRESHOLD: 50,
+            WARNING_THRESHOLD: 90
+        };
+        
         // Увеличиваем голод
-        this.hunger += 0.5;
+        this.hunger += HUNGER_CONFIG.INCREASE_RATE;
         if (this.hunger > 100) this.hunger = 100;
         
         // Уменьшаем энергию при движении
@@ -92,16 +104,16 @@ class Agent {
             if (this.health < 0) this.health = 0;
         }
         
-        // Если голод > 80, начинаем терять здоровье
-        if (this.hunger > 80) {
-            this.health -= 0.5;
+        // Если голод критический, начинаем терять здоровье
+        if (this.hunger > HUNGER_CONFIG.CRITICAL_THRESHOLD) {
+            this.health -= HUNGER_CONFIG.HEALTH_LOSS_RATE;
             if (this.health < 0) this.health = 0;
         }
         
         // Используем запасы еды если голодны
-        if (this.hunger > 60 && this.foodStorage.length > 0) {
+        if (this.hunger > HUNGER_CONFIG.AUTO_EAT_THRESHOLD && this.foodStorage.length > 0) {
             const food = this.foodStorage[0];
-            this.hunger -= 25;
+            this.hunger -= HUNGER_CONFIG.FOOD_RESTORE;
             if (this.hunger < 0) this.hunger = 0;
             food.amount--;
             if (food.amount <= 0) {
@@ -122,7 +134,8 @@ class Agent {
         // Логирование критических состояний
         if (window.addLogEntry) {
             // Критический голод
-            if (this.hunger > 90 && oldHunger <= 90) {
+            const WARNING_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.WARNING_THRESHOLD || 90;
+            if (this.hunger > WARNING_THRESHOLD && oldHunger <= WARNING_THRESHOLD) {
                 window.addLogEntry(`⚠️ ${this.name} очень голоден!`);
             }
             // Критическая температура
@@ -289,8 +302,11 @@ class Agent {
         } else if (this.temperature < 35 && this.canBuildFire && this.hasWoodForFire()) {
             // Холодно и можем развести костер - строим
             this.state = 'buildFire';
-        } else if (this.hunger > 70) {
-            this.state = 'findFood';
+        } else {
+            const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
+            if (this.hunger > SEARCH_FOOD_THRESHOLD) {
+                this.state = 'findFood';
+            }
         } else if (this.hasHungryPets()) {
             // Есть голодные домашние животные
             this.state = 'feedAnimal';
