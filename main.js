@@ -1638,8 +1638,8 @@ function initializeNetwork() {
         connectionStatus.textContent = 'Подключение...';
         connectionStatus.className = 'connection-status connecting';
 
-        // Подключаемся к серверу
-        window.networkManager.connect('http://localhost:3000');
+        // Подключаемся к серверу (автоматически определит URL)
+        window.networkManager.connect();
 
         // Обработчик ошибки подключения
         window.networkManager.onConnectionError = (error) => {

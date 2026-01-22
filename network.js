@@ -20,13 +20,18 @@ class NetworkManager {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 serverUrl = 'http://localhost:3000';
             } else {
-                // Используем текущий протокол и домен
+                // Используем текущий протокол и домен (без порта, так как Nginx проксирует)
                 // Для WebSocket важно использовать правильный протокол (ws/wss)
                 const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                // В продакшене НЕ указываем порт, так как Nginx проксирует на порт 3000
                 serverUrl = `${protocol}//${window.location.hostname}`;
                 
-                // Если есть порт в URL, используем его, иначе используем стандартный
-                if (window.location.port) {
+                // Порт указываем только если это не стандартный порт (80 для http, 443 для https)
+                // и только в режиме разработки
+                const isDevPort = (protocol === 'http:' && window.location.port && window.location.port !== '80') ||
+                                  (protocol === 'https:' && window.location.port && window.location.port !== '443');
+                
+                if (isDevPort && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
                     serverUrl = `${protocol}//${window.location.hostname}:${window.location.port}`;
                 }
             }

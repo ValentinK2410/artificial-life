@@ -14,14 +14,32 @@ const isProduction = process.env.NODE_ENV === 'production' ||
 // Настройки CORS для продакшена
 const corsOptions = isProduction 
     ? {
-        origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://game.dekan.pro'],
-        methods: ["GET", "POST"],
-        credentials: true
+        origin: function (origin, callback) {
+            // Разрешаем запросы без origin (мобильные приложения, Postman и т.д.)
+            if (!origin) return callback(null, true);
+            
+            const allowedOrigins = process.env.ALLOWED_ORIGINS 
+                ? process.env.ALLOWED_ORIGINS.split(',') 
+                : ['https://game.dekan.pro', 'http://game.dekan.pro'];
+            
+            // Проверяем, есть ли origin в списке разрешенных
+            if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+                callback(null, true);
+            } else {
+                // Логируем для отладки
+                console.log('CORS: Запрос от неразрешенного origin:', origin);
+                callback(null, true); // Разрешаем для мобильных устройств
+            }
+        },
+        methods: ["GET", "POST", "OPTIONS"],
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization"]
     }
     : {
         origin: "*", // В разработке разрешаем все
-        methods: ["GET", "POST"],
-        credentials: true
+        methods: ["GET", "POST", "OPTIONS"],
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization"]
     };
 
 const io = new Server(httpServer, {
