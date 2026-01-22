@@ -1747,9 +1747,13 @@ function initializeNetwork() {
 
         // Обработчик ошибки подключения
         window.networkManager.onConnectionError = (error) => {
+            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            const errorMessage = isProduction 
+                ? 'Не удалось подключиться к серверу.<br><small>Сервер временно недоступен. Вы можете играть офлайн.</small>'
+                : 'Не удалось подключиться к серверу.<br><small>Запустите сервер: <code>cd backend && npm start</code></small>';
+            
             connectionStatus.innerHTML = `
-                Не удалось подключиться к серверу.<br>
-                <small>Запустите сервер: <code>cd backend && npm start</code></small><br>
+                ${errorMessage}<br>
                 <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
             `;
             connectionStatus.className = 'connection-status error';
@@ -1763,6 +1767,14 @@ function initializeNetwork() {
                     });
                 }
             }, 100);
+            
+            // Автоматический переход в офлайн режим через 5 секунд
+            setTimeout(() => {
+                if (!window.networkManager.isConnected) {
+                    console.log('Автоматический переход в офлайн режим');
+                    startOfflineMode(playerName);
+                }
+            }, 5000);
         };
 
         // Ждем подключения

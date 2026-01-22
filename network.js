@@ -72,14 +72,19 @@ class NetworkManager {
             this.isConnected = false;
             console.error('❌ Ошибка подключения к серверу:', error);
             
+            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
             let errorMessage = '❌ Не удалось подключиться к серверу.';
             
             // Более детальные сообщения об ошибках
             if (error.message) {
                 if (error.message.includes('xhr poll error') || error.message.includes('timeout')) {
-                    errorMessage += ' Сервер не отвечает. Проверьте, запущен ли сервер.';
+                    if (isProduction) {
+                        errorMessage += ' Сервер временно недоступен. Можно играть офлайн.';
+                    } else {
+                        errorMessage += ' Сервер не отвечает. Проверьте, запущен ли сервер.';
+                    }
                 } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                    errorMessage += ' Проблема с сетью. Проверьте подключение к интернету.';
+                    errorMessage += ' Проблема с сетью. Можно играть офлайн.';
                 } else {
                     errorMessage += ` ${error.message}`;
                 }
