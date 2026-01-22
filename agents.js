@@ -292,13 +292,46 @@ class Agent {
     }
 
     updateTemperature() {
-        // Базовая температура окружающей среды (холодно, особенно ночью)
-        let ambientTemp = 20; // Градусы Цельсия
+        // Получаем настройки температуры из конфига
+        const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
+            AMBIENT_TEMP: {
+                SUNNY: 25,
+                CLOUDY: 18,
+                RAIN: 10,
+                NIGHT: 5,
+                DEFAULT: 20
+            },
+            TEMP_CHANGE_RATE: 0.05,
+            FIRE_HEAT_BONUS: 25,
+            FIRE_RADIUS: 80,
+            MIN_AMBIENT_TEMP: 20
+        };
+        
+        // Определяем температуру окружающей среды в зависимости от погоды
+        let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
+        
         if (window.world) {
-            if (window.world.weather === 'night' || window.world.timeOfDay === 'night') {
-                ambientTemp = 5; // Ночью холоднее
-            } else if (window.world.weather === 'rain') {
-                ambientTemp = 10; // В дождь холоднее
+            const weather = window.world.weather || 'sunny';
+            const timeOfDay = window.world.timeOfDay || 'day';
+            
+            // Если ночь, используем ночную температуру
+            if (weather === 'night' || timeOfDay === 'night') {
+                ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.NIGHT;
+            } else {
+                // Иначе используем температуру в зависимости от погоды
+                switch (weather) {
+                    case 'sunny':
+                        ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.SUNNY;
+                        break;
+                    case 'cloudy':
+                        ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.CLOUDY;
+                        break;
+                    case 'rain':
+                        ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.RAIN;
+                        break;
+                    default:
+                        ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
+                }
             }
         }
         
@@ -312,10 +345,10 @@ class Agent {
                 Math.pow(nearestFire.y - this.position.y, 2)
             );
             // Тепло от костра уменьшается с расстоянием
-            const fireRadius = nearestFire.heatRadius || 80; // Радиус действия костра
+            const fireRadius = nearestFire.heatRadius || TEMP_CONFIG.FIRE_RADIUS;
             if (distance < fireRadius) {
                 const intensity = nearestFire.intensity || 1.0;
-                heatBonus = (fireRadius - distance) / fireRadius * 25 * intensity; // До +25 градусов у костра (зависит от интенсивности)
+                heatBonus = (fireRadius - distance) / fireRadius * TEMP_CONFIG.FIRE_HEAT_BONUS * intensity;
             }
         }
         
@@ -324,11 +357,13 @@ class Agent {
         const tempDiff = targetTemp - this.temperature;
         
         // Температура меняется постепенно
-        this.temperature += tempDiff * 0.05;
+        this.temperature += tempDiff * TEMP_CONFIG.TEMP_CHANGE_RATE;
         
         // Ограничиваем температуру
-        if (this.temperature < 20) this.temperature = 20; // Минимум
-        if (this.temperature > 37) this.temperature = 37; // Нормальная температура тела
+        const MIN_TEMP = TEMP_CONFIG.MIN_AMBIENT_TEMP || 20;
+        const MAX_TEMP = window.GAME_CONFIG?.AGENTS?.MAX_TEMPERATURE || 37;
+        if (this.temperature < MIN_TEMP) this.temperature = MIN_TEMP;
+        if (this.temperature > MAX_TEMP) this.temperature = MAX_TEMP;
     }
 
     findNearestFire() {
