@@ -606,7 +606,10 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-    console.log(`🚀 Сервер запущен на порту ${PORT}`);
+// В продакшене слушаем на всех интерфейсах (0.0.0.0) для работы через Nginx
+const HOST = isProduction ? '0.0.0.0' : 'localhost';
+httpServer.listen(PORT, HOST, () => {
+    console.log(`🚀 Сервер запущен на ${HOST}:${PORT}`);
     console.log(`📡 WebSocket сервер готов к подключениям`);
+    console.log(`🌐 Режим: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
 });
