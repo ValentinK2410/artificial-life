@@ -673,10 +673,18 @@ class World {
     }
 
     draw() {
-        if (!this.ctx || !this.canvas) return;
+        if (!this.ctx || !this.canvas) {
+            console.warn('Canvas или контекст не готовы для отрисовки');
+            return;
+        }
 
         const width = this.canvas.width;
         const height = this.canvas.height;
+        
+        if (width === 0 || height === 0) {
+            console.warn('Canvas имеет нулевой размер:', width, height);
+            return;
+        }
 
         // Очистка canvas
         this.ctx.clearRect(0, 0, width, height);
