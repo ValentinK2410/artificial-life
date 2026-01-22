@@ -365,11 +365,20 @@ class Agent {
             case 'moveToPoint':
                 // Движение к точке, указанной игроком - ПРИОРИТЕТ
                 if (this.targetPosition) {
-                    this.moveTo(this.targetPosition.x, this.targetPosition.y);
+                    // Проверяем, что координаты валидны
+                    if (typeof this.targetPosition.x === 'number' && typeof this.targetPosition.y === 'number' &&
+                        !isNaN(this.targetPosition.x) && !isNaN(this.targetPosition.y)) {
+                        this.moveTo(this.targetPosition.x, this.targetPosition.y);
+                    } else {
+                        console.error('Некорректные координаты цели:', this.targetPosition);
+                        this.targetPosition = null;
+                        this.isPlayerControlled = false;
+                    }
                     return; // Выходим, не выполняя другие действия
                 } else {
                     // Цель потеряна - очищаем флаг управления
                     this.isPlayerControlled = false;
+                    this.state = 'explore';
                 }
                 // Если цель потеряна, переходим к обычному поведению
                 break;
@@ -876,10 +885,16 @@ class Agent {
         const dy = y - this.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > this.speed) {
+        // Минимальное расстояние для остановки (чтобы не дрожал на месте)
+        const minDistance = 2;
+        
+        if (distance > minDistance) {
             // Двигаемся в направлении цели
-            this.position.x += (dx / distance) * this.speed;
-            this.position.y += (dy / distance) * this.speed;
+            const moveDistance = Math.min(distance, this.speed || 2);
+            if (moveDistance > 0 && distance > 0) {
+                this.position.x += (dx / distance) * moveDistance;
+                this.position.y += (dy / distance) * moveDistance;
+            }
         } else {
             // Достигли цели
             this.position.x = x;
