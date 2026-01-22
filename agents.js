@@ -301,8 +301,20 @@ class Agent {
             }
             // Смерть (если здоровье упало до 0)
             if (this.health <= 0 && oldHealth > 0) {
-                const cause = this.temperature < 32 ? 'от переохлаждения' : 'от голода и истощения';
+                // Определяем причину смерти
+                const DEATH_TEMPERATURE = window.GAME_CONFIG?.AGENTS?.DEATH_TEMPERATURE || 28;
+                let cause = 'от голода и истощения';
+                
+                // Если температура была критически низкой - смерть от переохлаждения
+                if (oldTemperature < DEATH_TEMPERATURE || this.temperature < 35) {
+                    cause = 'от переохлаждения';
+                    // Устанавливаем температуру равной окружающей среде (если еще не установлена)
+                    const ambientTemp = this.getAmbientTemperature();
+                    this.temperature = ambientTemp;
+                }
+                
                 window.addLogEntry(`💀 ${this.name} погиб ${cause}`);
+                this.state = 'dead';
             }
         }
         
