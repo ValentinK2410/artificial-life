@@ -775,18 +775,25 @@ class Simulation {
 
     updateAgentsCompactList() {
         const container = document.getElementById('agentsListContainer');
-        if (!container) return;
+        if (!container) {
+            console.warn('Контейнер agentsListContainer не найден');
+            return;
+        }
         
         // Получаем агентов из менеджера или напрямую
         let playerAgents = [];
         if (this.agentsManager) {
+            // Сначала пытаемся получить агентов игрока
             playerAgents = this.agentsManager.getPlayerAgents();
-            if (playerAgents.length === 0) {
+            // Если нет агентов игрока или playerId не установлен, показываем всех
+            if (playerAgents.length === 0 || !this.agentsManager.playerId) {
                 playerAgents = this.agentsManager.getAllAgents();
             }
-        } else if (this.agents) {
+        } else if (this.agents && Array.isArray(this.agents)) {
             playerAgents = this.agents;
         }
+        
+        console.log('Агенты для отображения:', playerAgents.length, playerAgents);
         
         if (playerAgents.length === 0) {
             container.innerHTML = '<p style="color: #b0b0b0; text-align: center; padding: 20px;">Нет агентов</p>';
@@ -1493,9 +1500,12 @@ function initializeSimulation() {
         console.error('Мир или контекст не готовы для отрисовки');
     }
     
-    // Обновление UI
+        // Обновление UI
     if (simulation) {
-        simulation.updateSidebar();
+        // Небольшая задержка для гарантии, что DOM готов
+        setTimeout(() => {
+            simulation.updateSidebar();
+        }, 100);
     }
     
     addLogEntry('✅ Симуляция инициализирована. Нажмите "Старт" для начала.');
