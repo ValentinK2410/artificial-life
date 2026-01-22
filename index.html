@@ -389,6 +389,24 @@
                         <button id="addMeatBtn" class="resource-btn">Мясо</button>
                         <button id="addBirdBtn" class="resource-btn">Птица</button>
                         <button id="addFishBtn" class="resource-btn">Рыба</button>
+                        <button id="addHoneyBtn" class="resource-btn">Мёд</button>
+                        <button id="addMilkBtn" class="resource-btn">Молоко</button>
+                        <button id="addWaterBtn" class="resource-btn">Вода</button>
+                        <button id="addBreadBtn" class="resource-btn">Хлеб</button>
+                        <button id="addKebabBtn" class="resource-btn">Шашлык</button>
+                        <button id="addPotatoBtn" class="resource-btn">Картофель</button>
+                        <button id="addSaladBtn" class="resource-btn">Салат</button>
+                        <button id="addMushroomsBtn" class="resource-btn">Грибы</button>
+                        <button id="addTeaBtn" class="resource-btn">Чай</button>
+                        <button id="addBananaBtn" class="resource-btn">Банан</button>
+                        <button id="addOrangeBtn" class="resource-btn">Апельсин</button>
+                        <button id="addAppleBtn" class="resource-btn">Яблоко</button>
+                        <button id="addLemonBtn" class="resource-btn">Лимон</button>
+                        <button id="addRosehipBtn" class="resource-btn">Шиповник</button>
+                        <button id="addCabbageBtn" class="resource-btn">Капуста</button>
+                        <button id="addSpicesBtn" class="resource-btn">Специи</button>
+                        <button id="addMintBtn" class="resource-btn">Мята</button>
+                        <button id="addStJohnsWortBtn" class="resource-btn">Зверобой</button>
                     </div>
                     <div class="resource-buttons">
                         <h4>Животные:</h4>
@@ -423,6 +441,13 @@
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 
     <!-- Старые файлы (для обратной совместимости во время миграции) -->
+    <script type="module">
+        // Загружаем конфигурацию и делаем доступной глобально
+        import { GAME_CONFIG, FOOD_PROPERTIES, FOOD_CATEGORIES } from './src/config/constants.js';
+        window.GAME_CONFIG = GAME_CONFIG;
+        window.FOOD_PROPERTIES = FOOD_PROPERTIES;
+        window.FOOD_CATEGORIES = FOOD_CATEGORIES;
+    </script>
     <script src="network.js"></script>
     <script src="world.js"></script>
     <script src="agents.js"></script>

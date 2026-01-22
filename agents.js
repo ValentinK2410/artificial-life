@@ -1142,22 +1142,32 @@ class Agent {
         const resource = world.getResourceAt(this.position.x, this.position.y);
         
         if (resource) {
-            // Собираем ресурс
-            if (resource.type === 'berries' || resource.type === 'berry') {
-                // Уменьшаем голод
-                this.hunger -= 20;
-                if (this.hunger < 0) this.hunger = 0;
+            // Проверяем, является ли ресурс едой
+            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
+            const foodProps = FOOD_PROPERTIES[resource.type];
+            
+            if (foodProps || resource.type === 'berries' || resource.type === 'berry') {
+                // Это еда - потребляем её
+                const foodType = resource.type === 'berry' ? 'berries' : resource.type;
+                this.consumeFood(foodType);
                 
-                // Добавляем в инвентарь
-                this.inventory.push({
-                    type: 'berries',
+                // Добавляем в инвентарь или запасы
+                const foodItem = {
+                    type: foodType,
                     amount: resource.amount || 1
-                });
+                };
+                
+                // Если это полезная еда или специи - в инвентарь
+                if (foodProps && (foodProps.category === 'HEALTHY' || foodProps.category === 'SPICES')) {
+                    this.inventory.push(foodItem);
+                } else {
+                    // Остальная еда - в запасы
+                    this.foodStorage.push(foodItem);
+                }
                 
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource);
                 if (index > -1) {
-                    // Отправляем уведомление на сервер
                     if (window.networkManager && window.networkManager.isConnected && resource.id) {
                         window.networkManager.removeResource(resource.id);
                     }
@@ -1173,9 +1183,8 @@ class Agent {
                     this.memory.splice(memoryIndex, 1);
                 }
                 
-                // Логирование
                 if (window.addLogEntry) {
-                    window.addLogEntry(`${this.name} нашел и съел ягоды (голод: ${Math.floor(this.hunger)})`);
+                    window.addLogEntry(`${this.name} нашел и съел ${this.getFoodName(foodType)}`);
                 }
             } else if (resource.type === 'wood') {
                 // Собираем дрова

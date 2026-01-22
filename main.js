@@ -885,6 +885,18 @@ function getWeatherName(weather) {
     return names[weather] || weather;
 }
 
+// Загрузка конфигурации продуктов
+function loadFoodConfig() {
+    // Делаем FOOD_PROPERTIES доступными глобально
+    if (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG) {
+        window.GAME_CONFIG = GAME_CONFIG;
+    }
+    // Импортируем FOOD_PROPERTIES если доступны
+    if (typeof FOOD_PROPERTIES !== 'undefined' && FOOD_PROPERTIES) {
+        window.FOOD_PROPERTIES = FOOD_PROPERTIES;
+    }
+}
+
 // Инициализация canvas и мира
 function initializeCanvas() {
     const canvas = document.getElementById('worldCanvas');
