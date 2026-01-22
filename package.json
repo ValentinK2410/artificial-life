@@ -9,7 +9,7 @@
     "dev": "cd backend && node --watch server.js",
     "install-deps": "cd backend && npm install"
   },
-  "keywords": ["game", "multiplayer", "websocket", "simulation"],
+  "keywords": ["game", "multiplayer", "websocket"],
   "author": "",
   "license": "ISC",
   "engines": {

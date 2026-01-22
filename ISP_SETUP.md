@@ -1,40 +1,68 @@
 # Настройка для ISPmanager
 
-## Важно: Структура проекта
+## ⚠️ Важно: Исправление конфигурации
 
-ISPmanager может создать свой `package.json` в корне. Убедитесь, что:
+ISPmanager создал `package.json` с `"type": "commonjs"`, но проект использует ES modules. 
 
-1. **В корне проекта** (`/var/www/www-root/data/www/game.dekan.pro/`) должен быть `package.json` с правильными настройками
-2. **В папке backend** (`/var/www/www-root/data/www/game.dekan.pro/backend/`) должен быть свой `package.json` с зависимостями
+**Замените содержимое `/var/www/www-root/data/www/game.dekan.pro/package.json` на:**
 
-## Настройка в ISPmanager
+```json
+{
+  "name": "artificial-life",
+  "version": "1.0.0",
+  "description": "Artificial Life - Сетевая симуляция жизни",
+  "main": "backend/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && node --watch server.js"
+  },
+  "keywords": ["game", "multiplayer", "websocket"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+```
 
-### 1. Node.js приложение
+## Настройка Node.js приложения в ISPmanager
 
-В ISPmanager создайте Node.js приложение:
+### 1. Создание приложения
 
-- **Путь к приложению**: `/var/www/www-root/data/www/game.dekan.pro/backend`
-- **Файл запуска**: `server.js`
-- **Порт**: `3000` (или другой, если занят)
-- **Переменные окружения**: 
-  - `NODE_ENV=production`
-  - `PORT=3000`
+В панели ISPmanager:
+
+1. Перейдите в **WWW → Node.js приложения**
+2. Нажмите **Создать**
+3. Заполните:
+   - **Домен**: `game.dekan.pro`
+   - **Путь к приложению**: `/var/www/www-root/data/www/game.dekan.pro/backend`
+   - **Файл запуска**: `server.js`
+   - **Порт**: `3000` (или другой свободный)
+   - **Переменные окружения**:
+     ```
+     NODE_ENV=production
+     PORT=3000
+     ```
 
 ### 2. Установка зависимостей
 
-После создания приложения в ISPmanager, выполните в терминале:
+После создания приложения, выполните в терминале ISPmanager:
 
 ```bash
 cd /var/www/www-root/data/www/game.dekan.pro/backend
 npm install
 ```
 
-### 3. Настройка Nginx (если нужно)
+### 3. Настройка Nginx для WebSocket
 
-Если ISPmanager не настроил автоматически, добавьте в конфигурацию сайта:
+В ISPmanager настройте Nginx для проксирования WebSocket:
+
+1. Перейдите в **WWW → Домены → game.dekan.pro → Настройки**
+2. Добавьте в **Дополнительные директивы nginx**:
 
 ```nginx
-# Проксирование WebSocket
+# Проксирование WebSocket для Socket.io
 location /socket.io/ {
     proxy_pass http://localhost:3000;
     proxy_http_version 1.1;
@@ -44,36 +72,32 @@ location /socket.io/ {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 86400;
 }
 
-# Проксирование API
+# Проксирование API запросов
 location /api/ {
     proxy_pass http://localhost:3000;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 
-### 4. Обновление network.js для продакшена
+**Важно**: Замените `3000` на порт, который указали в настройках Node.js приложения.
 
-В файле `network.js` измените URL подключения:
+### 4. Обновление network.js
 
-```javascript
-// Было:
-window.networkManager.connect('http://localhost:3000');
-
-// Должно быть (для продакшена):
-window.networkManager.connect(window.location.origin);
-// или
-window.networkManager.connect('https://game.dekan.pro');
-```
+Файл `network.js` уже настроен на автоматическое определение URL. Он будет использовать:
+- `http://localhost:3000` для локальной разработки
+- Текущий домен (`https://game.dekan.pro`) для продакшена
 
 ## Проверка работы
 
-1. Проверьте, что Node.js приложение запущено в ISPmanager
-2. Откройте `https://game.dekan.pro` в браузере
-3. Проверьте консоль браузера (F12) на наличие ошибок подключения
+1. **Проверьте статус приложения в ISPmanager**
+2. **Откройте в браузере**: `https://game.dekan.pro`
+3. **Проверьте консоль браузера** (F12) на наличие ошибок
 
 ## Обновление проекта
 
@@ -84,3 +108,21 @@ cd backend
 npm install --production
 # Перезапустите приложение через ISPmanager
 ```
+
+## Устранение проблем
+
+### Ошибка: "Cannot use import statement outside a module"
+
+Это означает, что `package.json` имеет `"type": "commonjs"`. Замените на `"type": "module"` как указано выше.
+
+### WebSocket не подключается
+
+1. Проверьте, что порт в Nginx конфигурации совпадает с портом Node.js приложения
+2. Убедитесь, что добавлены заголовки `Upgrade` и `Connection`
+3. Проверьте логи Nginx: `/var/log/nginx/game.dekan.pro.error.log`
+
+### Приложение не запускается
+
+1. Проверьте логи в ISPmanager
+2. Убедитесь, что зависимости установлены: `cd backend && npm install`
+3. Проверьте версию Node.js: `node --version` (должна быть >= 18.0.0)
