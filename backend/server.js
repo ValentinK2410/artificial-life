@@ -228,7 +228,7 @@ io.on('connection', (socket) => {
     console.log(`Игрок подключился: ${socket.id}`);
 
     // Регистрация игрока
-    socket.on('register', (data) => {
+    socket.on('register', async (data) => {
         const { playerName, worldId = 'default' } = data;
         
         if (!playerName || playerName.trim() === '') {
@@ -236,7 +236,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const world = getOrCreateWorld(worldId);
+        const world = await getOrCreateWorld(worldId);
         
         // Добавляем игрока в мир
         world.players.set(socket.id, {
@@ -299,7 +299,7 @@ io.on('connection', (socket) => {
     });
 
     // Добавление ресурса
-    socket.on('addResource', (data) => {
+    socket.on('addResource', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -317,13 +317,18 @@ io.on('connection', (socket) => {
         };
 
         world.resources.push(resource);
+        
+        // Сохраняем мир при добавлении ресурса
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при добавлении ресурса:', err);
+        });
 
         // Отправляем всем игрокам в мире
         io.to(user.worldId).emit('resourceAdded', resource);
     });
 
     // Добавление животного
-    socket.on('addAnimal', (data) => {
+    socket.on('addAnimal', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -343,12 +348,17 @@ io.on('connection', (socket) => {
         };
 
         world.animals.push(animal);
+        
+        // Сохраняем мир при добавлении животного
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при добавлении животного:', err);
+        });
 
         io.to(user.worldId).emit('animalAdded', animal);
     });
 
     // Добавление хищника
-    socket.on('addPredator', (data) => {
+    socket.on('addPredator', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -367,12 +377,17 @@ io.on('connection', (socket) => {
         };
 
         world.predators.push(predator);
+        
+        // Сохраняем мир при добавлении хищника
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при добавлении хищника:', err);
+        });
 
         io.to(user.worldId).emit('predatorAdded', predator);
     });
 
     // Обновление агента
-    socket.on('agentUpdate', (data) => {
+    socket.on('agentUpdate', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -391,6 +406,11 @@ io.on('connection', (socket) => {
                 owner: socket.id
             });
         }
+        
+        // Сохраняем мир при изменении агента (асинхронно, не блокируем ответ)
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при обновлении агента:', err);
+        });
 
         // Отправляем обновление всем остальным игрокам
         socket.to(user.worldId).emit('agentUpdated', {
@@ -400,7 +420,7 @@ io.on('connection', (socket) => {
     });
 
     // Удаление ресурса (когда игрок подобрал)
-    socket.on('removeResource', (data) => {
+    socket.on('removeResource', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -410,12 +430,18 @@ io.on('connection', (socket) => {
         const resourceIndex = world.resources.findIndex(r => r.id === data.resourceId);
         if (resourceIndex !== -1) {
             world.resources.splice(resourceIndex, 1);
+            
+            // Сохраняем мир при удалении ресурса
+            saveWorld(user.worldId, world).catch(err => {
+                console.error('Ошибка автосохранения при удалении ресурса:', err);
+            });
+            
             io.to(user.worldId).emit('resourceRemoved', { resourceId: data.resourceId });
         }
     });
 
     // Создание костра
-    socket.on('buildFire', (data) => {
+    socket.on('buildFire', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -432,11 +458,17 @@ io.on('connection', (socket) => {
         };
 
         world.fires.push(fire);
+        
+        // Сохраняем мир при постройке костра
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при постройке костра:', err);
+        });
+        
         io.to(user.worldId).emit('fireBuilt', fire);
     });
 
     // Создание постройки
-    socket.on('buildStructure', (data) => {
+    socket.on('buildStructure', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -453,6 +485,12 @@ io.on('connection', (socket) => {
         };
 
         world.buildings.push(building);
+        
+        // Сохраняем мир при постройке структуры
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при постройке структуры:', err);
+        });
+
         io.to(user.worldId).emit('structureBuilt', building);
     });
 
@@ -489,7 +527,7 @@ io.on('connection', (socket) => {
     });
 
     // Обновление погоды/времени
-    socket.on('worldUpdate', (data) => {
+    socket.on('worldUpdate', async (data) => {
         const user = users.get(socket.id);
         if (!user) return;
 
@@ -499,6 +537,11 @@ io.on('connection', (socket) => {
         if (data.weather !== undefined) world.weather = data.weather;
         if (data.timeOfDay !== undefined) world.timeOfDay = data.timeOfDay;
         if (data.day !== undefined) world.day = data.day;
+        
+        // Сохраняем мир при изменении погоды/времени
+        saveWorld(user.worldId, world).catch(err => {
+            console.error('Ошибка автосохранения при обновлении мира:', err);
+        });
 
         io.to(user.worldId).emit('worldUpdated', {
             weather: world.weather,
@@ -620,7 +663,7 @@ io.on('connection', (socket) => {
         });
     });
     
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         const user = users.get(socket.id);
         if (user) {
             const world = gameWorlds.get(user.worldId);
@@ -632,11 +675,16 @@ io.on('connection', (socket) => {
                     playerId: socket.id
                 });
 
-                // Удаляем агентов игрока (опционально)
-                world.agents = world.agents.filter(a => a.owner !== socket.id);
+                // НЕ удаляем агентов игрока - сохраняем их для следующего входа
+                // world.agents = world.agents.filter(a => a.owner !== socket.id);
 
-                // Очищаем пустой мир
-                cleanupWorld(user.worldId);
+                // Сохраняем мир перед отключением
+                await saveWorld(user.worldId, world);
+
+                // Очищаем пустой мир только если нет агентов
+                if (world.agents.length === 0) {
+                    cleanupWorld(user.worldId);
+                }
             }
             users.delete(socket.id);
         }
@@ -644,11 +692,34 @@ io.on('connection', (socket) => {
     });
 });
 
+// Автосохранение каждые 60 секунд
+setInterval(async () => {
+    await saveAllWorlds(gameWorlds);
+}, 60000); // 60 секунд
+
+// Сохранение при завершении процесса
+process.on('SIGINT', async () => {
+    console.log('\n💾 Сохранение всех миров перед завершением...');
+    await saveAllWorlds(gameWorlds);
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('\n💾 Сохранение всех миров перед завершением...');
+    await saveAllWorlds(gameWorlds);
+    process.exit(0);
+});
+
 const PORT = process.env.PORT || 3000;
 // В продакшене слушаем на всех интерфейсах (0.0.0.0) для работы через Nginx
 const HOST = isProduction ? '0.0.0.0' : 'localhost';
-httpServer.listen(PORT, HOST, () => {
-    console.log(`🚀 Сервер запущен на ${HOST}:${PORT}`);
-    console.log(`📡 WebSocket сервер готов к подключениям`);
-    console.log(`🌐 Режим: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+
+// Инициализация миров перед запуском сервера
+initializeWorlds().then(() => {
+    httpServer.listen(PORT, HOST, () => {
+        console.log(`🚀 Сервер запущен на ${HOST}:${PORT}`);
+        console.log(`📡 WebSocket сервер готов к подключениям`);
+        console.log(`🌐 Режим: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+        console.log(`💾 Автосохранение каждые 60 секунд`);
+    });
 });
