@@ -95,13 +95,13 @@ class Agent {
         
         // Получаем настройки голода (если доступны, иначе используем значения по умолчанию)
         const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {
-            INCREASE_RATE: 0.5,
-            CRITICAL_THRESHOLD: 80,
-            HEALTH_LOSS_RATE: 0.5,
-            AUTO_EAT_THRESHOLD: 60,
+            INCREASE_RATE: 0.005,       // Исправлено: было 0.5 (слишком много!)
+            CRITICAL_THRESHOLD: 85,
+            HEALTH_LOSS_RATE: 0.1,      // Исправлено: было 0.5 (слишком много!)
+            AUTO_EAT_THRESHOLD: 50,
             FOOD_RESTORE: 25,
-            SEARCH_FOOD_THRESHOLD: 70,
-            STORE_FOOD_THRESHOLD: 50,
+            SEARCH_FOOD_THRESHOLD: 60,
+            STORE_FOOD_THRESHOLD: 40,
             WARNING_THRESHOLD: 90
         };
         
@@ -109,8 +109,8 @@ class Agent {
         this.hunger += HUNGER_CONFIG.INCREASE_RATE;
         if (this.hunger > 100) this.hunger = 100;
         
-        // Увеличиваем жажду
-        this.thirst += 0.03;
+        // Увеличиваем жажду (уменьшена скорость)
+        this.thirst += 0.01;
         if (this.thirst > 100) this.thirst = 100;
         
         // Увеличиваем желание сладкого
@@ -147,9 +147,9 @@ class Agent {
         // Система температуры: проверяем расстояние до источников тепла
         this.updateTemperature();
         
-        // Если температура слишком низкая, теряем здоровье
+        // Если температура слишком низкая, теряем здоровье (уменьшена скорость потери)
         if (this.temperature < 35) {
-            const healthLoss = (35 - this.temperature) * 0.1; // Чем холоднее, тем больше теряем
+            const healthLoss = (35 - this.temperature) * 0.02; // Уменьшено с 0.1 до 0.02
             this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
