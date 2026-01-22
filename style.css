@@ -761,6 +761,55 @@ body {
     color: #b0b0b0;
 }
 
+/* Контейнер инвентаря */
+.inventory-container {
+    padding: 10px 0;
+}
+
+.inventory-section {
+    margin-bottom: 20px;
+}
+
+.inventory-section h4 {
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.inventory-category {
+    margin-bottom: 15px;
+}
+
+.inventory-category strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.inventory-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.inventory-list li {
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    background-color: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #b0b0b0;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.inventory-list li:hover {
+    background-color: #2a2a2a;
+    border-color: #4a9eff;
+    color: #e0e0e0;
+}
+
 /* Админ-панель */
 .admin-panel {
     position: fixed;
