@@ -44,8 +44,15 @@ const corsOptions = isProduction
 
 const io = new Server(httpServer, {
     cors: corsOptions,
-    transports: ['websocket', 'polling'],
-    allowEIO3: true
+    transports: ['polling', 'websocket'], // Начинаем с polling для мобильных устройств
+    allowEIO3: true,
+    pingTimeout: 60000, // Увеличенный таймаут для мобильных (60 секунд)
+    pingInterval: 25000, // Интервал ping для мобильных устройств
+    // Улучшенная поддержка мобильных устройств
+    allowRequest: (req, callback) => {
+        // Разрешаем все запросы для мобильных устройств
+        callback(null, true);
+    }
 });
 
 app.use(cors());
