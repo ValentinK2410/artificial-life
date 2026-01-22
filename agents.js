@@ -25,6 +25,7 @@ class Agent {
         this.targetPosition = null; // Целевая позиция для ручного управления
         this.isPlayerControlled = false; // Управляется ли игроком
         this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный ID
+        this.lastEatTime = 0; // Время последнего приема пищи (для ограничения частоты)
         
         // Инвентарь и память
         this.inventory = [];
