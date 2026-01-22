@@ -204,6 +204,39 @@ class Agent {
         // Система температуры: проверяем расстояние до источников тепла
         this.updateTemperature();
         
+        // Получаем критическую температуру смерти из конфига
+        const DEATH_TEMPERATURE = window.GAME_CONFIG?.AGENTS?.DEATH_TEMPERATURE || 28; // Критическая температура смерти от переохлаждения (°C)
+        
+        // Если температура критически низкая - агент умирает от переохлаждения
+        if (this.temperature < DEATH_TEMPERATURE && this.health > 0) {
+            // Получаем температуру окружающей среды для установки после смерти
+            const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
+                AMBIENT_TEMP: { DEFAULT: 20, SUNNY: 25, CLOUDY: 18, RAIN: 10, NIGHT: 5 }
+            };
+            let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
+            if (window.world) {
+                const weather = window.world.weather || 'sunny';
+                const timeOfDay = window.world.timeOfDay || 'day';
+                if (weather === 'night' || timeOfDay === 'night') {
+                    ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.NIGHT;
+                } else {
+                    ambientTemp = TEMP_CONFIG.AMBIENT_TEMP[weather.toUpperCase()] || TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
+                }
+            }
+            
+            // Устанавливаем температуру равной окружающей среде и убиваем агента
+            this.temperature = ambientTemp;
+            this.health = 0;
+            this.state = 'dead';
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`💀 ${this.name} погиб от переохлаждения. Температура тела: ${Math.floor(ambientTemp)}°C`);
+            }
+            
+            // Прекращаем обновление агента
+            return;
+        }
+        
         // Если температура слишком низкая, теряем здоровье (уменьшена скорость потери)
         if (this.temperature < 35) {
             const healthLoss = (35 - this.temperature) * 0.02; // Потеря здоровья от холода (уменьшено с 0.1 до 0.02 для баланса)
