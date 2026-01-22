@@ -447,24 +447,21 @@ class World {
             'chicken': 1, 'cat': 1.5, 'bull': 0.4
         };
         
-        this.animals.push({
+        const animal = {
             id: animalId,
             type: type,
             x: x,
             y: y,
             direction: Math.random() * Math.PI * 2, // Направление движения
             speed: animalSpeeds[type] || 1, // Скорость движения
-            health: 100,
-            hunger: 50,
-            owner: null,
-            tamed: false
-            speed: 0.5 + Math.random() * 0.5, // Скорость движения
             size: this.getAnimalSize(type),
             health: 100,
-            hunger: 0,
+            hunger: 50,
             owner: null, // Владелец (если домашнее животное)
             tamed: false // Приручено ли животное
-        });
+        };
+        
+        this.animals.push(animal);
         this.draw();
     }
     
