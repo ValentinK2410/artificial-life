@@ -1652,15 +1652,16 @@ class World {
         // Обновление логики мира
         // Здесь будет логика обновления дня, времени суток и т.д.
         
+        // Обновление животных (ПЕРЕД хищниками, чтобы они могли их видеть)
+        this.updateAnimals();
+        
         // Обновление хищников
         this.updatePredators();
         
-        // Обновление животных
-        this.updateAnimals();
-        
+        // Обновление агентов (если есть)
         if (window.agents) {
-            window.agents.update();
-            window.agents.updateAllAgentsUI();
+            // window.agents.update() вызывается в Simulation.gameLoop()
+            // Не вызываем здесь, чтобы избежать двойного обновления
         }
     }
     
@@ -1786,29 +1787,40 @@ class World {
             // Если есть владелец, двигаемся к нему
             if (animal.owner && window.agents) {
                 const ownerAgent = window.agents.getAgentById(animal.owner);
-                if (!ownerAgent) {
+                let foundOwner = ownerAgent;
+                
+                if (!foundOwner) {
                     // Пробуем найти по ownerId
                     const allAgents = window.agents.getAllAgents();
-                    ownerAgent = allAgents.find(a => a.id === animal.owner || a.ownerId === animal.owner);
+                    foundOwner = allAgents.find(a => a.id === animal.owner || a.ownerId === animal.owner);
                 }
                 
-                if (ownerAgent) {
-                    const ax = ownerAgent.position ? ownerAgent.position.x : (ownerAgent.x || 0);
-                    const ay = ownerAgent.position ? ownerAgent.position.y : (ownerAgent.y || 0);
+                if (foundOwner) {
+                    const ax = foundOwner.position ? foundOwner.position.x : (foundOwner.x || 0);
+                    const ay = foundOwner.position ? foundOwner.position.y : (foundOwner.y || 0);
                     const dx = ax - animal.x;
                     const dy = ay - animal.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance > 30 && distance > 0) {
-                        animal.x += (dx / distance) * animal.speed;
-                        animal.y += (dy / distance) * animal.speed;
+                        animal.x += (dx / distance) * (animal.speed || 1);
+                        animal.y += (dy / distance) * (animal.speed || 1);
                     }
+                } else {
+                    // Владелец не найден - случайное движение
+                    animal.direction += (Math.random() - 0.5) * 0.1;
+                    animal.x += Math.cos(animal.direction) * (animal.speed || 1);
+                    animal.y += Math.sin(animal.direction) * (animal.speed || 1);
                 }
             } else {
-                // Случайное движение
+                // Случайное движение - ВСЕГДА ДВИГАЕМСЯ
+                if (animal.direction === undefined) {
+                    animal.direction = Math.random() * Math.PI * 2;
+                }
                 animal.direction += (Math.random() - 0.5) * 0.1;
-                animal.x += Math.cos(animal.direction) * (animal.speed || 1);
-                animal.y += Math.sin(animal.direction) * (animal.speed || 1);
+                const speed = animal.speed || 0.5;
+                animal.x += Math.cos(animal.direction) * speed;
+                animal.y += Math.sin(animal.direction) * speed;
             }
             
             // Бесконечный мир - не ограничиваем границами
