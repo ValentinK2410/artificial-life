@@ -370,11 +370,19 @@ class Simulation {
                 
                 // Добавляем активный класс к выбранной кнопке и панели
                 btn.classList.add('active');
-                panel.querySelector(`[data-panel="${tabName}"]`).classList.add('active');
+                const targetPanel = panel.querySelector(`[data-panel="${tabName}"]`);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                }
             });
         });
         
+        // Показываем панель
         panel.style.display = 'block';
+        console.log('✅ Панель управления отображена, display:', panel.style.display);
+        
+        // Прокручиваем к панели, если она внизу экрана
+        panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
     
     // Получить HTML для полученных навыков
