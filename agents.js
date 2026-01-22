@@ -306,8 +306,7 @@ class Agent {
             const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
             if (this.hunger > SEARCH_FOOD_THRESHOLD) {
                 this.state = 'findFood';
-            }
-        } else if (this.hasHungryPets()) {
+            } else if (this.hasHungryPets()) {
             // Есть голодные домашние животные
             this.state = 'feedAnimal';
         } else if (this.hunger < 50 && this.foodStorage.length < 5) {
