@@ -960,28 +960,58 @@ function initializeWorldControls() {
 
     // Инструменты
     document.getElementById('addSawBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('saw');
-        addLogEntry('Пила добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('saw', 1);
+            }
+        }
+        addLogEntry(`Пила добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addAxeBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('axe');
-        addLogEntry('Топор добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('axe', 1);
+            }
+        }
+        addLogEntry(`Топор добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addHammerBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('hammer');
-        addLogEntry('Молоток добавлен на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('hammer', 1);
+            }
+        }
+        addLogEntry(`Молоток добавлен на карту (${count} шт.)`);
     });
     document.getElementById('addPickaxeBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('pickaxe');
-        addLogEntry('Кирка добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('pickaxe', 1);
+            }
+        }
+        addLogEntry(`Кирка добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addShovelBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('shovel');
-        addLogEntry('Лопата добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('shovel', 1);
+            }
+        }
+        addLogEntry(`Лопата добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addFishingRodBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('fishing_rod');
-        addLogEntry('Удочка добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('fishing_rod', 1);
+            }
+        }
+        addLogEntry(`Удочка добавлена на карту (${count} шт.)`);
     });
 
     // Одежда
@@ -1002,34 +1032,75 @@ function initializeWorldControls() {
         addLogEntry('Женская зимняя одежда добавлена на карту');
     });
 
+    // Функция для получения выбранного количества ресурсов
+    function getResourceAmount() {
+        const select = document.getElementById('resourceAmount');
+        return select ? parseInt(select.value) || 1 : 1;
+    }
+    
     // Ресурсы
     document.getElementById('addBerriesBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('berries');
-        addLogEntry('Ягоды добавлены на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('berries', 1);
+            }
+        }
+        addLogEntry(`Ягоды добавлены на карту (${count} шт.)`);
     });
     document.getElementById('addWoodBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('wood');
-        addLogEntry('Дрова добавлены на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('wood', 1);
+            }
+        }
+        addLogEntry(`Дрова добавлены на карту (${count} шт.)`);
     });
     document.getElementById('addMoneyBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('money');
-        addLogEntry('Деньги добавлены на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('money', 1);
+            }
+        }
+        addLogEntry(`Деньги добавлены на карту (${count} шт.)`);
     });
     document.getElementById('addCookedFoodBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('cooked_food');
-        addLogEntry('Готовая еда добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('cooked_food', 1);
+            }
+        }
+        addLogEntry(`Готовая еда добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addMeatBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('meat');
-        addLogEntry('Мясо добавлено на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('meat', 1);
+            }
+        }
+        addLogEntry(`Мясо добавлено на карту (${count} шт.)`);
     });
     document.getElementById('addBirdBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('bird');
-        addLogEntry('Птица добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('bird', 1);
+            }
+        }
+        addLogEntry(`Птица добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addFishBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('fish');
-        addLogEntry('Рыба добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('fish', 1);
+            }
+        }
+        addLogEntry(`Рыба добавлена на карту (${count} шт.)`);
     });
     
     // Новые продукты
