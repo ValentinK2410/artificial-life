@@ -1160,21 +1160,21 @@ class Agent {
             const distance = Math.sqrt(
                 Math.pow(fire.x - this.position.x, 2) + 
                 Math.pow(fire.y - this.position.y, 2)
-            );
-            return distance < 30; // Не разводим костер слишком близко к другому
-        });
+            ); // Расстояние до текущего костра (пиксели)
+            return distance < 30; // Возвращаем true, если костер ближе 30 пикселей (не разводим костер слишком близко к другому)
+        }); // Существующий костер поблизости (объект {x, y, id, intensity, heatRadius} или undefined)
         
         if (existingFire) {
             // Уже есть костер рядом - можем добавить дров
-            const woodItem = this.inventory.find(item => item.type === 'wood');
+            const woodItem = this.inventory.find(item => item.type === 'wood'); // Найденное дерево в инвентаре (объект {type, amount} или undefined)
             if (woodItem && woodItem.amount > 0 && window.world.addWoodToFire) {
-                window.world.addWoodToFire(existingFire.id, 1);
-                woodItem.amount--;
+                window.world.addWoodToFire(existingFire.id, 1); // Добавляем 1 дрово в костер
+                woodItem.amount--; // Уменьшаем количество дерева
                 if (woodItem.amount <= 0) {
-                    const index = this.inventory.indexOf(woodItem);
-                    if (index > -1) this.inventory.splice(index, 1);
+                    const index = this.inventory.indexOf(woodItem); // Индекс дерева в инвентаре
+                    if (index > -1) this.inventory.splice(index, 1); // Удаляем дерево из инвентаря
                 }
-                this.gainExperience('bring_wood', 0.5);
+                this.gainExperience('bring_wood', 0.5); // Получаем опыт принесения дров
                 if (window.addLogEntry) {
                     window.addLogEntry(`🔥 ${this.name} подбросил(а) дров в костер`);
                 }
@@ -1184,17 +1184,17 @@ class Agent {
         }
         
         // Убираем дрова из инвентаря
-        const woodNeeded = 2;
-        let woodRemoved = 0;
+        const woodNeeded = 2; // Количество дров, необходимое для разведения костра
+        let woodRemoved = 0; // Количество удаленных дров (счетчик)
         for (let i = this.inventory.length - 1; i >= 0 && woodRemoved < woodNeeded; i--) {
             if (this.inventory[i].type === 'wood') {
-                const item = this.inventory[i];
+                const item = this.inventory[i]; // Текущий предмет дерева (объект {type, amount})
                 if (item.amount <= woodNeeded - woodRemoved) {
-                    woodRemoved += item.amount;
-                    this.inventory.splice(i, 1);
+                    woodRemoved += item.amount; // Увеличиваем счетчик удаленных дров
+                    this.inventory.splice(i, 1); // Удаляем весь предмет
                 } else {
-                    item.amount -= (woodNeeded - woodRemoved);
-                    woodRemoved = woodNeeded;
+                    item.amount -= (woodNeeded - woodRemoved); // Уменьшаем количество дерева на оставшееся количество
+                    woodRemoved = woodNeeded; // Устанавливаем счетчик на нужное количество
                 }
             }
         }
@@ -1220,28 +1220,28 @@ class Agent {
 
     moveTo(x, y) {
         // Движение к указанной точке
-        const dx = x - this.position.x;
-        const dy = y - this.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx = x - this.position.x; // Разница по оси X до цели (пиксели)
+        const dy = y - this.position.y; // Разница по оси Y до цели (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до цели (пиксели)
         
         // Минимальное расстояние для остановки (чтобы не дрожал на месте)
-        const minDistance = 2;
+        const minDistance = 2; // Минимальное расстояние для остановки (пиксели)
         
         if (distance > minDistance) {
             // Двигаемся в направлении цели
-            const moveDistance = Math.min(distance, this.speed || 2);
+            const moveDistance = Math.min(distance, this.speed || 2); // Расстояние движения за кадр (не больше скорости агента)
             if (moveDistance > 0 && distance > 0) {
-                this.position.x += (dx / distance) * moveDistance;
-                this.position.y += (dy / distance) * moveDistance;
+                this.position.x += (dx / distance) * moveDistance; // Двигаемся по оси X (нормализованное направление * расстояние)
+                this.position.y += (dy / distance) * moveDistance; // Двигаемся по оси Y (нормализованное направление * расстояние)
             }
         } else {
             // Достигли цели
-            this.position.x = x;
-            this.position.y = y;
+            this.position.x = x; // Устанавливаем точную позицию цели
+            this.position.y = y; // Устанавливаем точную позицию цели
             
             // Очищаем цель и возвращаем управление ИИ
-            this.targetPosition = null;
-            this.isPlayerControlled = false;
+            this.targetPosition = null; // Очищаем целевую позицию
+            this.isPlayerControlled = false; // Возвращаем управление ИИ
             
             // Сбрасываем состояние, чтобы ИИ мог принять новое решение
             this.state = 'explore';
@@ -1257,8 +1257,8 @@ class Agent {
     
     // Установка цели для ручного управления
     setTarget(x, y) {
-        this.targetPosition = { x, y };
-        this.isPlayerControlled = true;
+        this.targetPosition = { x, y }; // Устанавливаем целевую позицию (объект {x, y})
+        this.isPlayerControlled = true; // Включаем управление игроком
         // Переключаемся на состояние движения к цели
         this.state = 'moveToPoint';
         
@@ -1269,15 +1269,15 @@ class Agent {
     
     // Очистка цели
     clearTarget() {
-        this.targetPosition = null;
-        this.isPlayerControlled = false;
+        this.targetPosition = null; // Очищаем целевую позицию
+        this.isPlayerControlled = false; // Отключаем управление игроком
     }
 
     moveToRandomPoint() {
         // Движение к случайной точке
         if (window.world && window.world.canvas) {
-            const targetX = Math.random() * window.world.canvas.width;
-            const targetY = Math.random() * window.world.canvas.height;
+            const targetX = Math.random() * window.world.canvas.width; // Случайная координата X в пределах ширины карты (пиксели)
+            const targetY = Math.random() * window.world.canvas.height; // Случайная координата Y в пределах высоты карты (пиксели)
             this.moveTo(targetX, targetY);
         }
     }
@@ -1286,28 +1286,28 @@ class Agent {
         // Сканирование ресурсов вокруг агента
         if (!window.world) return;
         
-        const scanRadius = 50;
-        const resources = window.world.resources;
+        const scanRadius = 50; // Радиус сканирования ресурсов (пиксели)
+        const resources = window.world.resources; // Массив всех ресурсов в мире
         
         resources.forEach(resource => {
-            const dx = resource.x - this.position.x;
-            const dy = resource.y - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dx = resource.x - this.position.x; // Разница по оси X до ресурса (пиксели)
+            const dy = resource.y - this.position.y; // Разница по оси Y до ресурса (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до ресурса (пиксели)
             
             if (distance <= scanRadius) {
                 // Проверяем, нет ли уже этого ресурса в памяти
                 const existingMemory = this.memory.find(m => 
-                    Math.abs(m.x - resource.x) < 10 && 
-                    Math.abs(m.y - resource.y) < 10 &&
-                    m.type === resource.type
-                );
+                    Math.abs(m.x - resource.x) < 10 && // Проверка близости по X (в пределах 10 пикселей)
+                    Math.abs(m.y - resource.y) < 10 && // Проверка близости по Y (в пределах 10 пикселей)
+                    m.type === resource.type // Проверка совпадения типа ресурса
+                ); // Существующая запись в памяти о ресурсе (объект {type, x, y} или undefined)
                 
                 if (!existingMemory) {
                     // Добавляем в память
                     this.memory.push({
-                        type: resource.type,
-                        x: resource.x,
-                        y: resource.y
+                        type: resource.type, // Тип ресурса
+                        x: resource.x,       // Координата X ресурса
+                        y: resource.y        // Координата Y ресурса
                     });
                     
                     // Логирование обнаружения ресурса
@@ -1321,29 +1321,29 @@ class Agent {
 
     gainExperience(skill, amount = 1) {
         // Увеличение опыта в определенном навыке
-        if (this.experience.hasOwnProperty(skill)) {
-            this.experience[skill] += amount;
+        if (this.experience.hasOwnProperty(skill)) { // Проверяем, существует ли навык в объекте опыта
+            this.experience[skill] += amount; // Увеличиваем опыт на указанное количество
             // Ограничиваем максимальный опыт
             if (this.experience[skill] > 100) {
-                this.experience[skill] = 100;
+                this.experience[skill] = 100; // Ограничиваем максимальный опыт значением 100
             }
         }
     }
     
     // Потребление еды с учетом её свойств
     consumeFood(foodType) {
-        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
-        const props = FOOD_PROPERTIES[foodType];
+        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+        const props = FOOD_PROPERTIES[foodType]; // Свойства текущего типа еды (объект {hunger, energy, health, ...} или undefined)
         
         if (!props) {
             // Если свойств нет - используем базовые значения
-            this.hunger = Math.max(0, this.hunger - 20);
-            this.energy = Math.min(100, this.energy + 10);
+            this.hunger = Math.max(0, this.hunger - 20); // Уменьшаем голод на 20 (не ниже 0)
+            this.energy = Math.min(100, this.energy + 10); // Увеличиваем энергию на 10 (не выше 100)
             return;
         }
         
         // Модификатор аппетита (чем выше аппетит, тем эффективнее еда)
-        const appetiteModifier = 1 + (this.appetite - 50) / 100;
+        const appetiteModifier = 1 + (this.appetite - 50) / 100; // Модификатор эффективности еды (0.5-1.5, зависит от аппетита)
         
         // Применяем свойства еды
         if (props.hunger) {
@@ -1404,47 +1404,47 @@ class Agent {
 
     interactWithWorld(world) {
         // Взаимодействие с миром - проверка ресурсов под ногами
-        const resource = world.getResourceAt(this.position.x, this.position.y);
+        const resource = world.getResourceAt(this.position.x, this.position.y); // Ресурс на текущей позиции агента (объект {type, x, y, amount, id} или null)
         
         if (resource) {
             // Проверяем, является ли ресурс едой
-            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
-            const foodProps = FOOD_PROPERTIES[resource.type];
+            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+            const foodProps = FOOD_PROPERTIES[resource.type]; // Свойства текущего типа ресурса (объект {hunger, energy, ...} или undefined)
             
             if (foodProps || resource.type === 'berries' || resource.type === 'berry') {
                 // Это еда - добавляем в запасы или инвентарь (НЕ потребляем сразу)
-                const foodType = resource.type === 'berry' ? 'berries' : resource.type;
+                const foodType = resource.type === 'berry' ? 'berries' : resource.type; // Нормализуем тип еды ('berry' -> 'berries')
                 
                 // Добавляем в инвентарь или запасы
                 const foodItem = {
-                    type: foodType,
-                    amount: resource.amount || 1
+                    type: foodType,              // Тип еды
+                    amount: resource.amount || 1 // Количество еды (по умолчанию 1)
                 };
                 
                 // Если это полезная еда или специи - в инвентарь
                 if (foodProps && (foodProps.category === 'HEALTHY' || foodProps.category === 'SPICES')) {
-                    this.inventory.push(foodItem);
+                    this.inventory.push(foodItem); // Добавляем в инвентарь
                 } else {
                     // Остальная еда - в запасы
-                    this.foodStorage.push(foodItem);
+                    this.foodStorage.push(foodItem); // Добавляем в запасы еды
                 }
                 
                 // Удаляем ресурс из мира
-                const index = world.resources.indexOf(resource);
+                const index = world.resources.indexOf(resource); // Индекс ресурса в массиве ресурсов мира
                 if (index > -1) {
                     if (window.networkManager && window.networkManager.isConnected && resource.id) {
-                        window.networkManager.removeResource(resource.id);
+                        window.networkManager.removeResource(resource.id); // Отправляем уведомление на сервер об удалении ресурса
                     }
-                    world.resources.splice(index, 1);
+                    world.resources.splice(index, 1); // Удаляем ресурс из массива ресурсов мира
                 }
                 
                 // Удаляем из памяти
                 const memoryIndex = this.memory.findIndex(m => 
-                    Math.abs(m.x - resource.x) < 10 && 
-                    Math.abs(m.y - resource.y) < 10
-                );
+                    Math.abs(m.x - resource.x) < 10 && // Проверка близости по X (в пределах 10 пикселей)
+                    Math.abs(m.y - resource.y) < 10    // Проверка близости по Y (в пределах 10 пикселей)
+                ); // Индекс записи в памяти о ресурсе (-1, если не найдено)
                 if (memoryIndex > -1) {
-                    this.memory.splice(memoryIndex, 1);
+                    this.memory.splice(memoryIndex, 1); // Удаляем запись из памяти
                 }
                 
                 if (window.addLogEntry) {
@@ -1453,19 +1453,19 @@ class Agent {
             } else if (resource.type === 'wood') {
                 // Собираем дрова
                 this.inventory.push({
-                    type: 'wood',
-                    amount: resource.amount || 1
+                    type: 'wood',                // Тип ресурса
+                    amount: resource.amount || 1 // Количество дров (по умолчанию 1)
                 });
-                this.gainExperience('axe', 0.5); // Опыт при сборе дров
+                this.gainExperience('axe', 0.5); // Получаем опыт работы с топором при сборе дров
                 
                 // Удаляем ресурс из мира
-                const index = world.resources.indexOf(resource);
+                const index = world.resources.indexOf(resource); // Индекс ресурса в массиве ресурсов мира
                 if (index > -1) {
                     // Отправляем уведомление на сервер
                     if (window.networkManager && window.networkManager.isConnected && resource.id) {
-                        window.networkManager.removeResource(resource.id);
+                        window.networkManager.removeResource(resource.id); // Отправляем уведомление на сервер об удалении ресурса
                     }
-                    world.resources.splice(index, 1);
+                    world.resources.splice(index, 1); // Удаляем ресурс из массива ресурсов мира
                 }
                 
                 // Логирование
@@ -1474,21 +1474,21 @@ class Agent {
                 }
             } else {
                 // Обработка всех остальных ресурсов
-                const resourceType = resource.type;
+                const resourceType = resource.type; // Тип ресурса (строка: 'saw', 'axe', 'money', и т.д.)
                 
                 // Инструменты
                 if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(resourceType)) {
-                    this.inventory.push({ type: resourceType, amount: 1 });
+                    this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем инструмент в инвентарь
                     const skillMap = {
-                        'saw': 'saw',
-                        'axe': 'axe',
-                        'hammer': 'building',
-                        'pickaxe': 'building',
-                        'shovel': 'farming',
-                        'fishing_rod': 'fishing'
-                    };
+                        'saw': 'saw',              // Пила -> опыт работы с пилой
+                        'axe': 'axe',              // Топор -> опыт работы с топором
+                        'hammer': 'building',      // Молоток -> опыт строительства
+                        'pickaxe': 'building',      // Кирка -> опыт строительства
+                        'shovel': 'farming',        // Лопата -> опыт фермерства
+                        'fishing_rod': 'fishing'   // Удочка -> опыт рыбалки
+                    }; // Карта соответствия инструментов и навыков опыта
                     if (skillMap[resourceType]) {
-                        this.gainExperience(skillMap[resourceType], 1);
+                        this.gainExperience(skillMap[resourceType], 1); // Получаем опыт соответствующего навыка
                     }
                     if (window.addLogEntry) {
                         window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
@@ -1496,18 +1496,18 @@ class Agent {
                 }
                 // Одежда
                 else if (['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(resourceType)) {
-                    this.inventory.push({ type: resourceType, amount: 1 });
+                    this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем одежду в инвентарь
                     if (window.addLogEntry) {
                         window.addLogEntry(`${this.name} подобрал одежду`);
                     }
                 }
                 // Еда
                 else if (['cooked_food', 'meat', 'bird', 'fish'].includes(resourceType)) {
-                    this.inventory.push({ type: resourceType, amount: resource.amount || 1 });
-                    this.hunger -= resourceType === 'cooked_food' ? 30 : 25;
-                    if (this.hunger < 0) this.hunger = 0;
+                    this.inventory.push({ type: resourceType, amount: resource.amount || 1 }); // Добавляем еду в инвентарь
+                    this.hunger -= resourceType === 'cooked_food' ? 30 : 25; // Уменьшаем голод (готовая еда утоляет больше)
+                    if (this.hunger < 0) this.hunger = 0; // Не даем голоду уйти в минус
                     if (resourceType === 'cooked_food') {
-                        this.gainExperience('cooking', 0.3);
+                        this.gainExperience('cooking', 0.3); // Получаем опыт готовки при потреблении готовой еды
                     }
                     if (window.addLogEntry) {
                         window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
@@ -1515,20 +1515,20 @@ class Agent {
                 }
                 // Деньги
                 else if (resourceType === 'money') {
-                    this.inventory.push({ type: 'money', amount: resource.amount || 10 });
+                    this.inventory.push({ type: 'money', amount: resource.amount || 10 }); // Добавляем деньги в инвентарь (по умолчанию 10 монет)
                     if (window.addLogEntry) {
                         window.addLogEntry(`${this.name} нашел деньги`);
                     }
                 }
                 
                 // Удаляем ресурс из мира
-                const index = world.resources.indexOf(resource);
+                const index = world.resources.indexOf(resource); // Индекс ресурса в массиве ресурсов мира
                 if (index > -1) {
                     // Отправляем уведомление на сервер
                     if (window.networkManager && window.networkManager.isConnected && resource.id) {
-                        window.networkManager.removeResource(resource.id);
+                        window.networkManager.removeResource(resource.id); // Отправляем уведомление на сервер об удалении ресурса
                     }
-                    world.resources.splice(index, 1);
+                    world.resources.splice(index, 1); // Удаляем ресурс из массива ресурсов мира
                 }
             }
         }
@@ -1572,44 +1572,44 @@ class Agent {
         // Собирать все ресурсы поблизости
         if (!window.world) return;
         
-        const gatherRadius = 30;
-        const resources = window.world.resources;
-        let gathered = false;
+        const gatherRadius = 30; // Радиус сбора ресурсов (пиксели)
+        const resources = window.world.resources; // Массив всех ресурсов в мире
+        let gathered = false; // Флаг успешного сбора ресурсов (true/false)
         
         resources.forEach(resource => {
-            const dx = resource.x - this.position.x;
-            const dy = resource.y - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dx = resource.x - this.position.x; // Разница по оси X до ресурса (пиксели)
+            const dy = resource.y - this.position.y; // Разница по оси Y до ресурса (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до ресурса (пиксели)
             
             if (distance <= gatherRadius) {
-                gathered = true;
+                gathered = true; // Устанавливаем флаг успешного сбора
                 
                 // Собираем ресурс
                 if (resource.type === 'fish') {
-                    this.gainExperience('gather_fish', 1);
+                    this.gainExperience('gather_fish', 1); // Получаем опыт сбора рыбы
                 } else if (resource.type === 'wood') {
-                    this.gainExperience('gather_wood', 1);
+                    this.gainExperience('gather_wood', 1); // Получаем опыт сбора дров
                 }
-                this.gainExperience('gather_all', 0.5);
+                this.gainExperience('gather_all', 0.5); // Получаем общий опыт сбора ресурсов
                 
                 // Добавляем в инвентарь
-                const existingItem = this.inventory.find(item => item.type === resource.type);
+                const existingItem = this.inventory.find(item => item.type === resource.type); // Найденный предмет того же типа в инвентаре (объект {type, amount} или undefined)
                 if (existingItem) {
-                    existingItem.amount += resource.amount || 1;
+                    existingItem.amount += resource.amount || 1; // Увеличиваем количество существующего предмета
                 } else {
                     this.inventory.push({
-                        type: resource.type,
-                        amount: resource.amount || 1
-                    });
+                        type: resource.type,        // Тип ресурса
+                        amount: resource.amount || 1 // Количество ресурса (по умолчанию 1)
+                    }); // Добавляем новый предмет в инвентарь
                 }
                 
                 // Удаляем ресурс
-                const index = resources.indexOf(resource);
+                const index = resources.indexOf(resource); // Индекс ресурса в массиве ресурсов мира
                 if (index > -1) {
                     if (window.networkManager && window.networkManager.isConnected && resource.id) {
-                        window.networkManager.removeResource(resource.id);
+                        window.networkManager.removeResource(resource.id); // Отправляем уведомление на сервер об удалении ресурса
                     }
-                    resources.splice(index, 1);
+                    resources.splice(index, 1); // Удаляем ресурс из массива ресурсов мира
                 }
             }
         });
@@ -1785,93 +1785,93 @@ class MiddleAgedWoman extends Agent {
 
 class AgentsManager {
     constructor(playerId = null) {
-        this.agents = [];
-        this.playerId = playerId; // ID текущего игрока
+        this.agents = []; // Массив всех агентов (массив объектов Agent)
+        this.playerId = playerId; // ID текущего игрока (строка или null)
         this.initializeAgents();
     }
 
     initializeAgents(playerId = null) {
         // Если передан playerId, создаем семью для этого игрока
         if (playerId) {
-            this.playerId = playerId;
+            this.playerId = playerId; // Устанавливаем ID игрока
         }
         
         // Инициализация 6 агентов с использованием дочерних классов
         // Если есть playerId, все агенты принадлежат этому игроку
         this.agents = [
-            new MiddleAgedMan('Мужчина', 35, 'man', this.playerId),
-            new MiddleAgedWoman('Женщина', 32, 'woman', this.playerId),
-            new YoungMan('Парень', 18, 'boy', this.playerId),
-            new YoungWoman('Девушка', 17, 'girl', this.playerId),
-            new OldMan('Старик', 68, 'oldman', this.playerId),
-            new OldWoman('Старуха', 65, 'oldwoman', this.playerId)
+            new MiddleAgedMan('Мужчина', 35, 'man', this.playerId),        // Мужчина среднего возраста
+            new MiddleAgedWoman('Женщина', 32, 'woman', this.playerId),    // Женщина среднего возраста
+            new YoungMan('Парень', 18, 'boy', this.playerId),             // Молодой парень
+            new YoungWoman('Девушка', 17, 'girl', this.playerId),          // Молодая девушка
+            new OldMan('Старик', 68, 'oldman', this.playerId),             // Старик
+            new OldWoman('Старуха', 65, 'oldwoman', this.playerId)        // Старуха
         ];
     }
     
     // Получить агентов текущего игрока
     getPlayerAgents() {
-        if (!this.playerId) return [];
-        return this.agents.filter(agent => agent.ownerId === this.playerId);
+        if (!this.playerId) return []; // Если нет ID игрока, возвращаем пустой массив
+        return this.agents.filter(agent => agent.ownerId === this.playerId); // Фильтруем агентов по ownerId
     }
     
     // Получить агента по ID
     getAgentById(agentId) {
-        return this.agents.find(agent => agent.id === agentId);
+        return this.agents.find(agent => agent.id === agentId); // Находим агента по уникальному ID (объект Agent или undefined)
     }
 
     update() {
         // Обновление всех агентов
         this.agents.forEach(agent => {
-            agent.update();
+            agent.update(); // Вызываем метод update() для каждого агента
         });
     }
 
     getAgent(type) {
-        return this.agents.find(agent => agent.type === type);
+        return this.agents.find(agent => agent.type === type); // Находим агента по типу (объект Agent или undefined)
     }
 
     getAllAgents() {
-        return this.agents;
+        return this.agents; // Возвращаем массив всех агентов
     }
 
     reset() {
-        this.initializeAgents();
+        this.initializeAgents(); // Переинициализируем агентов
         // Инициализация позиций агентов после сброса
         this.agents.forEach(agent => {
-            agent.initializePosition();
+            agent.initializePosition(); // Устанавливаем случайные позиции для каждого агента
         });
     }
 
     // Обновление UI агента
     updateAgentUI(agentType) {
-        const agent = this.getAgent(agentType);
+        const agent = this.getAgent(agentType); // Находим агента по типу (объект Agent или undefined)
         if (!agent) return;
 
-        const agentItem = document.querySelector(`[data-agent="${agentType}"]`).closest('.agent-item');
+        const agentItem = document.querySelector(`[data-agent="${agentType}"]`).closest('.agent-item'); // Элемент DOM для агента (HTMLElement или null)
         if (agentItem) {
-            const nameSpan = agentItem.querySelector('.agent-name');
-            const ageSpan = agentItem.querySelector('.agent-age');
-            const stateSelect = agentItem.querySelector('.agent-state');
-            const psycheSelect = agentItem.querySelector('.agent-psyche');
-            const energySlider = agentItem.querySelector('.agent-energy');
-            const energyValue = agentItem.querySelector('.energy-value');
-            const hungerSlider = agentItem.querySelector('.agent-hunger');
-            const hungerValue = agentItem.querySelector('.hunger-value');
-            const statusSpan = agentItem.querySelector('.agent-status');
+            const nameSpan = agentItem.querySelector('.agent-name'); // Элемент для отображения имени (HTMLElement или null)
+            const ageSpan = agentItem.querySelector('.agent-age'); // Элемент для отображения возраста (HTMLElement или null)
+            const stateSelect = agentItem.querySelector('.agent-state'); // Элемент выбора состояния (HTMLElement или null)
+            const psycheSelect = agentItem.querySelector('.agent-psyche'); // Элемент выбора психики (HTMLElement или null)
+            const energySlider = agentItem.querySelector('.agent-energy'); // Слайдер энергии (HTMLElement или null)
+            const energyValue = agentItem.querySelector('.energy-value'); // Элемент для отображения значения энергии (HTMLElement или null)
+            const hungerSlider = agentItem.querySelector('.agent-hunger'); // Слайдер голода (HTMLElement или null)
+            const hungerValue = agentItem.querySelector('.hunger-value'); // Элемент для отображения значения голода (HTMLElement или null)
+            const statusSpan = agentItem.querySelector('.agent-status'); // Элемент для отображения статуса (HTMLElement или null)
 
             if (nameSpan) nameSpan.textContent = agent.name;
             if (ageSpan) ageSpan.textContent = agent.age;
             if (stateSelect) {
                 // Обновляем состояние на основе здоровья
-                const healthState = agent.health > 70 ? 'healthy' : 
-                                  agent.health > 40 ? 'wounded' : 'sick';
-                stateSelect.value = healthState;
+                const healthState = agent.health > 70 ? 'healthy' :  // Здоров (здоровье > 70)
+                                  agent.health > 40 ? 'wounded' : 'sick'; // Ранен (здоровье 40-70) или Болен (здоровье < 40)
+                stateSelect.value = healthState; // Устанавливаем значение состояния
             }
             if (psycheSelect) {
                 // Обновляем психику на основе настроения
-                const psycheState = agent.mood === 'neutral' ? 'calm' :
-                                   agent.mood === 'anxious' ? 'tense' : 'panic';
-                psycheSelect.value = psycheState;
+                const psycheState = agent.mood === 'neutral' ? 'calm' :  // Спокоен (нейтральное настроение)
+                                   agent.mood === 'anxious' ? 'tense' : 'panic'; // Напряжен (тревожное) или Паника
+                psycheSelect.value = psycheState; // Устанавливаем значение психики
             }
             if (energySlider) {
                 energySlider.value = Math.floor(agent.energy);
@@ -1894,5 +1894,5 @@ class AgentsManager {
 }
 
 // Создание глобального экземпляра менеджера агентов
-const agents = new AgentsManager();
-window.agents = agents;
+const agents = new AgentsManager(); // Глобальный экземпляр менеджера агентов (объект AgentsManager)
+window.agents = agents; // Делаем доступным через window для совместимости со старым кодом
