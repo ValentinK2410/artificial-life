@@ -578,6 +578,26 @@ function initializeNetwork() {
         // Подключаемся к серверу
         window.networkManager.connect('http://localhost:3000');
 
+        // Обработчик ошибки подключения
+        window.networkManager.onConnectionError = (error) => {
+            connectionStatus.innerHTML = `
+                Не удалось подключиться к серверу.<br>
+                <small>Запустите сервер: <code>cd backend && npm start</code></small><br>
+                <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
+            `;
+            connectionStatus.className = 'connection-status error';
+            
+            // Обработчик кнопки офлайн режима
+            setTimeout(() => {
+                const offlineBtn = document.getElementById('playOfflineBtn');
+                if (offlineBtn) {
+                    offlineBtn.addEventListener('click', () => {
+                        startOfflineMode(playerName);
+                    });
+                }
+            }, 100);
+        };
+
         // Ждем подключения
         const checkConnection = setInterval(() => {
             if (window.networkManager.isConnected) {
@@ -607,8 +627,24 @@ function initializeNetwork() {
         setTimeout(() => {
             if (!window.networkManager.isConnected) {
                 clearInterval(checkConnection);
-                connectionStatus.textContent = 'Не удалось подключиться к серверу';
-                connectionStatus.className = 'connection-status error';
+                if (!connectionStatus.textContent.includes('Не удалось')) {
+                    connectionStatus.innerHTML = `
+                        Не удалось подключиться к серверу.<br>
+                        <small>Запустите сервер: <code>cd backend && npm start</code></small><br>
+                        <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
+                    `;
+                    connectionStatus.className = 'connection-status error';
+                    
+                    // Обработчик кнопки офлайн режима
+                    setTimeout(() => {
+                        const offlineBtn = document.getElementById('playOfflineBtn');
+                        if (offlineBtn) {
+                            offlineBtn.addEventListener('click', () => {
+                                startOfflineMode(playerName);
+                            });
+                        }
+                    }, 100);
+                }
             }
         }, 5000);
     });
@@ -771,6 +807,31 @@ function integrateNetworkWithWorld() {
         }
         this.frameCount = (this.frameCount || 0) + 1;
     };
+}
+
+// Запуск офлайн режима
+function startOfflineMode(playerName) {
+    const loginModal = document.getElementById('loginModal');
+    const mainContainer = document.getElementById('mainContainer');
+    const connectionStatus = document.getElementById('connectionStatus');
+    
+    connectionStatus.textContent = 'Офлайн режим';
+    connectionStatus.className = 'connection-status connecting';
+    
+    // Скрываем модальное окно и показываем игру
+    setTimeout(() => {
+        loginModal.style.display = 'none';
+        mainContainer.style.display = 'grid';
+        
+        // Инициализируем игру без сервера
+        initializeCanvas();
+        initializeSimulation();
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`🎮 Игра запущена в офлайн режиме (${playerName})`);
+            window.addLogEntry('⚠️ Сетевые функции недоступны');
+        }
+    }, 500);
 }
 
 // Инициализация при загрузке страницы

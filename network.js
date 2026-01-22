@@ -28,6 +28,18 @@ class NetworkManager {
             }
         });
 
+        this.socket.on('connect_error', (error) => {
+            this.isConnected = false;
+            console.error('❌ Ошибка подключения к серверу:', error);
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Не удалось подключиться к серверу. Проверьте, запущен ли сервер на порту 3000`);
+            }
+            // Вызываем callback ошибки, если есть
+            if (this.onConnectionError) {
+                this.onConnectionError(error);
+            }
+        });
+
         this.socket.on('disconnect', () => {
             this.isConnected = false;
             console.log('❌ Отключен от сервера');
