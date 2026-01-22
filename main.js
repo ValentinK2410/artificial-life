@@ -1816,14 +1816,18 @@ function initializeNetwork() {
             }
         }, 100);
 
-        // Таймаут подключения
+        // Таймаут подключения (увеличен до 15 секунд для мобильных)
         setTimeout(() => {
             if (!window.networkManager.isConnected) {
                 clearInterval(checkConnection);
+                const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+                const errorMessage = isProduction 
+                    ? 'Не удалось подключиться к серверу.<br><small>Сервер временно недоступен. Вы можете играть офлайн.</small>'
+                    : 'Не удалось подключиться к серверу.<br><small>Запустите сервер: <code>cd backend && npm start</code></small>';
+                
                 if (!connectionStatus.textContent.includes('Не удалось')) {
                     connectionStatus.innerHTML = `
-                        Не удалось подключиться к серверу.<br>
-                        <small>Запустите сервер: <code>cd backend && npm start</code></small><br>
+                        ${errorMessage}<br>
                         <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
                     `;
                     connectionStatus.className = 'connection-status error';
@@ -1837,9 +1841,17 @@ function initializeNetwork() {
                             });
                         }
                     }, 100);
+                    
+                    // Автоматический переход в офлайн режим через 3 секунды после таймаута
+                    setTimeout(() => {
+                        if (!window.networkManager.isConnected) {
+                            console.log('Автоматический переход в офлайн режим после таймаута');
+                            startOfflineMode(playerName);
+                        }
+                    }, 3000);
                 }
             }
-        }, 5000);
+        }, 15000);
     });
 
     // Подключение по Enter
