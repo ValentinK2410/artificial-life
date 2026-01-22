@@ -63,7 +63,21 @@ app.get('/', (req, res) => {
     res.json({ 
         status: 'ok', 
         message: 'Artificial Life Server is running',
-        websocket: 'ws://localhost:3000',
+        environment: isProduction ? 'production' : 'development',
+        port: PORT,
+        host: HOST,
+        socketio: 'enabled',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Дополнительный endpoint для диагностики
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        server: 'Artificial Life',
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
         timestamp: new Date().toISOString()
     });
 });

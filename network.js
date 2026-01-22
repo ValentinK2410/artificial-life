@@ -11,6 +11,27 @@ class NetworkManager {
         this.onPlayerLeftCallback = null;
     }
 
+    // Проверка доступности сервера через HTTP
+    async testServerConnection(serverUrl) {
+        try {
+            const testUrl = serverUrl.replace(/^ws:/, 'http:').replace(/^wss:/, 'https:');
+            const response = await fetch(testUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Сервер доступен:', data);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ Сервер недоступен:', error);
+            return false;
+        }
+    }
+
     // Подключение к серверу
     // Автоматически определяет URL: localhost для разработки, текущий домен для продакшена
     connect(serverUrl = null) {
