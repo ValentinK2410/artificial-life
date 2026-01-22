@@ -1310,6 +1310,15 @@ function startOfflineMode(playerName) {
     const loginModal = document.getElementById('loginModal');
     const mainContainer = document.getElementById('mainContainer');
     const connectionStatus = document.getElementById('connectionStatus');
+    const adminPasswordInput = document.getElementById('adminPasswordInput');
+    
+    // Проверка админ-пароля
+    const adminPassword = adminPasswordInput ? adminPasswordInput.value.trim() : '';
+    if (adminPassword === window.adminPassword) {
+        window.isAdmin = true;
+    } else {
+        window.isAdmin = false;
+    }
     
     connectionStatus.textContent = 'Офлайн режим';
     connectionStatus.className = 'connection-status connecting';
@@ -1318,6 +1327,20 @@ function startOfflineMode(playerName) {
     setTimeout(() => {
         loginModal.style.display = 'none';
         mainContainer.style.display = 'grid';
+        
+        // Показываем админ-кнопку, если админ
+        if (window.isAdmin) {
+            const adminTabBtn = document.getElementById('adminTabBtn');
+            if (adminTabBtn) {
+                adminTabBtn.style.display = 'block';
+                adminTabBtn.addEventListener('click', () => {
+                    window.showAdminPanel();
+                });
+            }
+            if (window.addLogEntry) {
+                window.addLogEntry('🔐 Вы вошли как администратор');
+            }
+        }
         
         // Инициализируем игру без сервера
         initializeCanvas();
