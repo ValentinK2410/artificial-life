@@ -43,6 +43,23 @@ app.get('/', (req, res) => {
     });
 });
 
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Endpoint для админ-панели
+app.get('/admin', (req, res) => {
+    // В продакшене можно добавить проверку авторизации
+    res.sendFile(join(__dirname, '../admin.html'));
+});
+
+// Endpoint для статических файлов админ-панели
+app.get('/admin.js', (req, res) => {
+    res.sendFile(join(__dirname, '../admin.js'));
+});
+
 // Хранилище игровых миров
 const gameWorlds = new Map(); // worldId -> { players, agents, resources, animals, predators, fires, buildings }
 
@@ -370,6 +387,118 @@ io.on('connection', (socket) => {
     });
 
     // Отключение игрока
+    // ========== АДМИН-ПАНЕЛЬ ==========
+    
+    // Запрос данных для админ-панели
+    socket.on('admin:requestData', () => {
+        const playersData = [];
+        
+        // Собираем данные всех игроков из всех миров
+        gameWorlds.forEach((world, worldId) => {
+            world.players.forEach((player, playerId) => {
+                // Находим агентов этого игрока
+                const playerAgents = world.agents.filter(agent => agent.owner === playerId);
+                
+                // Считаем деньги
+                let money = 0;
+                playerAgents.forEach(agent => {
+                    if (agent.inventory) {
+                        const moneyItems = agent.inventory.filter(item => item.type === 'money');
+                        moneyItems.forEach(item => {
+                            money += item.amount || 0;
+                        });
+                    }
+                });
+                
+                playersData.push({
+                    id: playerId,
+                    name: player.name,
+                    worldId: worldId,
+                    agents: playerAgents,
+                    money: money
+                });
+            });
+        });
+        
+        socket.emit('admin:data', { players: playersData });
+    });
+    
+    // Установка денег игроку
+    socket.on('admin:setMoney', ({ playerId, amount }) => {
+        gameWorlds.forEach((world) => {
+            const player = world.players.get(playerId);
+            if (player) {
+                const playerAgents = world.agents.filter(agent => agent.owner === playerId);
+                if (playerAgents.length > 0) {
+                    const agent = playerAgents[0];
+                    if (!agent.inventory) agent.inventory = [];
+                    
+                    const existingMoney = agent.inventory.find(item => item.type === 'money');
+                    if (existingMoney) {
+                        existingMoney.amount = amount;
+                    } else {
+                        agent.inventory.push({ type: 'money', amount: amount });
+                    }
+                    
+                    // Отправляем обновление
+                    io.to(world.id).emit('worldStateUpdate', {
+                        agents: [agent]
+                    });
+                }
+            }
+        });
+    });
+    
+    // Установка здоровья игроку
+    socket.on('admin:setHealth', ({ playerId, health }) => {
+        gameWorlds.forEach((world) => {
+            const playerAgents = world.agents.filter(agent => agent.owner === playerId);
+            playerAgents.forEach(agent => {
+                agent.health = Math.max(0, Math.min(100, health));
+            });
+            
+            if (playerAgents.length > 0) {
+                io.to(world.id).emit('worldStateUpdate', {
+                    agents: playerAgents
+                });
+            }
+        });
+    });
+    
+    // Установка навыка игроку
+    socket.on('admin:setSkill', ({ playerId, skill, value }) => {
+        gameWorlds.forEach((world) => {
+            const playerAgents = world.agents.filter(agent => agent.owner === playerId);
+            playerAgents.forEach(agent => {
+                if (agent.experience && agent.experience[skill] !== undefined) {
+                    agent.experience[skill] = value;
+                }
+            });
+            
+            if (playerAgents.length > 0) {
+                io.to(world.id).emit('worldStateUpdate', {
+                    agents: playerAgents
+                });
+            }
+        });
+    });
+    
+    // Выдача одежды игроку
+    socket.on('admin:giveClothes', ({ playerId, clothesType }) => {
+        gameWorlds.forEach((world) => {
+            const playerAgents = world.agents.filter(agent => agent.owner === playerId);
+            if (playerAgents.length > 0) {
+                const agent = playerAgents[0];
+                if (!agent.inventory) agent.inventory = [];
+                agent.inventory.push({ type: clothesType, amount: 1 });
+                
+                io.to(world.id).emit('worldStateUpdate', {
+                    agents: [agent]
+                });
+            }
+        });
+    });
+    
     socket.on('disconnect', () => {
         const user = users.get(socket.id);
         if (user) {

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Искусственная Жизнь</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+        
+        .admin-login-box {
+            background-color: #252525;
+            padding: 40px;
+            border-radius: 10px;
+            border: 2px solid #4a4a4a;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .admin-login-box h1 {
+            color: #e0e0e0;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        
+        .admin-login-box .error-message {
+            background-color: #9a4a4a;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .admin-login-box .error-message.show {
+            display: block;
+        }
+        
+        .admin-panel-container {
+            display: none;
+            padding: 20px;
+        }
+        
+        .admin-panel-container.active {
+            display: block;
+        }
+        
+        .admin-header {
+            background-color: #252525;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .admin-header h1 {
+            color: #e0e0e0;
+            margin: 0;
+        }
+        
+        .logout-btn {
+            background-color: #9a4a4a;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background-color: #aa5a5a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Форма входа администратора -->
+    <div id="adminLoginContainer" class="admin-login-container">
+        <div class="admin-login-box">
+            <h1>🔐 Вход в админ-панель</h1>
+            <div id="errorMessage" class="error-message"></div>
+            <div class="input-group">
+                <label for="adminPasswordInput">Пароль администратора:</label>
+                <input type="password" id="adminPasswordInput" placeholder="Введите пароль" autocomplete="off">
+            </div>
+            <button id="adminLoginBtn" class="control-btn" style="width: 100%; margin-top: 15px;">Войти</button>
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="index.html" style="color: #b0b0b0; text-decoration: none;">← Вернуться в игру</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Админ-панель -->
+    <div id="adminPanelContainer" class="admin-panel-container">
+        <div class="admin-header">
+            <h1>⚙️ Админ-панель</h1>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+        
+        <div class="admin-panel-content">
+            <div id="adminPlayerList"></div>
+        </div>
+    </div>
+    
+    <!-- Socket.io клиент -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
