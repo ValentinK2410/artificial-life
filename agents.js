@@ -304,21 +304,24 @@ class Agent {
             this.state = 'buildFire';
         } else {
             const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
+            const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50;
+            
             if (this.hunger > SEARCH_FOOD_THRESHOLD) {
                 this.state = 'findFood';
             } else if (this.hasHungryPets()) {
-            // Есть голодные домашние животные
-            this.state = 'feedAnimal';
-        } else if (this.hunger < 50 && this.foodStorage.length < 5) {
-            // Запасаем еду
-            this.state = 'storeFood';
-        } else if (this.energy < 30) {
-            this.state = 'rest';
-        } else if (this.pets.length > 0 && Math.random() < 0.1) {
-            // Иногда играем с домашними животными
-            this.state = 'playWithPet';
-        } else {
-            this.state = 'explore';
+                // Есть голодные домашние животные
+                this.state = 'feedAnimal';
+            } else if (this.hunger < STORE_FOOD_THRESHOLD && this.foodStorage.length < 5) {
+                // Запасаем еду
+                this.state = 'storeFood';
+            } else if (this.energy < 30) {
+                this.state = 'rest';
+            } else if (this.pets.length > 0 && Math.random() < 0.1) {
+                // Иногда играем с домашними животными
+                this.state = 'playWithPet';
+            } else {
+                this.state = 'explore';
+            }
         }
         
         // Логирование смены состояния (только при изменении)
