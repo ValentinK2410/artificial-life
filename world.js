@@ -1647,6 +1647,47 @@ class World {
         }
     }
 
+    // Рисование агента другого игрока (с другим цветом)
+    drawOtherPlayerAgent(agent) {
+        if (!this.ctx || !agent || agent.health <= 0) return;
+        
+        const x = agent.position ? agent.position.x : (agent.x || 100);
+        const y = agent.position ? agent.position.y : (agent.y || 100);
+        
+        // Преобразуем мировые координаты в экранные
+        const screenX = (x - this.camera.x) * this.camera.scale;
+        const screenY = (y - this.camera.y) * this.camera.scale;
+        
+        // Проверяем, виден ли агент на экране
+        if (screenX < -50 || screenX > this.canvas.width + 50 ||
+            screenY < -50 || screenY > this.canvas.height + 50) {
+            return;
+        }
+        
+        this.ctx.save();
+        this.ctx.translate(screenX, screenY);
+        
+        // Тело (синий оттенок для других игроков)
+        this.ctx.fillStyle = '#4a9eff';
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Голова
+        this.ctx.fillStyle = '#ffdbac';
+        this.ctx.beginPath();
+        this.ctx.arc(0, -15, 8, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Имя игрока над агентом
+        this.ctx.fillStyle = '#4a9eff';
+        this.ctx.font = '10px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(agent.name || 'Игрок', 0, -30);
+        
+        this.ctx.restore();
+    }
+    
     drawAgent(agent) {
         if (!this.ctx) return;
 
