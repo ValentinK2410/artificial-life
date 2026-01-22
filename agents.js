@@ -143,11 +143,21 @@ class Agent {
             }
         }
         
-        // Принятие решений
-        this.decide();
+        // Принятие решений - ТОЛЬКО если игрок не управляет агентом
+        if (!this.isPlayerControlled || !this.targetPosition) {
+            this.decide();
+        } else {
+            // Если игрок управляет - устанавливаем состояние движения к цели
+            this.state = 'moveToPoint';
+            // ВЫЗЫВАЕМ act() для движения к цели
+            this.act();
+        }
         
-        // Взаимодействие с миром
-        if (window.world) {
+        // Если decide() был вызван, act() уже вызван внутри него
+        // Но если decide() не был вызван (игрок управляет), act() уже вызван выше
+        
+        // Взаимодействие с миром (только если не под управлением игрока)
+        if (window.world && (!this.isPlayerControlled || !this.targetPosition)) {
             this.interactWithWorld(window.world);
             this.interactWithAnimals(window.world);
         }
