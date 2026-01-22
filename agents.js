@@ -309,19 +309,19 @@ class Agent {
         if (!world.animals) return;
         
         world.animals.forEach(animal => {
-            const dx = animal.x - this.position.x;
-            const dy = animal.y - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dx = animal.x - this.position.x; // Разница по оси X между агентом и животным
+            const dy = animal.y - this.position.y; // Разница по оси Y между агентом и животным
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до животного (пиксели)
             
             // Если животное близко и не приручено
             if (distance < 25 && !animal.tamed && !animal.owner) {
                 // Попытка приручения (старики более успешны)
-                const tamingChance = this.age > 60 ? 0.3 : (this.age > 30 ? 0.15 : 0.05);
+                const tamingChance = this.age > 60 ? 0.3 : (this.age > 30 ? 0.15 : 0.05); // Шанс приручения (0-1, зависит от возраста)
                 
                 if (Math.random() < tamingChance) {
-                    animal.tamed = true;
-                    animal.owner = this.type;
-                    this.pets.push(animal.id);
+                    animal.tamed = true; // Помечаем животное как прирученное
+                    animal.owner = this.type; // Устанавливаем владельца
+                    this.pets.push(animal.id); // Добавляем ID животного в список питомцев
                     
                     this.gainExperience('farming', 2);
                     
@@ -333,14 +333,14 @@ class Agent {
             
             // Если животное наше и голодное - кормим автоматически
             if (animal.owner === this.type && animal.hunger > 70 && distance < 20) {
-                const food = this.animalFoodStorage.find(f => f.amount > 0);
+                const food = this.animalFoodStorage.find(f => f.amount > 0); // Находим еду для животных в запасах
                 if (food) {
-                    animal.hunger -= 25;
+                    animal.hunger -= 25; // Уменьшаем голод животного
                     if (animal.hunger < 0) animal.hunger = 0;
-                    food.amount--;
+                    food.amount--; // Уменьшаем количество еды
                     if (food.amount <= 0) {
-                        const index = this.animalFoodStorage.indexOf(food);
-                        if (index > -1) this.animalFoodStorage.splice(index, 1);
+                        const index = this.animalFoodStorage.indexOf(food); // Индекс еды в массиве запасов
+                        if (index > -1) this.animalFoodStorage.splice(index, 1); // Удаляем пустую еду
                     }
                 }
             }
@@ -351,26 +351,26 @@ class Agent {
         // Получаем настройки температуры из конфига
         const TEMP_CONFIG = window.GAME_CONFIG?.AGENTS?.TEMPERATURE || {
             AMBIENT_TEMP: {
-                SUNNY: 25,
-                CLOUDY: 18,
-                RAIN: 10,
-                NIGHT: 5,
-                DEFAULT: 20
+                SUNNY: 25,      // Температура окружающей среды в солнечную погоду (°C)
+                CLOUDY: 18,    // Температура окружающей среды в облачную погоду (°C)
+                RAIN: 10,      // Температура окружающей среды в дождь (°C)
+                NIGHT: 5,      // Температура окружающей среды ночью (°C)
+                DEFAULT: 20    // Температура окружающей среды по умолчанию (°C)
             },
-            TEMP_CHANGE_RATE: 0.05,
-            FIRE_HEAT_BONUS: 25,
-            FIRE_RADIUS: 80,
-            MIN_AMBIENT_TEMP: 20,
-            MOVEMENT_HEAT_BONUS: 5,
-            MOVEMENT_THRESHOLD: 0.5
+            TEMP_CHANGE_RATE: 0.05,        // Скорость изменения температуры тела (коэффициент плавности)
+            FIRE_HEAT_BONUS: 25,           // Максимальный бонус тепла от костра (°C)
+            FIRE_RADIUS: 80,               // Радиус действия тепла от костра (пиксели)
+            MIN_AMBIENT_TEMP: 20,          // Минимальная температура окружающей среды (°C)
+            MOVEMENT_HEAT_BONUS: 5,        // Бонус тепла при движении (°C)
+            MOVEMENT_THRESHOLD: 0.5        // Минимальное расстояние движения для получения бонуса тепла (пиксели)
         };
         
         // Определяем температуру окружающей среды в зависимости от погоды
-        let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT;
+        let ambientTemp = TEMP_CONFIG.AMBIENT_TEMP.DEFAULT; // Температура окружающей среды (°C)
         
         if (window.world) {
-            const weather = window.world.weather || 'sunny';
-            const timeOfDay = window.world.timeOfDay || 'day';
+            const weather = window.world.weather || 'sunny'; // Текущая погода ('sunny', 'cloudy', 'rain', 'night')
+            const timeOfDay = window.world.timeOfDay || 'day'; // Время суток ('day', 'night')
             
             // Если ночь, используем ночную температуру
             if (weather === 'night' || timeOfDay === 'night') {
@@ -394,53 +394,53 @@ class Agent {
         }
         
         // Проверяем, движется ли агент
-        let movementBonus = 0;
+        let movementBonus = 0; // Бонус тепла от движения (°C, 0 или MOVEMENT_HEAT_BONUS)
         if (this.lastPosition && this.position) {
-            const dx = this.position.x - this.lastPosition.x;
-            const dy = this.position.y - this.lastPosition.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const dx = this.position.x - this.lastPosition.x; // Изменение позиции по оси X (пиксели)
+            const dy = this.position.y - this.lastPosition.y; // Изменение позиции по оси Y (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Пройденное расстояние (пиксели)
             
             // Если агент движется (преодолел минимальное расстояние), добавляем бонус тепла
             if (distance > TEMP_CONFIG.MOVEMENT_THRESHOLD) {
-                movementBonus = TEMP_CONFIG.MOVEMENT_HEAT_BONUS;
+                movementBonus = TEMP_CONFIG.MOVEMENT_HEAT_BONUS; // Устанавливаем бонус тепла от движения
             }
         }
         
         // Ищем ближайший источник тепла (костер)
-        const nearestFire = this.findNearestFire();
-        let heatBonus = 0;
+        const nearestFire = this.findNearestFire(); // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
+        let heatBonus = 0; // Бонус тепла от костра (°C)
         
         if (nearestFire) {
             const distance = Math.sqrt(
                 Math.pow(nearestFire.x - this.position.x, 2) + 
                 Math.pow(nearestFire.y - this.position.y, 2)
-            );
+            ); // Расстояние до костра (пиксели)
             // Тепло от костра уменьшается с расстоянием
-            const fireRadius = nearestFire.heatRadius || TEMP_CONFIG.FIRE_RADIUS;
+            const fireRadius = nearestFire.heatRadius || TEMP_CONFIG.FIRE_RADIUS; // Радиус действия тепла костра (пиксели)
             if (distance < fireRadius) {
-                const intensity = nearestFire.intensity || 1.0;
-                heatBonus = (fireRadius - distance) / fireRadius * TEMP_CONFIG.FIRE_HEAT_BONUS * intensity;
+                const intensity = nearestFire.intensity || 1.0; // Интенсивность костра (0-1, влияет на количество тепла)
+                heatBonus = (fireRadius - distance) / fireRadius * TEMP_CONFIG.FIRE_HEAT_BONUS * intensity; // Рассчитываем бонус тепла с учетом расстояния и интенсивности
             }
         }
         
         // Температура стремится к окружающей + тепло от костра + бонус от движения
         // При движении температура не может понижаться ниже текущей + бонус движения
-        const targetTemp = ambientTemp + heatBonus + movementBonus;
-        const tempDiff = targetTemp - this.temperature;
+        const targetTemp = ambientTemp + heatBonus + movementBonus; // Целевая температура тела (°C)
+        const tempDiff = targetTemp - this.temperature; // Разница между целевой и текущей температурой (°C)
         
         // Если агент движется, температура не может понижаться
         if (movementBonus > 0 && tempDiff < 0) {
             // При движении температура может только повышаться или оставаться на месте
-            const minTempWithMovement = this.temperature + movementBonus * TEMP_CONFIG.TEMP_CHANGE_RATE;
-            this.temperature = Math.max(this.temperature, minTempWithMovement);
+            const minTempWithMovement = this.temperature + movementBonus * TEMP_CONFIG.TEMP_CHANGE_RATE; // Минимальная температура при движении (°C)
+            this.temperature = Math.max(this.temperature, minTempWithMovement); // Устанавливаем температуру не ниже минимума
         } else {
             // Температура меняется постепенно
-            this.temperature += tempDiff * TEMP_CONFIG.TEMP_CHANGE_RATE;
+            this.temperature += tempDiff * TEMP_CONFIG.TEMP_CHANGE_RATE; // Плавно изменяем температуру
         }
         
         // Ограничиваем температуру
-        const MIN_TEMP = TEMP_CONFIG.MIN_AMBIENT_TEMP || 20;
-        const MAX_TEMP = window.GAME_CONFIG?.AGENTS?.MAX_TEMPERATURE || 37;
+        const MIN_TEMP = TEMP_CONFIG.MIN_AMBIENT_TEMP || 20; // Минимальная температура тела (°C)
+        const MAX_TEMP = window.GAME_CONFIG?.AGENTS?.MAX_TEMPERATURE || 37; // Максимальная температура тела (°C)
         if (this.temperature < MIN_TEMP) this.temperature = MIN_TEMP;
         if (this.temperature > MAX_TEMP) this.temperature = MAX_TEMP;
         
@@ -453,26 +453,26 @@ class Agent {
     findNearestFire() {
         if (!window.world || !window.world.fires) return null;
         
-        let nearestFire = null;
-        let minDistance = Infinity;
+        let nearestFire = null; // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
+        let minDistance = Infinity; // Минимальное расстояние до костра (пиксели, изначально бесконечность)
         
         window.world.fires.forEach(fire => {
             const distance = Math.sqrt(
                 Math.pow(fire.x - this.position.x, 2) + 
                 Math.pow(fire.y - this.position.y, 2)
-            );
+            ); // Расстояние до текущего костра (пиксели)
             if (distance < minDistance) {
-                minDistance = distance;
-                nearestFire = fire;
+                minDistance = distance; // Обновляем минимальное расстояние
+                nearestFire = fire; // Обновляем ближайший костер
             }
         });
         
-        return nearestFire;
+        return nearestFire; // Возвращаем ближайший костер или null
     }
 
     decide() {
         // Простой конечный автомат для принятия решений
-        const oldState = this.state;
+        const oldState = this.state; // Сохраняем старое состояние (для логирования изменений)
         
         // КРИТИЧЕСКИ ВАЖНО: Если игрок управляет агентом - НЕ принимаем решения ИИ
         if (this.isPlayerControlled && this.targetPosition) {
@@ -488,12 +488,12 @@ class Agent {
         
         // Настройки сна для автоматического засыпания
         const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
-            AUTO_SLEEP_ENERGY_THRESHOLD: 20,
-            AUTO_SLEEP_NIGHT: true
+            AUTO_SLEEP_ENERGY_THRESHOLD: 20, // Порог энергии для автоматического засыпания (0-100)
+            AUTO_SLEEP_NIGHT: true           // Автоматическое засыпание ночью (true/false)
         };
         
         // Автоматическое засыпание при низкой энергии или ночью
-        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night');
+        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night'); // Флаг ночного времени (true/false)
         if ((this.energy < SLEEP_CONFIG.AUTO_SLEEP_ENERGY_THRESHOLD || 
              (SLEEP_CONFIG.AUTO_SLEEP_NIGHT && isNight)) && 
             this.state !== 'sleep') {
@@ -522,8 +522,8 @@ class Agent {
             // Холодно и есть навык разжигания костра и дрова - разводим костер автоматически
             this.state = 'buildFire';
         } else {
-            const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
-            const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50;
+            const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70; // Порог голода для начала поиска еды (0-100)
+            const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50; // Порог голода для начала запасания еды (0-100)
             
             if (this.hunger > SEARCH_FOOD_THRESHOLD) {
                 this.state = 'findFood';
@@ -565,18 +565,18 @@ class Agent {
     
     checkForPredators() {
         // Проверка наличия хищников поблизости
-        this.nearbyPredator = null;
+        this.nearbyPredator = null; // Сбрасываем ближайшего хищника
         if (!window.world || !window.world.predators) return;
         
-        let minDistance = Infinity;
+        let minDistance = Infinity; // Минимальное расстояние до хищника (пиксели, изначально бесконечность)
         window.world.predators.forEach(predator => {
             const distance = Math.sqrt(
                 Math.pow(predator.x - this.position.x, 2) + 
                 Math.pow(predator.y - this.position.y, 2)
-            );
-            if (distance < minDistance && distance < 100) {
-                minDistance = distance;
-                this.nearbyPredator = { predator, distance };
+            ); // Расстояние до текущего хищника (пиксели)
+            if (distance < minDistance && distance < 100) { // Если хищник ближе и в радиусе 100 пикселей
+                minDistance = distance; // Обновляем минимальное расстояние
+                this.nearbyPredator = { predator, distance }; // Сохраняем ближайшего хищника и расстояние до него
             }
         });
     }
@@ -592,8 +592,8 @@ class Agent {
     
     hasWoodForFire() {
         // Проверяем, есть ли дрова в инвентаре для костра
-        const woodCount = this.inventory.filter(item => item.type === 'wood').length;
-        return woodCount >= 3; // Нужно минимум 3 дрова для костра
+        const woodCount = this.inventory.filter(item => item.type === 'wood').length; // Количество предметов типа 'wood' в инвентаре
+        return woodCount >= 3; // Возвращаем true, если есть минимум 3 дрова для костра
     }
 
     act() {
