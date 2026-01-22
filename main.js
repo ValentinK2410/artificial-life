@@ -874,6 +874,7 @@ window.adminPassword = isProduction
 window.showAdminPanel = function() {
     const panel = document.getElementById('adminPanel');
     if (panel) {
+        panel.style.display = 'block';
         panel.classList.add('open');
         loadAdminPlayerList();
     }
@@ -883,6 +884,9 @@ window.hideAdminPanel = function() {
     const panel = document.getElementById('adminPanel');
     if (panel) {
         panel.classList.remove('open');
+        setTimeout(() => {
+            panel.style.display = 'none';
+        }, 300); // После завершения анимации скрываем
     }
 };
 
