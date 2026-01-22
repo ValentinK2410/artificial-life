@@ -138,9 +138,25 @@ class Agent {
             this.appetite -= 0.01;
         }
         
-        // Уменьшаем энергию при движении (зависит от выносливости)
-        if (this.state !== 'rest') {
-            const energyLoss = 0.3 * (1 - this.stamina / 200); // Чем больше выносливость, тем меньше потери
+        // Уменьшаем энергию при активности (зависит от выносливости)
+        const ENERGY_CONFIG = window.GAME_CONFIG?.AGENTS?.ENERGY || {
+            BASE_LOSS_RATE: 0.05,
+            REST_RESTORE_RATE: 0.5,
+            LOW_ENERGY_THRESHOLD: 30,
+            CRITICAL_ENERGY_THRESHOLD: 20,
+            STAMINA_REDUCTION_FACTOR: 0.5
+        };
+        
+        if (this.state === 'rest') {
+            // Восстанавливаем энергию при отдыхе
+            this.energy += ENERGY_CONFIG.REST_RESTORE_RATE;
+            if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
+        } else {
+            // Уменьшаем энергию при активности
+            // Чем больше выносливость, тем меньше потери энергии
+            // Формула: базовые потери * (1 - выносливость/100 * коэффициент)
+            const staminaReduction = (this.stamina / 100) * ENERGY_CONFIG.STAMINA_REDUCTION_FACTOR;
+            const energyLoss = ENERGY_CONFIG.BASE_LOSS_RATE * (1 - staminaReduction);
             this.energy -= energyLoss;
             if (this.energy < 0) this.energy = 0;
         }
