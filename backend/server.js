@@ -9,8 +9,11 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: "*", // В продакшене укажите конкретный домен
-        methods: ["GET", "POST"]
-    }
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling'], // Поддержка WebSocket и polling для мобильных устройств
+    allowEIO3: true // Поддержка старых клиентов
 });
 
 app.use(cors());

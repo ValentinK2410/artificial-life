@@ -21,15 +21,35 @@ class NetworkManager {
                 serverUrl = 'http://localhost:3000';
             } else {
                 // Используем текущий протокол и домен
-                serverUrl = window.location.origin;
+                // Для WebSocket важно использовать правильный протокол (ws/wss)
+                const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                serverUrl = `${protocol}//${window.location.hostname}`;
+                
+                // Если есть порт в URL, используем его, иначе используем стандартный
+                if (window.location.port) {
+                    serverUrl = `${protocol}//${window.location.hostname}:${window.location.port}`;
+                }
             }
         }
+        
+        console.log('Подключение к серверу:', serverUrl);
+        
         if (this.socket && this.isConnected) {
             console.log('Уже подключен к серверу');
             return;
         }
 
-        this.socket = io(serverUrl);
+        // Создаем подключение с опциями для лучшей совместимости
+        this.socket = io(serverUrl, {
+            transports: ['websocket', 'polling'], // Пробуем WebSocket, затем polling
+            upgrade: true,
+            rememberUpgrade: true,
+            timeout: 10000, // Таймаут подключения 10 секунд
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 5
+        });
 
         this.socket.on('connect', () => {
             this.isConnected = true;
@@ -42,9 +62,24 @@ class NetworkManager {
         this.socket.on('connect_error', (error) => {
             this.isConnected = false;
             console.error('❌ Ошибка подключения к серверу:', error);
-            if (window.addLogEntry) {
-                window.addLogEntry(`❌ Не удалось подключиться к серверу. Проверьте, запущен ли сервер на порту 3000`);
+            
+            let errorMessage = '❌ Не удалось подключиться к серверу.';
+            
+            // Более детальные сообщения об ошибках
+            if (error.message) {
+                if (error.message.includes('xhr poll error') || error.message.includes('timeout')) {
+                    errorMessage += ' Сервер не отвечает. Проверьте, запущен ли сервер.';
+                } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                    errorMessage += ' Проблема с сетью. Проверьте подключение к интернету.';
+                } else {
+                    errorMessage += ` ${error.message}`;
+                }
             }
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(errorMessage);
+            }
+            
             // Вызываем callback ошибки, если есть
             if (this.onConnectionError) {
                 this.onConnectionError(error);
