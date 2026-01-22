@@ -117,6 +117,9 @@ class Simulation {
     
     // Показать панель управления агентом
     showAgentControlPanel(agent) {
+        // Сохраняем ссылку на текущего агента
+        this.selectedAgent = agent;
+        
         // Создаем или обновляем панель управления
         let panel = document.getElementById('agentControlPanel');
         if (!panel) {
@@ -126,49 +129,162 @@ class Simulation {
             document.body.appendChild(panel);
         }
         
+        // Названия навыков
+        const skillNames = {
+            'saw': 'Пила',
+            'axe': 'Топор',
+            'hammer': 'Молоток',
+            'pickaxe': 'Кирка',
+            'shovel': 'Лопата',
+            'fishing': 'Рыбалка',
+            'cooking': 'Готовка',
+            'building': 'Строительство',
+            'farming': 'Фермерство',
+            'hunting': 'Охота'
+        };
+        
+        // Иконки навыков
+        const skillIcons = {
+            'saw': '🪚',
+            'axe': '🪓',
+            'hammer': '🔨',
+            'pickaxe': '⛏️',
+            'shovel': '🪚',
+            'fishing': '🎣',
+            'cooking': '🍳',
+            'building': '🏗️',
+            'farming': '🌾',
+            'hunting': '🎯'
+        };
+        
+        // Генерируем HTML для навыков
+        let skillsHTML = '';
+        if (agent.experience) {
+            Object.keys(agent.experience).forEach(skill => {
+                const exp = Math.floor(agent.experience[skill] || 0);
+                const level = Math.floor(exp / 10); // Уровень (0-10)
+                const percentage = exp % 10; // Процент до следующего уровня
+                
+                skillsHTML += `
+                    <div class="skill-item">
+                        <div class="skill-icon">${skillIcons[skill] || '📚'}</div>
+                        <div class="skill-info">
+                            <div class="skill-name">${skillNames[skill] || skill}</div>
+                            <div class="skill-level">Уровень ${level}</div>
+                            <div class="skill-progress">
+                                <div class="skill-progress-bar" style="width: ${percentage * 10}%"></div>
+                            </div>
+                            <div class="skill-exp">${exp}/100 опыта</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
         panel.innerHTML = `
             <div class="agent-control-header">
                 <h3>Управление: ${agent.name}</h3>
                 <button class="close-btn" onclick="window.simulation.hideAgentControlPanel()">×</button>
             </div>
+            <div class="agent-control-tabs">
+                <button class="agent-tab-btn active" data-tab="info">Информация</button>
+                <button class="agent-tab-btn" data-tab="skills">Навыки</button>
+                <button class="agent-tab-btn" data-tab="commands">Команды</button>
+            </div>
             <div class="agent-control-content">
-                <div class="agent-info">
-                    <p>Здоровье: ${Math.floor(agent.health)}%</p>
-                    <p>Энергия: ${Math.floor(agent.energy)}%</p>
-                    <p>Голод: ${Math.floor(agent.hunger)}%</p>
-                    <p>Деньги: ${this.getPlayerMoney()} монет</p>
+                <!-- Вкладка: Информация -->
+                <div class="agent-tab-panel active" data-panel="info">
+                    <div class="agent-info">
+                        <p><strong>Здоровье:</strong> ${Math.floor(agent.health)}%</p>
+                        <p><strong>Энергия:</strong> ${Math.floor(agent.energy)}%</p>
+                        <p><strong>Голод:</strong> ${Math.floor(agent.hunger)}%</p>
+                        <p><strong>Температура:</strong> ${Math.floor(agent.temperature || 37)}°C</p>
+                        <p><strong>Деньги:</strong> ${this.getPlayerMoney()} монет</p>
+                        <p><strong>Возраст:</strong> ${agent.age} лет</p>
+                        <p><strong>Состояние:</strong> ${this.getStateName(agent.state)}</p>
+                    </div>
                 </div>
-                <div class="agent-commands">
-                    <h4>Команды:</h4>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('teachSkill')">
-                        📚 Обучить навыку (10 монет)
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('cook')">
-                        🍳 Готовить еду
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('buildFire')">
-                        🔥 Разжечь костер
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('hunt')">
-                        🎯 Охотиться
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('build')">
-                        🏗️ Строить
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('gather')">
-                        🌿 Собирать ресурсы
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('fish')">
-                        🎣 Рыбачить
-                    </button>
-                    <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
-                        🌾 Фермерство
-                    </button>
+                
+                <!-- Вкладка: Навыки -->
+                <div class="agent-tab-panel" data-panel="skills">
+                    <div class="skills-container">
+                        ${skillsHTML || '<p style="color: #888; text-align: center; padding: 20px;">Навыки еще не изучены</p>'}
+                    </div>
+                </div>
+                
+                <!-- Вкладка: Команды -->
+                <div class="agent-tab-panel" data-panel="commands">
+                    <div class="agent-commands">
+                        <button class="command-btn" onclick="window.simulation.giveCommand('teachSkill')">
+                            📚 Обучить навыку (10 монет)
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('cook')">
+                            🍳 Готовить еду
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('buildFire')">
+                            🔥 Разжечь костер
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('hunt')">
+                            🎯 Охотиться
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('build')">
+                            🏗️ Строить
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('gather')">
+                            🌿 Собирать ресурсы
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('fish')">
+                            🎣 Рыбачить
+                        </button>
+                        <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
+                            🌾 Фермерство
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
         
+        // Обработчики вкладок
+        const tabButtons = panel.querySelectorAll('.agent-tab-btn');
+        const tabPanels = panel.querySelectorAll('.agent-tab-panel');
+        
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                // Убираем активный класс со всех кнопок и панелей
+                tabButtons.forEach(b => b.classList.remove('active'));
+                tabPanels.forEach(p => p.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной кнопке и панели
+                btn.classList.add('active');
+                panel.querySelector(`[data-panel="${tabName}"]`).classList.add('active');
+            });
+        });
+        
         panel.style.display = 'block';
+    }
+    
+    // Получить название состояния
+    getStateName(state) {
+        const stateNames = {
+            'explore': 'Исследует',
+            'findFood': 'Ищет еду',
+            'rest': 'Отдыхает',
+            'findHeat': 'Ищет тепло',
+            'buildFire': 'Разводит костер',
+            'defend': 'Обороняется',
+            'feedAnimal': 'Кормит животных',
+            'playWithPet': 'Играет с питомцем',
+            'storeFood': 'Запасает еду',
+            'moveToPoint': 'Двигается к цели',
+            'cook': 'Готовит',
+            'hunt': 'Охотится',
+            'build': 'Строит',
+            'fish': 'Рыбачит',
+            'farm': 'Занимается фермерством'
+        };
+        return stateNames[state] || state;
     }
     
     // Скрыть панель управления
