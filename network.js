@@ -71,20 +71,33 @@ class NetworkManager {
         this.socket.on('connect_error', (error) => {
             this.isConnected = false;
             console.error('❌ Ошибка подключения к серверу:', error);
+            console.error('URL подключения:', serverUrl);
+            console.error('Детали ошибки:', {
+                message: error.message,
+                type: error.type,
+                description: error.description
+            });
             
             const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
             let errorMessage = '❌ Не удалось подключиться к серверу.';
+            let helpMessage = '';
             
             // Более детальные сообщения об ошибках
             if (error.message) {
                 if (error.message.includes('xhr poll error') || error.message.includes('timeout')) {
                     if (isProduction) {
-                        errorMessage += ' Сервер временно недоступен. Можно играть офлайн.';
+                        errorMessage += ' Сервер временно недоступен.';
+                        helpMessage = 'Проверьте, запущен ли сервер через ISPmanager или systemd. См. START_SERVER.md';
                     } else {
-                        errorMessage += ' Сервер не отвечает. Проверьте, запущен ли сервер.';
+                        errorMessage += ' Сервер не отвечает.';
+                        helpMessage = 'Запустите сервер: cd backend && npm start';
                     }
                 } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                    errorMessage += ' Проблема с сетью. Можно играть офлайн.';
+                    errorMessage += ' Проблема с сетью.';
+                    helpMessage = 'Проверьте подключение к интернету и настройки Nginx.';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage += ' Ошибка CORS.';
+                    helpMessage = 'Проверьте настройки CORS на сервере.';
                 } else {
                     errorMessage += ` ${error.message}`;
                 }
@@ -92,6 +105,9 @@ class NetworkManager {
             
             if (window.addLogEntry) {
                 window.addLogEntry(errorMessage);
+                if (helpMessage) {
+                    window.addLogEntry(`💡 ${helpMessage}`);
+                }
             }
             
             // Вызываем callback ошибки, если есть

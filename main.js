@@ -1768,14 +1768,27 @@ function initializeNetwork() {
         window.networkManager.onConnectionError = (error) => {
             const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
             const errorMessage = isProduction 
-                ? 'Не удалось подключиться к серверу.<br><small>Сервер временно недоступен. Вы можете играть офлайн.</small>'
+                ? 'Не удалось подключиться к серверу.<br><small>Сервер временно недоступен. Проверьте, запущен ли сервер через ISPmanager.</small><br><small>Для мультиплеера необходимо запустить сервер. См. START_SERVER.md</small>'
                 : 'Не удалось подключиться к серверу.<br><small>Запустите сервер: <code>cd backend && npm start</code></small>';
             
             connectionStatus.innerHTML = `
                 ${errorMessage}<br>
                 <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
+                <button id="retryConnectionBtn" class="control-btn" style="margin-top: 10px; margin-left: 10px;">Повторить попытку</button>
             `;
             connectionStatus.className = 'connection-status error';
+            
+            // Обработчик кнопки повтора подключения
+            setTimeout(() => {
+                const retryBtn = document.getElementById('retryConnectionBtn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', () => {
+                        connectionStatus.textContent = 'Повторное подключение...';
+                        connectionStatus.className = 'connection-status connecting';
+                        window.networkManager.connect();
+                    });
+                }
+            }, 100);
             
             // Обработчик кнопки офлайн режима
             setTimeout(() => {
@@ -1843,8 +1856,21 @@ function initializeNetwork() {
                     connectionStatus.innerHTML = `
                         ${errorMessage}<br>
                         <button id="playOfflineBtn" class="control-btn" style="margin-top: 10px;">Играть офлайн</button>
+                        <button id="retryConnectionBtn" class="control-btn" style="margin-top: 10px; margin-left: 10px;">Повторить попытку</button>
                     `;
                     connectionStatus.className = 'connection-status error';
+                    
+                    // Обработчик кнопки повтора подключения
+                    setTimeout(() => {
+                        const retryBtn = document.getElementById('retryConnectionBtn');
+                        if (retryBtn) {
+                            retryBtn.addEventListener('click', () => {
+                                connectionStatus.textContent = 'Повторное подключение...';
+                                connectionStatus.className = 'connection-status connecting';
+                                window.networkManager.connect();
+                            });
+                        }
+                    }, 100);
                     
                     // Обработчик кнопки офлайн режима
                     setTimeout(() => {
