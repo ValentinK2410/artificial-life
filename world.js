@@ -279,12 +279,14 @@ class World {
 
     addFire(x, y) {
         // Добавление костра на карту
-        this.fires.push({
+        const fire = {
             x: x,
             y: y,
             intensity: 1.0, // Интенсивность костра (для анимации)
-            time: Date.now() // Время создания для анимации
-        });
+            time: Date.now(), // Время создания для анимации
+            id: 'fire_' + Date.now() + '_' + Math.random() // Уникальный ID для синхронизации
+        };
+        this.fires.push(fire);
         this.draw();
     }
 
@@ -469,12 +471,15 @@ class World {
         else if (type === 'money') amount = 10 + Math.floor(Math.random() * 50);
         else if (type === 'wood') amount = 5;
         
-        this.resources.push({
+        const resource = {
             type: type,
             x: x,
             y: y,
-            amount: amount
-        });
+            amount: amount,
+            id: 'resource_' + Date.now() + '_' + Math.random() // Уникальный ID для синхронизации
+        };
+        
+        this.resources.push(resource);
         
         this.draw();
     }

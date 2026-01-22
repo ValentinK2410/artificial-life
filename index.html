@@ -9,7 +9,22 @@
 </head>
 
 <body>
-    <div class="main-container">
+    <!-- Модальное окно входа -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2>Вход в игру</h2>
+            <div class="login-form">
+                <label for="playerNameInput">Ваше имя:</label>
+                <input type="text" id="playerNameInput" placeholder="Введите ваше имя" maxlength="20">
+                <label for="worldIdInput">ID мира (опционально):</label>
+                <input type="text" id="worldIdInput" placeholder="default" value="default">
+                <button id="connectBtn" class="control-btn">Подключиться</button>
+            </div>
+            <div id="connectionStatus" class="connection-status"></div>
+        </div>
+    </div>
+
+    <div class="main-container" id="mainContainer" style="display: none;">
         <!-- Левая область - Canvas для карты -->
         <div class="canvas-area">
             <canvas id="worldCanvas"></canvas>
@@ -388,6 +403,9 @@
         </div>
     </div>
 
+    <!-- Socket.io клиент -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="network.js"></script>
     <script src="world.js"></script>
     <script src="agents.js"></script>
     <script src="main.js"></script>

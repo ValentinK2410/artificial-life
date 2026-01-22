@@ -551,3 +551,229 @@ function addLogEntry(message) {
 
 // Экспорт функций для использования в других модулях
 window.addLogEntry = addLogEntry;
+
+// Инициализация сетевого подключения
+function initializeNetwork() {
+    const loginModal = document.getElementById('loginModal');
+    const mainContainer = document.getElementById('mainContainer');
+    const connectBtn = document.getElementById('connectBtn');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const worldIdInput = document.getElementById('worldIdInput');
+    const connectionStatus = document.getElementById('connectionStatus');
+
+    // Обработчик подключения
+    connectBtn.addEventListener('click', () => {
+        const playerName = playerNameInput.value.trim();
+        const worldId = worldIdInput.value.trim() || 'default';
+
+        if (!playerName) {
+            connectionStatus.textContent = 'Введите имя игрока';
+            connectionStatus.className = 'connection-status error';
+            return;
+        }
+
+        connectionStatus.textContent = 'Подключение...';
+        connectionStatus.className = 'connection-status connecting';
+
+        // Подключаемся к серверу
+        window.networkManager.connect('http://localhost:3000');
+
+        // Ждем подключения
+        const checkConnection = setInterval(() => {
+            if (window.networkManager.isConnected) {
+                clearInterval(checkConnection);
+                
+                // Регистрируем игрока
+                window.networkManager.register(playerName, worldId);
+
+                // Настраиваем обработчик получения состояния мира
+                window.networkManager.onWorldStateCallback = (data) => {
+                    connectionStatus.textContent = 'Подключено!';
+                    connectionStatus.className = 'connection-status connected';
+                    
+                    // Скрываем модальное окно и показываем игру
+                    setTimeout(() => {
+                        loginModal.style.display = 'none';
+                        mainContainer.style.display = 'grid';
+                        
+                        // Инициализируем игру с данными с сервера
+                        initializeGameWithServerData(data);
+                    }, 500);
+                };
+            }
+        }, 100);
+
+        // Таймаут подключения
+        setTimeout(() => {
+            if (!window.networkManager.isConnected) {
+                clearInterval(checkConnection);
+                connectionStatus.textContent = 'Не удалось подключиться к серверу';
+                connectionStatus.className = 'connection-status error';
+            }
+        }, 5000);
+    });
+
+    // Подключение по Enter
+    playerNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            connectBtn.click();
+        }
+    });
+}
+
+// Инициализация игры с данными сервера
+function initializeGameWithServerData(data) {
+    // Создаем мир
+    initializeCanvas();
+    
+    // Загружаем состояние мира с сервера
+    if (data.world) {
+        // Загружаем ресурсы
+        if (data.world.resources) {
+            window.world.resources = data.world.resources.map(r => ({
+                type: r.type,
+                x: r.x,
+                y: r.y,
+                amount: r.amount,
+                id: r.id
+            }));
+        }
+
+        // Загружаем животных
+        if (data.world.animals) {
+            window.world.animals = data.world.animals.map(a => ({
+                type: a.type,
+                x: a.x,
+                y: a.y,
+                health: a.health,
+                hunger: a.hunger,
+                owner: a.owner,
+                tamed: a.tamed,
+                id: a.id
+            }));
+        }
+
+        // Загружаем хищников
+        if (data.world.predators) {
+            window.world.predators = data.world.predators.map(p => ({
+                type: p.type,
+                x: p.x,
+                y: p.y,
+                health: p.health,
+                hunger: p.hunger,
+                target: p.target,
+                id: p.id
+            }));
+        }
+
+        // Загружаем костры
+        if (data.world.fires) {
+            window.world.fires = data.world.fires.map(f => ({
+                x: f.x,
+                y: f.y,
+                intensity: f.intensity,
+                id: f.id
+            }));
+        }
+
+        // Загружаем постройки
+        if (data.world.buildings) {
+            if (!window.world.buildings) {
+                window.world.buildings = [];
+            }
+            window.world.buildings = data.world.buildings.map(b => ({
+                type: b.type,
+                x: b.x,
+                y: b.y,
+                id: b.id
+            }));
+        }
+
+        // Обновляем погоду и время
+        if (data.world.weather) window.world.weather = data.world.weather;
+        if (data.world.timeOfDay) window.world.timeOfDay = data.world.timeOfDay;
+        if (data.world.day) window.world.day = data.world.day;
+    }
+
+    // Инициализируем симуляцию
+    initializeSimulation();
+
+    // Интегрируем сетевые функции в существующие обработчики
+    integrateNetworkWithWorld();
+}
+
+// Интеграция сетевых функций с миром
+function integrateNetworkWithWorld() {
+    // Сохраняем оригинальные методы
+    const originalAddResource = window.world.addResource.bind(window.world);
+    const originalAddAnimal = window.world.addAnimal.bind(window.world);
+    const originalAddPredator = window.world.addPredator.bind(window.world);
+
+    // Переопределяем методы для отправки на сервер
+    window.world.addResource = function(type) {
+        if (!this.canvas) return;
+        
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
+
+        // Отправляем на сервер
+        if (window.networkManager && window.networkManager.isConnected) {
+            window.networkManager.addResource(type, x, y, 1);
+        }
+
+        // Добавляем локально
+        originalAddResource(type);
+    };
+
+    window.world.addAnimal = function(type) {
+        if (!this.canvas) return;
+        
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
+
+        if (window.networkManager && window.networkManager.isConnected) {
+            window.networkManager.addAnimal(type, x, y);
+        }
+
+        originalAddAnimal(type);
+    };
+
+    window.world.addPredator = function(type) {
+        if (!this.canvas) return;
+        
+        const viewWidth = this.canvas.width / this.camera.scale;
+        const viewHeight = this.canvas.height / this.camera.scale;
+        const margin = 50;
+        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
+
+        if (window.networkManager && window.networkManager.isConnected) {
+            window.networkManager.addPredator(type, x, y);
+        }
+
+        originalAddPredator(type);
+    };
+
+    // Обновление камеры
+    const originalDraw = window.world.draw.bind(window.world);
+    window.world.draw = function() {
+        originalDraw();
+        
+        // Отправляем обновление камеры на сервер
+        if (window.networkManager && window.networkManager.isConnected && this.frameCount % 10 === 0) {
+            window.networkManager.updateCamera(this.camera);
+        }
+        this.frameCount = (this.frameCount || 0) + 1;
+    };
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    initializeNetwork();
+});

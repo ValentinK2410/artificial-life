@@ -584,6 +584,12 @@ class Agent {
         // Создаем костер
         if (window.world.addFire) {
             window.world.addFire(this.position.x, this.position.y);
+            
+            // Отправляем уведомление на сервер
+            if (window.networkManager && window.networkManager.isConnected) {
+                window.networkManager.buildFire(this.position.x, this.position.y);
+            }
+            
             if (window.addLogEntry) {
                 window.addLogEntry(`🔥 ${this.name} развел костер в (${Math.floor(this.position.x)}, ${Math.floor(this.position.y)})`);
             }
@@ -690,6 +696,10 @@ class Agent {
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource);
                 if (index > -1) {
+                    // Отправляем уведомление на сервер
+                    if (window.networkManager && window.networkManager.isConnected && resource.id) {
+                        window.networkManager.removeResource(resource.id);
+                    }
                     world.resources.splice(index, 1);
                 }
                 
@@ -717,6 +727,10 @@ class Agent {
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource);
                 if (index > -1) {
+                    // Отправляем уведомление на сервер
+                    if (window.networkManager && window.networkManager.isConnected && resource.id) {
+                        window.networkManager.removeResource(resource.id);
+                    }
                     world.resources.splice(index, 1);
                 }
                 
@@ -776,6 +790,10 @@ class Agent {
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource);
                 if (index > -1) {
+                    // Отправляем уведомление на сервер
+                    if (window.networkManager && window.networkManager.isConnected && resource.id) {
+                        window.networkManager.removeResource(resource.id);
+                    }
                     world.resources.splice(index, 1);
                 }
             }
