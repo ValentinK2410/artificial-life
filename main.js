@@ -31,125 +31,138 @@ class Simulation {
             };
         };
         
+        // Переменная для отслеживания задержки между кликами
+        let clickTimer = null;
+        let lastClickTime = 0;
+        let lastClickCoords = null;
+        
         // Обработка одинарного клика - только для установки цели
         this.world.canvas.addEventListener('click', (e) => {
-            if (e.button !== 0 && e.detail !== 1) return; // Только левая кнопка, одинарный клик
-            
-            const worldCoords = getWorldCoords(e);
-            
-            // Проверяем, кликнули ли на агента
-            // Сначала пытаемся получить агентов игрока, если их нет - берем всех
-            let playerAgents = [];
-            if (this.agentsManager) {
-                playerAgents = this.agentsManager.getPlayerAgents();
-                // Если нет агентов игрока, берем всех агентов
-                if (playerAgents.length === 0 || !this.agentsManager.playerId) {
-                    playerAgents = this.agentsManager.getAllAgents();
-                }
-            } else if (this.agents) {
-                playerAgents = this.agents;
-            }
-            
-            console.log('Клик на координатах:', worldCoords, 'Агентов для проверки:', playerAgents.length);
-            
-            let clickedAgent = null;
-            let minDistance = Infinity;
-            
-            for (let agent of playerAgents) {
-                if (!agent.position) {
-                    console.warn('Агент без позиции:', agent);
-                    continue;
-                }
-                
-                const dx = agent.position.x - worldCoords.x;
-                const dy = agent.position.y - worldCoords.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                console.log(`Агент ${agent.name}: позиция (${agent.position.x}, ${agent.position.y}), расстояние: ${distance.toFixed(2)}`);
-                
-                if (distance < 25 && distance < minDistance) { // Радиус клика
-                    clickedAgent = agent;
-                    minDistance = distance;
-                }
-            }
-            
-            // Если кликнули на агента - только выбираем, панель не показываем
-            if (clickedAgent) {
-                this.selectedAgent = clickedAgent;
-                console.log('Выбран агент:', clickedAgent.name, clickedAgent.id);
-                if (window.addLogEntry) {
-                    window.addLogEntry(`👤 Выбран агент: ${clickedAgent.name} (двойной клик для управления)`);
-                }
-                this.world.draw(); // Перерисовка для выделения
-            } else if (this.selectedAgent) {
-                // Если есть выбранный агент, устанавливаем цель
-                this.selectedAgent.setTarget(worldCoords.x, worldCoords.y);
-                if (window.addLogEntry) {
-                    window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(worldCoords.x)}, ${Math.floor(worldCoords.y)})`);
-                }
-                
-                // Синхронизация с сервером
-                if (window.networkManager && window.networkManager.isConnected) {
-                    window.networkManager.updateAgent({
-                        id: this.selectedAgent.id,
-                        position: this.selectedAgent.position,
-                        targetPosition: this.selectedAgent.targetPosition,
-                        isPlayerControlled: true
-                    });
-                }
-            }
-        });
-        
-        // Обработка двойного клика - показываем панель управления
-        this.world.canvas.addEventListener('dblclick', (e) => {
             if (e.button !== 0) return; // Только левая кнопка
             
             const worldCoords = getWorldCoords(e);
+            const currentTime = Date.now();
             
-            // Проверяем, кликнули ли на агента
-            // Сначала пытаемся получить агентов игрока, если их нет - берем всех
-            let playerAgents = [];
-            if (this.agentsManager) {
-                playerAgents = this.agentsManager.getPlayerAgents();
-                // Если нет агентов игрока, берем всех агентов
-                if (playerAgents.length === 0 || !this.agentsManager.playerId) {
-                    playerAgents = this.agentsManager.getAllAgents();
-                }
-            } else if (this.agents) {
-                playerAgents = this.agents;
-            }
+            // Проверяем, это двойной клик или одинарный
+            const isDoubleClick = (currentTime - lastClickTime < 300) && 
+                                  lastClickCoords && 
+                                  Math.abs(lastClickCoords.x - worldCoords.x) < 10 && 
+                                  Math.abs(lastClickCoords.y - worldCoords.y) < 10;
             
-            console.log('Двойной клик на координатах:', worldCoords, 'Агентов для проверки:', playerAgents.length);
-            
-            let clickedAgent = null;
-            let minDistance = Infinity;
-            
-            for (let agent of playerAgents) {
-                if (!agent.position) {
-                    console.warn('Агент без позиции:', agent);
-                    continue;
+            if (isDoubleClick) {
+                // Это двойной клик - отменяем таймер одинарного клика
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                    clickTimer = null;
                 }
                 
-                const dx = agent.position.x - worldCoords.x;
-                const dy = agent.position.y - worldCoords.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < 25 && distance < minDistance) { // Радиус клика
-                    clickedAgent = agent;
-                    minDistance = distance;
+                // Обрабатываем двойной клик
+                let playerAgents = [];
+                if (this.agentsManager) {
+                    playerAgents = this.agentsManager.getPlayerAgents();
+                    if (playerAgents.length === 0 || !this.agentsManager.playerId) {
+                        playerAgents = this.agentsManager.getAllAgents();
+                    }
+                } else if (this.agents) {
+                    playerAgents = this.agents;
                 }
+                
+                let clickedAgent = null;
+                let minDistance = Infinity;
+                
+                for (let agent of playerAgents) {
+                    if (!agent.position) continue;
+                    
+                    const dx = agent.position.x - worldCoords.x;
+                    const dy = agent.position.y - worldCoords.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 25 && distance < minDistance) {
+                        clickedAgent = agent;
+                        minDistance = distance;
+                    }
+                }
+                
+                if (clickedAgent) {
+                    this.selectedAgent = clickedAgent;
+                    console.log('Двойной клик - открыта панель управления для агента:', clickedAgent.name);
+                    this.showAgentControlPanel(clickedAgent);
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`👤 Открыта панель управления: ${clickedAgent.name}`);
+                    }
+                    this.world.draw();
+                }
+                
+                lastClickTime = 0; // Сбрасываем для следующего клика
+                return;
             }
             
-            if (clickedAgent) {
-                // Выбираем агента и показываем панель управления
-                this.selectedAgent = clickedAgent;
-                console.log('Открыта панель управления для агента:', clickedAgent.name, clickedAgent.id);
-                this.showAgentControlPanel(clickedAgent);
-                if (window.addLogEntry) {
-                    window.addLogEntry(`👤 Открыта панель управления: ${clickedAgent.name}`);
-                }
-                this.world.draw(); // Перерисовка для выделения
+            // Это одинарный клик - сохраняем координаты и время
+            lastClickTime = currentTime;
+            lastClickCoords = worldCoords;
+            
+            // Отменяем предыдущий таймер, если есть
+            if (clickTimer) {
+                clearTimeout(clickTimer);
             }
+            
+            // Устанавливаем таймер для обработки одинарного клика
+            clickTimer = setTimeout(() => {
+                clickTimer = null;
+                
+                // Проверяем, кликнули ли на агента
+                let playerAgents = [];
+                if (this.agentsManager) {
+                    playerAgents = this.agentsManager.getPlayerAgents();
+                    if (playerAgents.length === 0 || !this.agentsManager.playerId) {
+                        playerAgents = this.agentsManager.getAllAgents();
+                    }
+                } else if (this.agents) {
+                    playerAgents = this.agents;
+                }
+                
+                let clickedAgent = null;
+                let minDistance = Infinity;
+                
+                for (let agent of playerAgents) {
+                    if (!agent.position) continue;
+                    
+                    const dx = agent.position.x - worldCoords.x;
+                    const dy = agent.position.y - worldCoords.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 25 && distance < minDistance) {
+                        clickedAgent = agent;
+                        minDistance = distance;
+                    }
+                }
+                
+                // Если кликнули на агента - только выбираем, панель не показываем
+                if (clickedAgent) {
+                    this.selectedAgent = clickedAgent;
+                    console.log('Одинарный клик - выбран агент:', clickedAgent.name);
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`👤 Выбран агент: ${clickedAgent.name} (двойной клик для управления)`);
+                    }
+                    this.world.draw();
+                } else if (this.selectedAgent) {
+                    // Если есть выбранный агент, устанавливаем цель
+                    this.selectedAgent.setTarget(worldCoords.x, worldCoords.y);
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(worldCoords.x)}, ${Math.floor(worldCoords.y)})`);
+                    }
+                    
+                    // Синхронизация с сервером
+                    if (window.networkManager && window.networkManager.isConnected) {
+                        window.networkManager.updateAgent({
+                            id: this.selectedAgent.id,
+                            position: this.selectedAgent.position,
+                            targetPosition: this.selectedAgent.targetPosition,
+                            isPlayerControlled: true
+                        });
+                    }
+                }
+            }, 300); // Задержка 300мс для определения двойного клика
         });
     }
     
