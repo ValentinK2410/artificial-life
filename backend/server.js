@@ -6,14 +6,28 @@ import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*", // В продакшене укажите конкретный домен
+// Определяем, продакшен или разработка
+const isProduction = process.env.NODE_ENV === 'production' || 
+                     process.env.PORT || 
+                     !process.env.DEV;
+
+// Настройки CORS для продакшена
+const corsOptions = isProduction 
+    ? {
+        origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://game.dekan.pro'],
         methods: ["GET", "POST"],
         credentials: true
-    },
-    transports: ['websocket', 'polling'], // Поддержка WebSocket и polling для мобильных устройств
-    allowEIO3: true // Поддержка старых клиентов
+    }
+    : {
+        origin: "*", // В разработке разрешаем все
+        methods: ["GET", "POST"],
+        credentials: true
+    };
+
+const io = new Server(httpServer, {
+    cors: corsOptions,
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
 });
 
 app.use(cors());

@@ -853,7 +853,17 @@ window.addLogEntry = addLogEntry;
 
 // Глобальные переменные для админ-панели
 window.isAdmin = false;
-window.adminPassword = 'admin123'; // В продакшене используйте более сложный пароль
+
+// Определяем, продакшен или разработка
+const isProduction = window.location.hostname !== 'localhost' && 
+                     window.location.hostname !== '127.0.0.1' &&
+                     !window.location.hostname.includes('localhost');
+
+// Пароль администратора
+// В ПРОДАКШЕНЕ ОБЯЗАТЕЛЬНО ИЗМЕНИТЕ НА СВОЙ СЛОЖНЫЙ ПАРОЛЬ!
+window.adminPassword = isProduction 
+    ? 'CHANGE_THIS_PASSWORD_IN_PRODUCTION' // ИЗМЕНИТЕ ЭТОТ ПАРОЛЬ!
+    : 'admin123'; // Пароль для разработки
 
 // Функции для админ-панели
 window.showAdminPanel = function() {
