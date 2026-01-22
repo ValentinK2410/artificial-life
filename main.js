@@ -818,13 +818,47 @@ function initializeSimulation() {
         return;
     }
     
+    // Проверяем canvas
+    if (!window.world.canvas) {
+        console.error('Canvas не найден!');
+        return;
+    }
+    
+    // Убеждаемся, что canvas имеет размеры
+    const canvas = window.world.canvas;
+    const container = canvas.parentElement;
+    if (container) {
+        if (canvas.width === 0 || canvas.height === 0) {
+            canvas.width = container.clientWidth || 800;
+            canvas.height = container.clientHeight || 600;
+            console.log('Canvas размеры установлены:', canvas.width, canvas.height);
+        }
+    }
+    
+    // Убеждаемся, что контекст инициализирован
+    if (!window.world.ctx) {
+        window.world.ctx = canvas.getContext('2d');
+        if (!window.world.ctx) {
+            console.error('Не удалось получить контекст canvas!');
+            return;
+        }
+        console.log('Canvas context инициализирован');
+    }
+    
     // Создание экземпляра Simulation
     simulation = new Simulation(window.world, window.agents);
     window.simulation = simulation;
     
     // Первоначальная отрисовка статичной сцены (мир + агенты)
-    if (window.world) {
-        window.world.draw();
+    if (window.world && window.world.ctx) {
+        try {
+            window.world.draw();
+            console.log('Первоначальная отрисовка выполнена');
+        } catch (error) {
+            console.error('Ошибка при отрисовке:', error);
+        }
+    } else {
+        console.error('Мир или контекст не готовы для отрисовки');
     }
     
     // Обновление UI
@@ -832,10 +866,10 @@ function initializeSimulation() {
         simulation.updateSidebar();
     }
     
-        addLogEntry('✅ Симуляция инициализирована. Нажмите "Старт" для начала.');
-        addLogEntry(`📊 Агентов на карте: ${simulation.agents.length}`);
-        console.log('Симуляция готова. Агенты:', simulation.agents.length);
-        console.log('Мир создан, агенты размещены. Статичная сцена отображена.');
+    addLogEntry('✅ Симуляция инициализирована. Нажмите "Старт" для начала.');
+    addLogEntry(`📊 Агентов на карте: ${simulation.agents.length}`);
+    console.log('Симуляция готова. Агенты:', simulation.agents.length);
+    console.log('Мир создан, агенты размещены. Статичная сцена отображена.');
 }
 
 // Функция для добавления записей в лог
