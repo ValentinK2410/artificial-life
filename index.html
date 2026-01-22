@@ -448,14 +448,16 @@
         window.FOOD_PROPERTIES = FOOD_PROPERTIES;
         window.FOOD_CATEGORIES = FOOD_CATEGORIES;
         
-        // Загружаем остальные скрипты после загрузки конфигурации
-        const scripts = ['network.js', 'world.js', 'agents.js', 'main.js'];
-        scripts.forEach(src => {
-            const script = document.createElement('script');
-            script.src = src;
-            document.body.appendChild(script);
+        console.log('Конфигурация загружена:', {
+            GAME_CONFIG: !!GAME_CONFIG,
+            FOOD_PROPERTIES: !!FOOD_PROPERTIES,
+            FOOD_CATEGORIES: !!FOOD_CATEGORIES
         });
     </script>
+    <script src="network.js"></script>
+    <script src="world.js"></script>
+    <script src="agents.js"></script>
+    <script src="main.js"></script>
 
     <!-- Новые модули (будут использоваться после полной миграции) -->
     <!--
