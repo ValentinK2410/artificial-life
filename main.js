@@ -414,6 +414,11 @@ class Simulation {
         // Обновляем агентов несколько раз за кадр при высокой скорости
         if (this.frameCount % frameSkip === 0) {
             for (let i = 0; i < updatesPerFrame; i++) {
+                // Обновление мира (животные, хищники)
+                if (this.world) {
+                    this.world.update();
+                }
+                
                 // Обновление агентов
                 this.agents.forEach(agent => {
                     agent.update();

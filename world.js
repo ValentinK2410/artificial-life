@@ -441,12 +441,23 @@ class World {
         
         const animalId = 'animal_' + Date.now() + '_' + Math.random();
         
+        // Определяем скорость в зависимости от типа животного
+        const animalSpeeds = {
+            'cow': 0.5, 'goat': 1, 'sheep': 0.8, 'rooster': 1.2, 
+            'chicken': 1, 'cat': 1.5, 'bull': 0.4
+        };
+        
         this.animals.push({
             id: animalId,
             type: type,
             x: x,
             y: y,
             direction: Math.random() * Math.PI * 2, // Направление движения
+            speed: animalSpeeds[type] || 1, // Скорость движения
+            health: 100,
+            hunger: 50,
+            owner: null,
+            tamed: false
             speed: 0.5 + Math.random() * 0.5, // Скорость движения
             size: this.getAnimalSize(type),
             health: 100,
@@ -472,12 +483,22 @@ class World {
         
         const predatorId = 'predator_' + Date.now() + '_' + Math.random();
         
+        // Определяем скорость и размер в зависимости от типа хищника
+        const predatorData = {
+            'wolf': { speed: 2, size: 15 },
+            'bear': { speed: 1.5, size: 25 },
+            'fox': { speed: 2.5, size: 12 }
+        };
+        const data = predatorData[type] || { speed: 2, size: 15 };
+        
         this.predators.push({
             id: predatorId,
             type: type,
             x: x,
             y: y,
             direction: Math.random() * Math.PI * 2,
+            speed: data.speed,
+            size: data.size,
             speed: 1.0 + Math.random() * 0.5,
             size: type === 'bear' ? 25 : (type === 'wolf' ? 18 : 12),
             health: 100,
@@ -1752,21 +1773,33 @@ class World {
     updateAnimals() {
         // Обновление логики животных
         this.animals.forEach(animal => {
+            // Инициализация свойств, если их нет
+            if (!animal.speed) animal.speed = 1;
+            if (animal.direction === undefined) animal.direction = Math.random() * Math.PI * 2;
+            if (!animal.health) animal.health = 100;
+            if (animal.hunger === undefined) animal.hunger = 50;
+            
             // Увеличение голода
             animal.hunger += 0.2;
             if (animal.hunger > 100) animal.hunger = 100;
             
             // Если есть владелец, двигаемся к нему
             if (animal.owner && window.agents) {
-                const owner = window.agents.getAgent(animal.owner);
-                if (owner) {
-                    const ax = owner.position ? owner.position.x : owner.x;
-                    const ay = owner.position ? owner.position.y : owner.y;
+                const ownerAgent = window.agents.getAgentById(animal.owner);
+                if (!ownerAgent) {
+                    // Пробуем найти по ownerId
+                    const allAgents = window.agents.getAllAgents();
+                    ownerAgent = allAgents.find(a => a.id === animal.owner || a.ownerId === animal.owner);
+                }
+                
+                if (ownerAgent) {
+                    const ax = ownerAgent.position ? ownerAgent.position.x : (ownerAgent.x || 0);
+                    const ay = ownerAgent.position ? ownerAgent.position.y : (ownerAgent.y || 0);
                     const dx = ax - animal.x;
                     const dy = ay - animal.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance > 30) {
+                    if (distance > 30 && distance > 0) {
                         animal.x += (dx / distance) * animal.speed;
                         animal.y += (dy / distance) * animal.speed;
                     }
@@ -1774,8 +1807,8 @@ class World {
             } else {
                 // Случайное движение
                 animal.direction += (Math.random() - 0.5) * 0.1;
-                animal.x += Math.cos(animal.direction) * animal.speed;
-                animal.y += Math.sin(animal.direction) * animal.speed;
+                animal.x += Math.cos(animal.direction) * (animal.speed || 1);
+                animal.y += Math.sin(animal.direction) * (animal.speed || 1);
             }
             
             // Бесконечный мир - не ограничиваем границами
