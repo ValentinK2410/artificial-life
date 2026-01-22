@@ -166,56 +166,107 @@ body {
     font-weight: bold;
 }
 
-/* Вкладка "Агенты" */
-.agents-accordion {
+/* Вкладка "Агенты" - Компактный список */
+.agents-compact-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
+    padding: 5px 0;
 }
 
-.agent-item {
+.agent-compact-card {
     background-color: #2a2a2a;
     border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    overflow: hidden;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.agent-header {
-    width: 100%;
-    padding: 12px 15px;
-    background-color: #2a2a2a;
-    border: none;
-    color: #e0e0e0;
-    cursor: pointer;
+.agent-compact-card:hover {
+    background-color: #333333;
+    border-color: #4a9eff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.2);
+}
+
+.agent-compact-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background-color 0.3s ease;
-    font-size: 14px;
-    font-weight: 500;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #3a3a3a;
 }
 
-.agent-header:hover {
-    background-color: #333333;
+.agent-compact-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.agent-status {
+.agent-compact-name strong {
+    color: #e0e0e0;
+    font-size: 15px;
+}
+
+.agent-compact-age {
+    color: #b0b0b0;
     font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background-color: #4a9eff;
-    color: #ffffff;
 }
 
-.agent-content {
-    display: none;
-    padding: 15px;
-    background-color: #1e1e1e;
-    border-top: 1px solid #3a3a3a;
+.agent-compact-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
 }
 
-.agent-item.active .agent-content {
-    display: block;
+.agent-compact-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-stat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.stat-label {
+    min-width: 100px;
+    color: #b0b0b0;
+    font-size: 12px;
+}
+
+.stat-bar-container {
+    flex: 1;
+    position: relative;
+    height: 18px;
+    background-color: #1a1a1a;
+    border-radius: 9px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.stat-bar {
+    height: 100%;
+    border-radius: 9px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    min-width: 0;
+}
+
+.stat-value {
+    position: absolute;
+    right: 6px;
+    color: #e0e0e0;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    z-index: 1;
 }
 
 .agent-field {
