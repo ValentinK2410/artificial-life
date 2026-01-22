@@ -75,6 +75,35 @@ app.get('/admin.js', (req, res) => {
     }
 });
 
+// Endpoint для стилей (fallback, если Nginx не отдает)
+app.get('/style.css', (req, res) => {
+    try {
+        const stylePath = join(projectRoot, 'style.css');
+        res.sendFile(stylePath, {
+            headers: { 
+                'Content-Type': 'text/css',
+                'Cache-Control': 'public, max-age=86400'
+            }
+        });
+    } catch (error) {
+        console.error('Ошибка при отправке style.css:', error);
+        res.status(500).send('Ошибка загрузки стилей');
+    }
+});
+
+// Отдача статических файлов (fallback для всех остальных)
+app.use(express.static(projectRoot, {
+    maxAge: '1d',
+    etag: true,
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+    }
+}));
+
 // Endpoint для стилей (если нужны)
 app.get('/style.css', (req, res) => {
     try {
