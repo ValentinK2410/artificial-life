@@ -306,7 +306,8 @@ class Agent {
                 'defend': 'обороняется',
                 'feedAnimal': 'кормит животных',
                 'playWithPet': 'играет с питомцем',
-                'storeFood': 'запасает еду'
+                'storeFood': 'запасает еду',
+                'moveToPoint': 'движется к указанной точке'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
