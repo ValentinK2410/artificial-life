@@ -1098,6 +1098,13 @@ class World {
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
             });
+            
+            // Рисуем агентов других игроков
+            if (this.otherPlayersAgents) {
+                this.otherPlayersAgents.forEach(agent => {
+                    this.drawOtherPlayerAgent(agent);
+                });
+            }
         }
         
         // Восстанавливаем контекст (убираем трансформацию камеры)

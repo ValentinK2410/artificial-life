@@ -204,12 +204,34 @@ class NetworkManager {
             }
         });
 
-        // Агент обновлен
+        // Агент обновлен другим игроком
         this.socket.on('agentUpdated', (agentData) => {
             // Обновляем агента другого игрока
-            if (window.simulation && agentData.owner !== this.socket.id) {
-                // Логика обновления агентов других игроков
-                // Можно создать визуальные маркеры для других игроков
+            if (window.simulation && agentData.owner && agentData.owner !== this.socket.id) {
+                // Ищем агента в мире или создаем нового
+                if (window.world && window.world.otherPlayersAgents) {
+                    let otherAgent = window.world.otherPlayersAgents.find(a => a.id === agentData.id);
+                    if (!otherAgent) {
+                        // Создаем агента другого игрока
+                        otherAgent = {
+                            id: agentData.id,
+                            name: agentData.name || 'Игрок',
+                            position: agentData.position || { x: 0, y: 0 },
+                            health: agentData.health || 100,
+                            energy: agentData.energy || 100,
+                            state: agentData.state || 'explore',
+                            owner: agentData.owner
+                        };
+                        window.world.otherPlayersAgents.push(otherAgent);
+                    } else {
+                        // Обновляем существующего агента
+                        if (agentData.position) otherAgent.position = agentData.position;
+                        if (agentData.health !== undefined) otherAgent.health = agentData.health;
+                        if (agentData.energy !== undefined) otherAgent.energy = agentData.energy;
+                        if (agentData.state) otherAgent.state = agentData.state;
+                    }
+                    window.world.draw();
+                }
             }
         });
 
