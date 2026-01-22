@@ -495,6 +495,201 @@ body {
     color: #f55;
 }
 
+/* Панель управления агентом */
+.agent-control-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #252525;
+    border-top: 2px solid #3a3a3a;
+    padding: 20px;
+    max-height: 50vh;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.agent-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #3a3a3a;
+    padding-bottom: 10px;
+}
+
+.agent-control-header h3 {
+    margin: 0;
+    color: #e0e0e0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #e0e0e0;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+}
+
+.close-btn:hover {
+    color: #f55;
+}
+
+.agent-control-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+}
+
+.agent-info {
+    background-color: #1a1a1a;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.agent-info p {
+    margin: 8px 0;
+    color: #b0b0b0;
+    font-size: 14px;
+}
+
+.agent-commands {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.command-btn {
+    background-color: #3a3a3a;
+    border: 1px solid #5a5a5a;
+    color: #e0e0e0;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.command-btn:hover {
+    background-color: #4a4a4a;
+    border-color: #7a7a7a;
+    transform: translateY(-2px);
+}
+
+.command-btn:active {
+    transform: translateY(0);
+}
+
+/* Админ-панель */
+.admin-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background-color: #1a1a1a;
+    border-left: 2px solid #3a3a3a;
+    z-index: 2000;
+    transition: right 0.3s;
+    overflow-y: auto;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.admin-panel.open {
+    right: 0;
+}
+
+.admin-panel-header {
+    background-color: #252525;
+    padding: 15px;
+    border-bottom: 2px solid #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-panel-header h2 {
+    margin: 0;
+    color: #e0e0e0;
+}
+
+.admin-panel-content {
+    padding: 20px;
+}
+
+.player-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.player-item {
+    background-color: #252525;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid #3a3a3a;
+}
+
+.player-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.player-name {
+    font-weight: bold;
+    color: #e0e0e0;
+}
+
+.admin-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.admin-input {
+    background-color: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    color: #e0e0e0;
+    padding: 8px;
+    border-radius: 5px;
+    width: 100%;
+    font-size: 14px;
+}
+
+.admin-btn {
+    background-color: #4a6a9a;
+    border: none;
+    color: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.3s;
+}
+
+.admin-btn:hover {
+    background-color: #5a7aaa;
+}
+
+.admin-btn.danger {
+    background-color: #9a4a4a;
+}
+
+.admin-btn.danger:hover {
+    background-color: #aa5a5a;
+}
+
 /* Адаптивность для маленьких экранов */
 @media (max-width: 768px) {
     .main-container {
@@ -505,5 +700,22 @@ body {
     .sidebar {
         border-left: none;
         border-top: 2px solid #3a3a3a;
+    }
+    
+    .agent-control-panel {
+        max-height: 40vh;
+    }
+    
+    .agent-control-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .agent-commands {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-panel {
+        width: 100%;
+        right: -100%;
     }
 }

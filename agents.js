@@ -43,7 +43,7 @@ class Agent {
         };
         
         // Состояние для конечного автомата
-        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood
+        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood, cook, hunt, build, fish, farm
         this.speed = 2; // Базовая скорость движения
         this.maxEnergy = 100;
         this.maxHealth = 100;
@@ -400,6 +400,244 @@ class Agent {
                     this.energy = this.maxEnergy;
                 }
                 break;
+            case 'cook':
+                // Готовка еды
+                this.cook();
+                break;
+            case 'hunt':
+                // Охота
+                this.hunt();
+                break;
+            case 'build':
+                // Строительство
+                this.build();
+                break;
+            case 'fish':
+                // Рыбалка
+                this.fish();
+                break;
+            case 'farm':
+                // Фермерство
+                this.farm();
+                break;
+        }
+    }
+    
+    cook() {
+        // Готовка еды
+        if (!window.world) return;
+        
+        // Нужны ингредиенты (мясо, рыба, ягоды)
+        const ingredients = this.inventory.find(item => 
+            ['meat', 'fish', 'bird', 'berries'].includes(item.type)
+        );
+        
+        if (!ingredients) {
+            // Нет ингредиентов - ищем их
+            this.state = 'findFood';
+            return;
+        }
+        
+        // Готовим еду
+        const cookedFood = {
+            type: 'cooked_food',
+            amount: 1
+        };
+        
+        // Убираем ингредиент
+        ingredients.amount--;
+        if (ingredients.amount <= 0) {
+            const index = this.inventory.indexOf(ingredients);
+            if (index > -1) this.inventory.splice(index, 1);
+        }
+        
+        // Добавляем готовую еду
+        this.inventory.push(cookedFood);
+        this.gainExperience('cooking', 2);
+        
+        if (window.addLogEntry && Math.random() < 0.3) {
+            window.addLogEntry(`🍳 ${this.name} приготовил(а) еду`);
+        }
+        
+        this.state = 'explore';
+    }
+    
+    hunt() {
+        // Охота
+        if (!window.world || !window.world.animals) return;
+        
+        // Ищем диких животных (не прирученных)
+        let target = null;
+        let minDistance = Infinity;
+        
+        window.world.animals.forEach(animal => {
+            if (animal.tamed || animal.owner) return; // Пропускаем домашних
+            
+            const dx = animal.x - this.position.x;
+            const dy = animal.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 50 && distance < minDistance) {
+                target = animal;
+                minDistance = distance;
+            }
+        });
+        
+        if (target) {
+            if (minDistance > 10) {
+                // Идем к цели
+                this.moveTo(target.x, target.y);
+            } else {
+                // Охотимся
+                const success = Math.random() < 0.3 + this.experience.hunting / 100;
+                if (success) {
+                    // Успешная охота
+                    this.inventory.push({ type: 'meat', amount: 1 });
+                    this.gainExperience('hunting', 3);
+                    
+                    // Удаляем животное
+                    const index = window.world.animals.indexOf(target);
+                    if (index > -1) window.world.animals.splice(index, 1);
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🎯 ${this.name} успешно охотится!`);
+                    }
+                } else {
+                    if (window.addLogEntry && Math.random() < 0.2) {
+                        window.addLogEntry(`🎯 ${this.name} промахнулся на охоте`);
+                    }
+                }
+                this.state = 'explore';
+            }
+        } else {
+            // Нет целей - ищем
+            this.moveToRandomPoint();
+        }
+    }
+    
+    build() {
+        // Строительство
+        if (!window.world) return;
+        
+        // Нужны материалы (дерево, камень)
+        const hasWood = this.inventory.some(item => item.type === 'wood');
+        const hasStone = this.inventory.some(item => item.type === 'stone');
+        
+        if (!hasWood && !hasStone) {
+            // Нет материалов - ищем
+            this.state = 'findFood';
+            return;
+        }
+        
+        // Строим (упрощенная версия)
+        if (hasWood) {
+            const wood = this.inventory.find(item => item.type === 'wood');
+            wood.amount--;
+            if (wood.amount <= 0) {
+                const index = this.inventory.indexOf(wood);
+                if (index > -1) this.inventory.splice(index, 1);
+            }
+        }
+        
+        this.gainExperience('building', 2);
+        
+        if (window.addLogEntry && Math.random() < 0.3) {
+            window.addLogEntry(`🏗️ ${this.name} строит`);
+        }
+        
+        this.state = 'explore';
+    }
+    
+    fish() {
+        // Рыбалка
+        if (!window.world) return;
+        
+        // Нужна удочка
+        const hasRod = this.inventory.some(item => item.type === 'fishing_rod');
+        if (!hasRod) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`🎣 ${this.name} нужна удочка для рыбалки`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Ищем пруд
+        if (window.world.terrain && window.world.terrain.pond) {
+            const pond = window.world.terrain.pond;
+            const dx = pond.centerX - this.position.x;
+            const dy = pond.centerY - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > pond.radiusX + 20) {
+                // Идем к пруду
+                this.moveTo(pond.centerX, pond.centerY);
+            } else {
+                // Рыбачим
+                const success = Math.random() < 0.4 + this.experience.fishing / 100;
+                if (success) {
+                    this.inventory.push({ type: 'fish', amount: 1 });
+                    this.gainExperience('fishing', 2);
+                    
+                    if (window.addLogEntry && Math.random() < 0.3) {
+                        window.addLogEntry(`🎣 ${this.name} поймал(а) рыбу!`);
+                    }
+                }
+                this.state = 'explore';
+            }
+        } else {
+            this.state = 'explore';
+        }
+    }
+    
+    farm() {
+        // Фермерство
+        if (!window.world || !window.world.animals) return;
+        
+        // Ищем домашних животных
+        let farmAnimal = null;
+        for (let petId of this.pets) {
+            const pet = window.world.animals.find(a => a.id === petId);
+            if (pet && (pet.type === 'cow' || pet.type === 'goat' || pet.type === 'sheep' || pet.type === 'chicken')) {
+                farmAnimal = pet;
+                break;
+            }
+        }
+        
+        if (!farmAnimal) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`🌾 ${this.name} нужны домашние животные для фермерства`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        const dx = farmAnimal.x - this.position.x;
+        const dy = farmAnimal.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 15) {
+            // Идем к животному
+            this.moveTo(farmAnimal.x, farmAnimal.y);
+        } else {
+            // Ухаживаем за животным
+            farmAnimal.hunger = Math.max(0, farmAnimal.hunger - 20);
+            this.gainExperience('farming', 1);
+            
+            // Иногда получаем продукт
+            if (Math.random() < 0.2) {
+                if (farmAnimal.type === 'chicken') {
+                    this.inventory.push({ type: 'bird', amount: 1 });
+                } else if (farmAnimal.type === 'cow' || farmAnimal.type === 'goat') {
+                    // Можно добавить молоко
+                }
+            }
+            
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🌾 ${this.name} ухаживает за ${window.world.getAnimalName(farmAnimal.type)}`);
+            }
+            
+            this.state = 'explore';
         }
     }
     

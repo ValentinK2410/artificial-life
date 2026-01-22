@@ -64,49 +64,254 @@ class Simulation {
             if (timeDiff > 300) return; // Если удерживали больше 300мс - это не клик
             
             const worldCoords = getWorldCoords(e);
-            
-            // Проверяем, кликнули ли на агента
-            const playerAgents = this.agentsManager.getPlayerAgents();
-            let clickedAgent = null;
-            
-            for (let agent of playerAgents) {
-                const dx = agent.position.x - worldCoords.x;
-                const dy = agent.position.y - worldCoords.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < 25) { // Радиус клика
-                    clickedAgent = agent;
-                    break;
-                }
-            }
-            
-            if (clickedAgent) {
-                // Выбираем агента
-                this.selectedAgent = clickedAgent;
-                if (window.addLogEntry) {
-                    window.addLogEntry(`👤 Выбран агент: ${clickedAgent.name}`);
-                }
-                this.world.draw(); // Перерисовка для выделения
-            } else if (this.selectedAgent) {
-                // Если есть выбранный агент, устанавливаем цель
-                this.selectedAgent.setTarget(worldCoords.x, worldCoords.y);
-                if (window.addLogEntry) {
-                    window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(worldCoords.x)}, ${Math.floor(worldCoords.y)})`);
-                }
-                
-                // Синхронизация с сервером
-                if (window.networkManager && window.networkManager.isConnected) {
-                    window.networkManager.updateAgent({
-                        id: this.selectedAgent.id,
-                        position: this.selectedAgent.position,
-                        targetPosition: this.selectedAgent.targetPosition,
-                        isPlayerControlled: true
-                    });
-                }
-            }
+            this.handleCanvasClick(worldCoords.x, worldCoords.y);
             
             isClick = false;
         });
+    }
+    
+    // Обработка клика на canvas (используется и для мыши, и для touch)
+    handleCanvasClick(x, y) {
+        // Проверяем, кликнули ли на агента
+        const playerAgents = this.agentsManager.getPlayerAgents();
+        let clickedAgent = null;
+        
+        for (let agent of playerAgents) {
+            const dx = agent.position.x - x;
+            const dy = agent.position.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 25) { // Радиус клика
+                clickedAgent = agent;
+                break;
+            }
+        }
+        
+        if (clickedAgent) {
+            // Выбираем агента
+            this.selectedAgent = clickedAgent;
+            if (window.addLogEntry) {
+                window.addLogEntry(`👤 Выбран агент: ${clickedAgent.name}`);
+            }
+            // Показываем панель управления агентом
+            this.showAgentControlPanel(clickedAgent);
+            this.world.draw(); // Перерисовка для выделения
+        } else if (this.selectedAgent) {
+            // Если есть выбранный агент, устанавливаем цель
+            this.selectedAgent.setTarget(x, y);
+            if (window.addLogEntry) {
+                window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(x)}, ${Math.floor(y)})`);
+            }
+            
+            // Синхронизация с сервером
+            if (window.networkManager && window.networkManager.isConnected) {
+                window.networkManager.updateAgent({
+                    id: this.selectedAgent.id,
+                    position: this.selectedAgent.position,
+                    targetPosition: this.selectedAgent.targetPosition,
+                    isPlayerControlled: true
+                });
+            }
+        }
+    }
+    
+    // Показать панель управления агентом
+    showAgentControlPanel(agent) {
+        // Создаем или обновляем панель управления
+        let panel = document.getElementById('agentControlPanel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'agentControlPanel';
+            panel.className = 'agent-control-panel';
+            document.body.appendChild(panel);
+        }
+        
+        panel.innerHTML = `
+            <div class="agent-control-header">
+                <h3>Управление: ${agent.name}</h3>
+                <button class="close-btn" onclick="window.simulation.hideAgentControlPanel()">×</button>
+            </div>
+            <div class="agent-control-content">
+                <div class="agent-info">
+                    <p>Здоровье: ${Math.floor(agent.health)}%</p>
+                    <p>Энергия: ${Math.floor(agent.energy)}%</p>
+                    <p>Голод: ${Math.floor(agent.hunger)}%</p>
+                    <p>Деньги: ${this.getPlayerMoney()} монет</p>
+                </div>
+                <div class="agent-commands">
+                    <h4>Команды:</h4>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('teachSkill')">
+                        📚 Обучить навыку (10 монет)
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('cook')">
+                        🍳 Готовить еду
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('buildFire')">
+                        🔥 Разжечь костер
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('hunt')">
+                        🎯 Охотиться
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('build')">
+                        🏗️ Строить
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('gather')">
+                        🌿 Собирать ресурсы
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('fish')">
+                        🎣 Рыбачить
+                    </button>
+                    <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
+                        🌾 Фермерство
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        panel.style.display = 'block';
+    }
+    
+    // Скрыть панель управления
+    hideAgentControlPanel() {
+        const panel = document.getElementById('agentControlPanel');
+        if (panel) {
+            panel.style.display = 'none';
+        }
+    }
+    
+    // Получить деньги игрока
+    getPlayerMoney() {
+        // Суммируем деньги из инвентаря всех агентов игрока
+        const playerAgents = this.agentsManager.getPlayerAgents();
+        let totalMoney = 0;
+        playerAgents.forEach(agent => {
+            const moneyItems = agent.inventory.filter(item => item.type === 'money');
+            moneyItems.forEach(item => {
+                totalMoney += item.amount || 0;
+            });
+        });
+        return totalMoney;
+    }
+    
+    // Выдать команду агенту
+    giveCommand(command) {
+        if (!this.selectedAgent) return;
+        
+        switch(command) {
+            case 'teachSkill':
+                this.teachSkill();
+                break;
+            case 'cook':
+                this.selectedAgent.state = 'cook';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🍳 ${this.selectedAgent.name} начинает готовить еду`);
+                }
+                break;
+            case 'buildFire':
+                this.selectedAgent.state = 'buildFire';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🔥 ${this.selectedAgent.name} разжигает костер`);
+                }
+                break;
+            case 'hunt':
+                this.selectedAgent.state = 'hunt';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🎯 ${this.selectedAgent.name} идет на охоту`);
+                }
+                break;
+            case 'build':
+                this.selectedAgent.state = 'build';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🏗️ ${this.selectedAgent.name} начинает строить`);
+                }
+                break;
+            case 'gather':
+                this.selectedAgent.state = 'findFood';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🌿 ${this.selectedAgent.name} собирает ресурсы`);
+                }
+                break;
+            case 'fish':
+                this.selectedAgent.state = 'fish';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🎣 ${this.selectedAgent.name} идет рыбачить`);
+                }
+                break;
+            case 'farm':
+                this.selectedAgent.state = 'farm';
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🌾 ${this.selectedAgent.name} занимается фермерством`);
+                }
+                break;
+        }
+        
+        this.hideAgentControlPanel();
+    }
+    
+    // Обучение навыку
+    teachSkill() {
+        if (!this.selectedAgent) return;
+        
+        const cost = 10;
+        const playerMoney = this.getPlayerMoney();
+        
+        if (playerMoney < cost) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Недостаточно денег! Нужно ${cost} монет, у вас ${playerMoney}`);
+            }
+            return;
+        }
+        
+        // Списываем деньги
+        this.spendMoney(cost);
+        
+        // Выбираем случайный навык для обучения
+        const skills = Object.keys(this.selectedAgent.experience);
+        const randomSkill = skills[Math.floor(Math.random() * skills.length)];
+        const experienceGain = 5 + Math.floor(Math.random() * 10);
+        
+        this.selectedAgent.gainExperience(randomSkill, experienceGain);
+        
+        if (window.addLogEntry) {
+            const skillNames = {
+                'saw': 'работа с пилой',
+                'axe': 'работа с топором',
+                'hammer': 'работа с молотком',
+                'pickaxe': 'работа с киркой',
+                'shovel': 'работа с лопатой',
+                'fishing': 'рыбалка',
+                'cooking': 'готовка',
+                'building': 'строительство',
+                'farming': 'фермерство',
+                'hunting': 'охота'
+            };
+            window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[randomSkill] || randomSkill}" (+${experienceGain} опыта)`);
+        }
+    }
+    
+    // Потратить деньги
+    spendMoney(amount) {
+        const playerAgents = this.agentsManager.getPlayerAgents();
+        let remaining = amount;
+        
+        for (let agent of playerAgents) {
+            if (remaining <= 0) break;
+            
+            for (let i = agent.inventory.length - 1; i >= 0; i--) {
+                if (remaining <= 0) break;
+                const item = agent.inventory[i];
+                if (item.type === 'money') {
+                    const itemAmount = item.amount || 0;
+                    if (itemAmount <= remaining) {
+                        remaining -= itemAmount;
+                        agent.inventory.splice(i, 1);
+                    } else {
+                        item.amount -= remaining;
+                        remaining = 0;
+                    }
+                }
+            }
+        }
     }
 
     initializeAgentsPositions() {
@@ -646,6 +851,163 @@ function addLogEntry(message) {
 // Экспорт функций для использования в других модулях
 window.addLogEntry = addLogEntry;
 
+// Глобальные переменные для админ-панели
+window.isAdmin = false;
+window.adminPassword = 'admin123'; // В продакшене используйте более сложный пароль
+
+// Функции для админ-панели
+window.showAdminPanel = function() {
+    const panel = document.getElementById('adminPanel');
+    if (panel) {
+        panel.classList.add('open');
+        loadAdminPlayerList();
+    }
+};
+
+window.hideAdminPanel = function() {
+    const panel = document.getElementById('adminPanel');
+    if (panel) {
+        panel.classList.remove('open');
+    }
+};
+
+function loadAdminPlayerList() {
+    // Загружаем список игроков (в реальной версии - с сервера)
+    const listContainer = document.getElementById('adminPlayerList');
+    if (!listContainer) return;
+    
+    // Получаем всех агентов всех игроков
+    const allAgents = window.agents ? window.agents.getAllAgents() : [];
+    const playersMap = new Map();
+    
+    allAgents.forEach(agent => {
+        if (agent.ownerId) {
+            if (!playersMap.has(agent.ownerId)) {
+                playersMap.set(agent.ownerId, {
+                    id: agent.ownerId,
+                    agents: [],
+                    money: 0
+                });
+            }
+            const player = playersMap.get(agent.ownerId);
+            player.agents.push(agent);
+            
+            // Считаем деньги
+            const moneyItems = agent.inventory.filter(item => item.type === 'money');
+            moneyItems.forEach(item => {
+                player.money += item.amount || 0;
+            });
+        }
+    });
+    
+    // Отображаем список
+    if (playersMap.size === 0) {
+        listContainer.innerHTML = '<p style="color: #b0b0b0;">Нет игроков в игре</p>';
+        return;
+    }
+    
+    let html = '<ul class="player-list">';
+    playersMap.forEach((player, playerId) => {
+        html += `
+            <li class="player-item">
+                <div class="player-item-header">
+                    <span class="player-name">Игрок: ${playerId.substring(0, 8)}...</span>
+                </div>
+                <p style="color: #b0b0b0; font-size: 12px;">Агентов: ${player.agents.length}, Денег: ${player.money}</p>
+                <div class="admin-actions">
+                    <input type="number" class="admin-input" id="money_${playerId}" placeholder="Деньги" value="${player.money}">
+                    <button class="admin-btn" onclick="adminSetMoney('${playerId}')">Начислить деньги</button>
+                    <input type="number" class="admin-input" id="health_${playerId}" placeholder="Здоровье" value="100" min="0" max="100">
+                    <button class="admin-btn" onclick="adminSetHealth('${playerId}')">Установить здоровье</button>
+                    <input type="text" class="admin-input" id="skill_${playerId}" placeholder="Навык (cooking, building...)" value="cooking">
+                    <input type="number" class="admin-input" id="skillValue_${playerId}" placeholder="Значение" value="10">
+                    <button class="admin-btn" onclick="adminSetSkill('${playerId}')">Установить навык</button>
+                    <select class="admin-input" id="clothes_${playerId}">
+                        <option value="summer_clothes_man">Одежда мужская летняя</option>
+                        <option value="summer_clothes_woman">Одежда женская летняя</option>
+                        <option value="winter_clothes_man">Одежда мужская зимняя</option>
+                        <option value="winter_clothes_woman">Одежда женская зимняя</option>
+                    </select>
+                    <button class="admin-btn" onclick="adminGiveClothes('${playerId}')">Выдать одежду</button>
+                </div>
+            </li>
+        `;
+    });
+    html += '</ul>';
+    listContainer.innerHTML = html;
+}
+
+// Функции админ-действий
+window.adminSetMoney = function(playerId) {
+    const input = document.getElementById(`money_${playerId}`);
+    const amount = parseInt(input.value) || 0;
+    
+    const playerAgents = window.agents.getAllAgents().filter(a => a.ownerId === playerId);
+    if (playerAgents.length === 0) return;
+    
+    // Начисляем деньги первому агенту
+    const agent = playerAgents[0];
+    const existingMoney = agent.inventory.find(item => item.type === 'money');
+    if (existingMoney) {
+        existingMoney.amount = amount;
+    } else {
+        agent.inventory.push({ type: 'money', amount: amount });
+    }
+    
+    if (window.addLogEntry) {
+        window.addLogEntry(`💰 Админ начислил ${amount} монет игроку ${playerId.substring(0, 8)}`);
+    }
+    
+    loadAdminPlayerList();
+};
+
+window.adminSetHealth = function(playerId) {
+    const input = document.getElementById(`health_${playerId}`);
+    const health = parseInt(input.value) || 100;
+    
+    const playerAgents = window.agents.getAllAgents().filter(a => a.ownerId === playerId);
+    playerAgents.forEach(agent => {
+        agent.health = Math.max(0, Math.min(100, health));
+    });
+    
+    if (window.addLogEntry) {
+        window.addLogEntry(`❤️ Админ установил здоровье ${health}% игроку ${playerId.substring(0, 8)}`);
+    }
+};
+
+window.adminSetSkill = function(playerId) {
+    const skillInput = document.getElementById(`skill_${playerId}`);
+    const valueInput = document.getElementById(`skillValue_${playerId}`);
+    const skill = skillInput.value;
+    const value = parseInt(valueInput.value) || 0;
+    
+    const playerAgents = window.agents.getAllAgents().filter(a => a.ownerId === playerId);
+    playerAgents.forEach(agent => {
+        if (agent.experience && agent.experience[skill] !== undefined) {
+            agent.experience[skill] = value;
+        }
+    });
+    
+    if (window.addLogEntry) {
+        window.addLogEntry(`📚 Админ установил навык ${skill} = ${value} игроку ${playerId.substring(0, 8)}`);
+    }
+};
+
+window.adminGiveClothes = function(playerId) {
+    const select = document.getElementById(`clothes_${playerId}`);
+    const clothesType = select.value;
+    
+    const playerAgents = window.agents.getAllAgents().filter(a => a.ownerId === playerId);
+    if (playerAgents.length > 0) {
+        const agent = playerAgents[0];
+        agent.inventory.push({ type: clothesType, amount: 1 });
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`👕 Админ выдал одежду игроку ${playerId.substring(0, 8)}`);
+        }
+    }
+};
+
 // Инициализация сетевого подключения
 function initializeNetwork() {
     const loginModal = document.getElementById('loginModal');
@@ -653,17 +1015,29 @@ function initializeNetwork() {
     const connectBtn = document.getElementById('connectBtn');
     const playerNameInput = document.getElementById('playerNameInput');
     const worldIdInput = document.getElementById('worldIdInput');
+    const adminPasswordInput = document.getElementById('adminPasswordInput');
     const connectionStatus = document.getElementById('connectionStatus');
 
     // Обработчик подключения
     connectBtn.addEventListener('click', () => {
         const playerName = playerNameInput.value.trim();
         const worldId = worldIdInput.value.trim() || 'default';
+        const adminPassword = adminPasswordInput ? adminPasswordInput.value.trim() : '';
 
         if (!playerName) {
             connectionStatus.textContent = 'Введите имя игрока';
             connectionStatus.className = 'connection-status error';
             return;
+        }
+
+        // Проверка админ-пароля
+        if (adminPassword === window.adminPassword) {
+            window.isAdmin = true;
+            if (window.addLogEntry) {
+                window.addLogEntry('🔐 Вы вошли как администратор');
+            }
+        } else {
+            window.isAdmin = false;
         }
 
         connectionStatus.textContent = 'Подключение...';
@@ -709,6 +1083,20 @@ function initializeNetwork() {
                     setTimeout(() => {
                         loginModal.style.display = 'none';
                         mainContainer.style.display = 'grid';
+                        
+                        // Показываем админ-кнопку, если админ
+                        if (window.isAdmin) {
+                            const adminTabBtn = document.getElementById('adminTabBtn');
+                            if (adminTabBtn) {
+                                adminTabBtn.style.display = 'block';
+                                adminTabBtn.addEventListener('click', () => {
+                                    window.showAdminPanel();
+                                });
+                            }
+                            if (window.addLogEntry) {
+                                window.addLogEntry('🔐 Вы вошли как администратор');
+                            }
+                        }
                         
                         // Инициализируем игру с данными с сервера
                         initializeGameWithServerData(data);

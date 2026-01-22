@@ -154,6 +154,142 @@ class World {
             this.camera.scale = Math.max(0.5, Math.min(2.0, this.camera.scale));
             this.draw();
         });
+        
+        // ========== TOUCH СОБЫТИЯ ДЛЯ МОБИЛЬНЫХ ==========
+        let touchStart = null;
+        let touchStartTime = 0;
+        let lastTouchDistance = 0;
+        let isPinching = false;
+        
+        // Получение координат касания с учетом камеры
+        const getTouchCoords = (touch) => {
+            const rect = this.canvas.getBoundingClientRect();
+            return {
+                x: (touch.clientX - rect.left) / this.camera.scale + this.camera.x,
+                y: (touch.clientY - rect.top) / this.camera.scale + this.camera.y
+            };
+        };
+        
+        // Начало касания
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                // Одно касание - клик или начало перетаскивания
+                const touch = e.touches[0];
+                touchStart = { x: touch.clientX, y: touch.clientY };
+                touchStartTime = Date.now();
+                this.mouse.isDown = true;
+                
+                const worldCoords = getTouchCoords(touch);
+                const obj = this.getObjectAt(worldCoords.x, worldCoords.y);
+                if (obj) {
+                    this.mouse.draggedObject = obj;
+                } else {
+                    this.mouse.dragStart = { x: touch.clientX, y: touch.clientY };
+                }
+            } else if (e.touches.length === 2) {
+                // Два касания - масштабирование
+                isPinching = true;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                lastTouchDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+            }
+        });
+        
+        // Движение касания
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && touchStart) {
+                // Перемещение камеры или объекта
+                const touch = e.touches[0];
+                const worldCoords = getTouchCoords(touch);
+                this.mouse.x = worldCoords.x;
+                this.mouse.y = worldCoords.y;
+                
+                if (this.mouse.draggedObject) {
+                    this.mouse.draggedObject.x = worldCoords.x;
+                    this.mouse.draggedObject.y = worldCoords.y;
+                    if (this.mouse.draggedObject.position) {
+                        this.mouse.draggedObject.position.x = worldCoords.x;
+                        this.mouse.draggedObject.position.y = worldCoords.y;
+                    }
+                } else if (this.mouse.dragStart) {
+                    // Перемещение камеры
+                    const dx = (touch.clientX - this.mouse.dragStart.x) / this.camera.scale;
+                    const dy = (touch.clientY - this.mouse.dragStart.y) / this.camera.scale;
+                    this.camera.x -= dx;
+                    this.camera.y -= dy;
+                    this.mouse.dragStart = { x: touch.clientX, y: touch.clientY };
+                }
+                
+                this.draw();
+            } else if (e.touches.length === 2 && isPinching) {
+                // Масштабирование
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const distance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+                const scaleChange = distance / lastTouchDistance;
+                this.camera.scale *= scaleChange;
+                this.camera.scale = Math.max(0.5, Math.min(2.0, this.camera.scale));
+                lastTouchDistance = distance;
+                this.draw();
+            }
+        });
+        
+        // Конец касания
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 0) {
+                // Все касания закончились
+                if (touchStart) {
+                    const timeDiff = Date.now() - touchStartTime;
+                    const touch = e.changedTouches[0];
+                    
+                    // Если это был быстрый клик (менее 300мс и движение менее 10px)
+                    if (timeDiff < 300 && touch) {
+                        const dx = Math.abs(touch.clientX - touchStart.x);
+                        const dy = Math.abs(touch.clientY - touchStart.y);
+                        if (dx < 10 && dy < 10) {
+                            // Это клик - обрабатываем как клик мыши
+                            const worldCoords = getTouchCoords(touch);
+                            this.handleClick(worldCoords.x, worldCoords.y);
+                        }
+                    }
+                }
+                
+                touchStart = null;
+                this.mouse.isDown = false;
+                this.mouse.draggedObject = null;
+                this.mouse.dragStart = null;
+                isPinching = false;
+            } else if (e.touches.length === 1) {
+                // Осталось одно касание - продолжаем перетаскивание
+                isPinching = false;
+            }
+        });
+        
+        // Отмена касания
+        this.canvas.addEventListener('touchcancel', () => {
+            touchStart = null;
+            this.mouse.isDown = false;
+            this.mouse.draggedObject = null;
+            this.mouse.dragStart = null;
+            isPinching = false;
+        });
+    }
+    
+    // Обработка клика (используется и для мыши, и для touch)
+    handleClick(x, y) {
+        // Эта функция будет вызываться из main.js для обработки кликов на агентов
+        if (window.simulation && window.simulation.handleCanvasClick) {
+            window.simulation.handleCanvasClick(x, y);
+        }
     }
     
     getObjectAt(x, y) {
