@@ -663,6 +663,9 @@ class Simulation {
             case 'sleep':
                 this.makeAgentSleep();
                 break;
+            case 'wake':
+                this.wakeAgent();
+                break;
             case 'cook':
                 this.selectedAgent.state = 'cook';
                 if (window.addLogEntry) {
@@ -720,6 +723,70 @@ class Simulation {
         }
         
         this.hideAgentControlPanel();
+    }
+    
+    // Уложить агента спать
+    makeAgentSleep() {
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Выберите агента для укладывания спать`);
+            }
+            return;
+        }
+        
+        if (this.selectedAgent.state === 'sleep') {
+            if (window.addLogEntry) {
+                window.addLogEntry(`😴 ${this.selectedAgent.name} уже спит`);
+            }
+            return;
+        }
+        
+        this.selectedAgent.state = 'sleep';
+        this.selectedAgent.sleepStartTime = Date.now();
+        if (!this.selectedAgent.lastSleepTime) {
+            this.selectedAgent.lastSleepTime = Date.now();
+        }
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`😴 ${this.selectedAgent.name} ложится спать`);
+        }
+        
+        // Обновляем панель управления, чтобы показать кнопку "Разбудить"
+        if (document.getElementById('agentControlPanel')?.style.display === 'block') {
+            this.showAgentControlPanel(this.selectedAgent);
+        }
+    }
+    
+    // Разбудить агента
+    wakeAgent() {
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Выберите агента для пробуждения`);
+            }
+            return;
+        }
+        
+        if (this.selectedAgent.state !== 'sleep') {
+            if (window.addLogEntry) {
+                window.addLogEntry(`☀️ ${this.selectedAgent.name} не спит`);
+            }
+            return;
+        }
+        
+        this.selectedAgent.state = 'explore';
+        this.selectedAgent.sleepStartTime = 0;
+        if (this.selectedAgent.lastSleepTime) {
+            this.selectedAgent.lastSleepTime = 0;
+        }
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`☀️ ${this.selectedAgent.name} проснулся`);
+        }
+        
+        // Обновляем панель управления, чтобы показать кнопку "Уложить спать"
+        if (document.getElementById('agentControlPanel')?.style.display === 'block') {
+            this.showAgentControlPanel(this.selectedAgent);
+        }
     }
     
     // Обучение навыку
