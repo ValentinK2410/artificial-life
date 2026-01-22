@@ -38,23 +38,45 @@ class Simulation {
             const worldCoords = getWorldCoords(e);
             
             // Проверяем, кликнули ли на агента
-            const playerAgents = this.agentsManager.getPlayerAgents();
+            // Сначала пытаемся получить агентов игрока, если их нет - берем всех
+            let playerAgents = [];
+            if (this.agentsManager) {
+                playerAgents = this.agentsManager.getPlayerAgents();
+                // Если нет агентов игрока, берем всех агентов
+                if (playerAgents.length === 0 || !this.agentsManager.playerId) {
+                    playerAgents = this.agentsManager.getAllAgents();
+                }
+            } else if (this.agents) {
+                playerAgents = this.agents;
+            }
+            
+            console.log('Клик на координатах:', worldCoords, 'Агентов для проверки:', playerAgents.length);
+            
             let clickedAgent = null;
+            let minDistance = Infinity;
             
             for (let agent of playerAgents) {
+                if (!agent.position) {
+                    console.warn('Агент без позиции:', agent);
+                    continue;
+                }
+                
                 const dx = agent.position.x - worldCoords.x;
                 const dy = agent.position.y - worldCoords.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < 25) { // Радиус клика
+                console.log(`Агент ${agent.name}: позиция (${agent.position.x}, ${agent.position.y}), расстояние: ${distance.toFixed(2)}`);
+                
+                if (distance < 25 && distance < minDistance) { // Радиус клика
                     clickedAgent = agent;
-                    break;
+                    minDistance = distance;
                 }
             }
             
             // Если кликнули на агента - только выбираем, панель не показываем
             if (clickedAgent) {
                 this.selectedAgent = clickedAgent;
+                console.log('Выбран агент:', clickedAgent.name, clickedAgent.id);
                 if (window.addLogEntry) {
                     window.addLogEntry(`👤 Выбран агент: ${clickedAgent.name} (двойной клик для управления)`);
                 }
@@ -85,23 +107,43 @@ class Simulation {
             const worldCoords = getWorldCoords(e);
             
             // Проверяем, кликнули ли на агента
-            const playerAgents = this.agentsManager.getPlayerAgents();
+            // Сначала пытаемся получить агентов игрока, если их нет - берем всех
+            let playerAgents = [];
+            if (this.agentsManager) {
+                playerAgents = this.agentsManager.getPlayerAgents();
+                // Если нет агентов игрока, берем всех агентов
+                if (playerAgents.length === 0 || !this.agentsManager.playerId) {
+                    playerAgents = this.agentsManager.getAllAgents();
+                }
+            } else if (this.agents) {
+                playerAgents = this.agents;
+            }
+            
+            console.log('Двойной клик на координатах:', worldCoords, 'Агентов для проверки:', playerAgents.length);
+            
             let clickedAgent = null;
+            let minDistance = Infinity;
             
             for (let agent of playerAgents) {
+                if (!agent.position) {
+                    console.warn('Агент без позиции:', agent);
+                    continue;
+                }
+                
                 const dx = agent.position.x - worldCoords.x;
                 const dy = agent.position.y - worldCoords.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < 25) { // Радиус клика
+                if (distance < 25 && distance < minDistance) { // Радиус клика
                     clickedAgent = agent;
-                    break;
+                    minDistance = distance;
                 }
             }
             
             if (clickedAgent) {
                 // Выбираем агента и показываем панель управления
                 this.selectedAgent = clickedAgent;
+                console.log('Открыта панель управления для агента:', clickedAgent.name, clickedAgent.id);
                 this.showAgentControlPanel(clickedAgent);
                 if (window.addLogEntry) {
                     window.addLogEntry(`👤 Открыта панель управления: ${clickedAgent.name}`);

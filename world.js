@@ -1697,8 +1697,11 @@ class World {
         const health = agent.health !== undefined ? agent.health : 100;
         const time = Date.now() / 1000;
         
-        // Проверяем, выбран ли этот агент
-        const isSelected = window.simulation && window.simulation.selectedAgent === agent;
+        // Проверяем, выбран ли этот агент (сравниваем по ID для надежности)
+        const isSelected = window.simulation && (
+            window.simulation.selectedAgent === agent || 
+            (window.simulation.selectedAgent && window.simulation.selectedAgent.id === agent.id)
+        );
         
         // Визуальное выделение выбранного агента
         if (isSelected) {
