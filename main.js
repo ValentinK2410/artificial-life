@@ -667,6 +667,16 @@ class Simulation {
                 this.wakeAgent();
                 break;
             case 'cook':
+                // Проверяем наличие ингредиентов
+                const hasIngredients = this.selectedAgent.inventory.some(item => 
+                    ['meat', 'fish', 'bird', 'berries', 'potato', 'mushrooms'].includes(item.type)
+                );
+                if (!hasIngredients) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ У ${this.selectedAgent.name} нет ингредиентов для готовки (нужно мясо, рыба, ягоды или картофель)`);
+                    }
+                    return;
+                }
                 this.selectedAgent.state = 'cook';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🍳 ${this.selectedAgent.name} начинает готовить еду`);
@@ -709,6 +719,14 @@ class Simulation {
                 }
                 break;
             case 'fish':
+                // Проверяем наличие удочки
+                const hasFishingRod = this.selectedAgent.inventory.some(item => item.type === 'fishing_rod');
+                if (!hasFishingRod) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ У ${this.selectedAgent.name} нет удочки для рыбалки`);
+                    }
+                    return;
+                }
                 this.selectedAgent.state = 'fish';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🎣 ${this.selectedAgent.name} идет рыбачить`);

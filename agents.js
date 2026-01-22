@@ -701,18 +701,59 @@ class Agent {
         // Готовка еды
         if (!window.world) return;
         
-        // Нужны ингредиенты (мясо, рыба, ягоды)
+        // Проверяем, есть ли костер поблизости (для готовки нужен огонь)
+        const nearestFire = this.findNearestFire();
+        const hasFireNearby = nearestFire && 
+            Math.sqrt(Math.pow(nearestFire.x - this.position.x, 2) + Math.pow(nearestFire.y - this.position.y, 2)) < 30;
+        
+        if (!hasFireNearby) {
+            // Нет костра - идем к ближайшему или разводим свой
+            if (nearestFire) {
+                this.moveTo(nearestFire.x, nearestFire.y);
+            } else if (this.experience.fire_building >= 5 && this.hasWoodForFire()) {
+                // Можем развести костер
+                this.state = 'buildFire';
+                return;
+            } else {
+                // Нет костра и не можем развести - ищем
+                if (window.addLogEntry && Math.random() < 0.2) {
+                    window.addLogEntry(`🍳 ${this.name} нужен костер для готовки`);
+                }
+                this.state = 'findHeat';
+                return;
+            }
+            return;
+        }
+        
+        // Нужны ингредиенты (мясо, рыба, ягоды, картофель и т.д.)
         const ingredients = this.inventory.find(item => 
-            ['meat', 'fish', 'bird', 'berries'].includes(item.type)
+            ['meat', 'fish', 'bird', 'berries', 'potato', 'mushrooms'].includes(item.type)
         );
         
         if (!ingredients) {
             // Нет ингредиентов - ищем их
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🍳 ${this.name} нужны ингредиенты для готовки`);
+            }
             this.state = 'findFood';
             return;
         }
         
-        // Готовим еду
+        // Готовим еду (нужно время)
+        if (!this.cookingProgress) {
+            this.cookingProgress = 0;
+        }
+        
+        this.cookingProgress += 1;
+        
+        // Готовка занимает примерно 10-20 кадров (зависит от навыка)
+        const cookingTime = 20 - Math.floor(this.experience.cooking / 10);
+        if (this.cookingProgress < cookingTime) {
+            // Еще готовим
+            return;
+        }
+        
+        // Готовка завершена
         const cookedFood = {
             type: 'cooked_food',
             amount: 1
@@ -728,9 +769,10 @@ class Agent {
         // Добавляем готовую еду
         this.inventory.push(cookedFood);
         this.gainExperience('cooking', 2);
+        this.cookingProgress = 0;
         
-        if (window.addLogEntry && Math.random() < 0.3) {
-            window.addLogEntry(`🍳 ${this.name} приготовил(а) еду`);
+        if (window.addLogEntry) {
+            window.addLogEntry(`🍳 ${this.name} приготовил(а) еду у костра`);
         }
         
         this.state = 'explore';
@@ -823,45 +865,72 @@ class Agent {
     }
     
     fish() {
-        // Рыбалка
+        // Рыбалка - нужна удочка и водоем
         if (!window.world) return;
         
-        // Нужна удочка
-        const hasRod = this.inventory.some(item => item.type === 'fishing_rod');
-        if (!hasRod) {
-            if (window.addLogEntry) {
+        // Проверяем, есть ли удочка
+        const hasFishingRod = this.inventory.some(item => item.type === 'fishing_rod');
+        if (!hasFishingRod) {
+            // Нет удочки - прекращаем рыбалку
+            if (window.addLogEntry && Math.random() < 0.2) {
                 window.addLogEntry(`🎣 ${this.name} нужна удочка для рыбалки`);
             }
             this.state = 'explore';
             return;
         }
         
-        // Ищем пруд
-        if (window.world.terrain && window.world.terrain.pond) {
-            const pond = window.world.terrain.pond;
-            const dx = pond.centerX - this.position.x;
-            const dy = pond.centerY - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        // Ищем водоем (пруд) - в центре карты обычно есть пруд
+        const pondCenterX = window.world.canvas ? window.world.canvas.width / 2 : 400;
+        const pondCenterY = window.world.canvas ? window.world.canvas.height / 2 : 300;
+        const pondRadius = 100; // Радиус пруда
+        
+        const dx = pondCenterX - this.position.x;
+        const dy = pondCenterY - this.position.y;
+        const distanceToPond = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distanceToPond > pondRadius + 20) {
+            // Далеко от пруда - идем к нему
+            this.moveTo(pondCenterX, pondCenterY);
+            return;
+        }
+        
+        // У пруда - ловим рыбу
+        if (!this.fishingProgress) {
+            this.fishingProgress = 0;
+        }
+        
+        this.fishingProgress += 1;
+        
+        // Рыбалка занимает время (зависит от навыка)
+        const fishingTime = 15 - Math.floor(this.experience.fishing / 10);
+        if (this.fishingProgress < fishingTime) {
+            // Еще ловим
+            return;
+        }
+        
+        // Попытка поймать рыбу (зависит от навыка)
+        const successChance = 0.2 + (this.experience.fishing / 100);
+        const success = Math.random() < successChance;
+        
+        if (success) {
+            // Успешная рыбалка
+            const fishCount = Math.random() < 0.3 ? 2 : 1; // Иногда 2 рыбы
+            this.inventory.push({ type: 'fish', amount: fishCount });
+            this.gainExperience('fishing', 3);
             
-            if (distance > pond.radiusX + 20) {
-                // Идем к пруду
-                this.moveTo(pond.centerX, pond.centerY);
-            } else {
-                // Рыбачим
-                const success = Math.random() < 0.4 + this.experience.fishing / 100;
-                if (success) {
-                    this.inventory.push({ type: 'fish', amount: 1 });
-                    this.gainExperience('fishing', 2);
-                    
-                    if (window.addLogEntry && Math.random() < 0.3) {
-                        window.addLogEntry(`🎣 ${this.name} поймал(а) рыбу!`);
-                    }
-                }
-                this.state = 'explore';
+            if (window.addLogEntry) {
+                window.addLogEntry(`🎣 ${this.name} поймал(а) ${fishCount} рыбу(ы)!`);
             }
         } else {
-            this.state = 'explore';
+            // Неудачная попытка
+            if (window.addLogEntry && Math.random() < 0.3) {
+                window.addLogEntry(`🎣 ${this.name} не поймал(а) рыбу`);
+            }
+            this.gainExperience('fishing', 1); // Опыт даже при неудаче
         }
+        
+        this.fishingProgress = 0;
+        this.state = 'explore';
     }
     
     farm() {
