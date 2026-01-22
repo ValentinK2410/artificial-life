@@ -600,10 +600,12 @@ body {
     transition: right 0.3s;
     overflow-y: auto;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+    display: none; /* Скрыта по умолчанию */
 }
 
 .admin-panel.open {
     right: 0;
+    display: block; /* Показываем только когда открыта */
 }
 
 .admin-panel-header {
