@@ -148,7 +148,44 @@ class Agent {
             STAMINA_REDUCTION_FACTOR: 0.5
         };
         
-        if (this.state === 'rest') {
+        // Настройки сна
+        const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
+            ENERGY_RESTORE_RATE: 1.5,
+            HEALTH_RESTORE_RATE: 0.1,
+            STAMINA_RESTORE_RATE: 1.0,
+            MIN_SLEEP_DURATION: 100,
+            AUTO_SLEEP_ENERGY_THRESHOLD: 20,
+            AUTO_SLEEP_NIGHT: true
+        };
+        
+        if (this.state === 'sleep') {
+            // Восстанавливаем энергию, здоровье и выносливость во сне
+            this.energy += SLEEP_CONFIG.ENERGY_RESTORE_RATE;
+            if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
+            
+            this.health += SLEEP_CONFIG.HEALTH_RESTORE_RATE;
+            if (this.health > this.maxHealth) this.health = this.maxHealth;
+            
+            this.stamina += SLEEP_CONFIG.STAMINA_RESTORE_RATE;
+            if (this.stamina > 100) this.stamina = 100;
+            
+            // Автоматическое пробуждение, если энергия восстановлена и прошло достаточно времени
+            const currentTime = Date.now();
+            const sleepDuration = currentTime - (this.sleepStartTime || currentTime);
+            const minSleepDurationMs = SLEEP_CONFIG.MIN_SLEEP_DURATION * 16; // Примерно 16мс на кадр
+            
+            if (this.energy >= 90 && sleepDuration >= minSleepDurationMs) {
+                // Пробуждаемся автоматически
+                this.state = 'explore';
+                this.sleepStartTime = 0;
+                if (this.lastSleepTime) {
+                    this.lastSleepTime = 0;
+                }
+                if (window.addLogEntry) {
+                    window.addLogEntry(`☀️ ${this.name} проснулся отдохнувшим`);
+                }
+            }
+        } else if (this.state === 'rest') {
             // Восстанавливаем энергию при отдыхе
             this.energy += ENERGY_CONFIG.REST_RESTORE_RATE;
             if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
