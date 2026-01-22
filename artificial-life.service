@@ -1,0 +1,21 @@
+[Unit]
+Description=Artificial Life Game Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/www-root/data/www/game.dekan.pro/backend
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=artificial-life
+
+# Переменные окружения
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
