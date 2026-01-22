@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import { saveWorld, loadWorld, saveAllWorlds, loadAllWorlds } from './saveManager.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -162,30 +163,54 @@ const gameWorlds = new Map(); // worldId -> { players, agents, resources, animal
 // Хранилище пользователей
 const users = new Map(); // userId -> { name, worldId, socketId }
 
+// Загрузка сохраненных миров при старте сервера
+async function initializeWorlds() {
+    try {
+        const savedWorlds = await loadAllWorlds();
+        for (const [worldId, worldData] of savedWorlds.entries()) {
+            gameWorlds.set(worldId, worldData);
+            console.log(`✅ Загружен мир: ${worldId}`);
+        }
+        console.log(`📂 Загружено ${savedWorlds.size} миров из сохранений`);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки миров:', error);
+    }
+}
+
 // Создание или получение мира
-function getOrCreateWorld(worldId) {
+async function getOrCreateWorld(worldId) {
     if (!gameWorlds.has(worldId)) {
-        gameWorlds.set(worldId, {
-            id: worldId,
-            players: new Map(), // socketId -> playerData
-            agents: [],
-            resources: [],
-            animals: [],
-            predators: [],
-            fires: [],
-            buildings: [],
-            terrain: {
-                worldSize: 5000,
-                clearing: { x: 2500, y: 2500, radius: 400 },
-                pond: { centerX: 2500, centerY: 2500, radiusX: 150, radiusY: 100 },
-                trees: [],
-                stones: [],
-                berryBushes: []
-            },
-            day: 1,
-            timeOfDay: 'day',
-            weather: 'sunny'
-        });
+        // Пытаемся загрузить сохранение
+        const savedWorld = await loadWorld(worldId);
+        
+        if (savedWorld) {
+            gameWorlds.set(worldId, savedWorld);
+            console.log(`📂 Мир ${worldId} восстановлен из сохранения`);
+        } else {
+            // Создаем новый мир
+            gameWorlds.set(worldId, {
+                id: worldId,
+                players: new Map(), // socketId -> playerData
+                agents: [],
+                resources: [],
+                animals: [],
+                predators: [],
+                fires: [],
+                buildings: [],
+                terrain: {
+                    worldSize: 5000,
+                    clearing: { x: 2500, y: 2500, radius: 400 },
+                    pond: { centerX: 2500, centerY: 2500, radiusX: 150, radiusY: 100 },
+                    trees: [],
+                    stones: [],
+                    berryBushes: []
+                },
+                day: 1,
+                timeOfDay: 'day',
+                weather: 'sunny'
+            });
+            console.log(`🆕 Создан новый мир: ${worldId}`);
+        }
     }
     return gameWorlds.get(worldId);
 }
