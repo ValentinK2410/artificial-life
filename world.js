@@ -1364,6 +1364,118 @@ class World {
             this.ctx.beginPath();
             this.ctx.ellipse(x, y, 6, 3, 0, 0, Math.PI * 2);
             this.ctx.fill();
+        } else if (type === 'honey') {
+            // Мёд - золотистый цвет
+            this.ctx.fillStyle = '#ffaa00';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'milk') {
+            // Молоко - белый цвет
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'water') {
+            // Вода - синий цвет
+            this.ctx.fillStyle = '#4a9aff';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'bread') {
+            // Хлеб - коричневый цвет
+            this.ctx.fillStyle = '#d4a574';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 5, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'kebab') {
+            // Шашлык - темно-красный
+            this.ctx.fillStyle = '#8b0000';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 5, 4, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'potato') {
+            // Картофель - коричневый
+            this.ctx.fillStyle = '#8b6914';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 4, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'salad') {
+            // Салат - зеленый
+            this.ctx.fillStyle = '#7cb342';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 5, 4, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'mushrooms') {
+            // Грибы - коричневый с белой шляпкой
+            this.ctx.fillStyle = '#8b4513';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y - 2, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'tea') {
+            // Чай - коричневый
+            this.ctx.fillStyle = '#8b4513';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'banana') {
+            // Банан - желтый
+            this.ctx.fillStyle = '#ffeb3b';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 5, 3, -0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'orange') {
+            // Апельсин - оранжевый
+            this.ctx.fillStyle = '#ff9800';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'apple') {
+            // Яблоко - красный
+            this.ctx.fillStyle = '#f44336';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'lemon') {
+            // Лимон - желтый
+            this.ctx.fillStyle = '#ffeb3b';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 4, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'rosehip') {
+            // Шиповник - красный
+            this.ctx.fillStyle = '#d32f2f';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'cabbage') {
+            // Капуста - зеленый
+            this.ctx.fillStyle = '#4caf50';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 5, 4, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'spices') {
+            // Специи - коричневый порошок
+            this.ctx.fillStyle = '#8b4513';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'mint') {
+            // Мята - зеленый
+            this.ctx.fillStyle = '#66bb6a';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 4, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'st_johns_wort') {
+            // Зверобой - желтый
+            this.ctx.fillStyle = '#ffc107';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         // Деньги
         else if (type === 'money') {

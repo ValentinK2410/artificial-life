@@ -367,7 +367,12 @@ class Simulation {
     
     // Обучение навыку
     teachSkill() {
-        if (!this.selectedAgent) return;
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Выберите агента для обучения`);
+            }
+            return;
+        }
         
         const cost = 10;
         const playerMoney = this.getPlayerMoney();
@@ -383,11 +388,33 @@ class Simulation {
         this.spendMoney(cost);
         
         // Выбираем случайный навык для обучения
-        const skills = Object.keys(this.selectedAgent.experience);
+        const skills = Object.keys(this.selectedAgent.experience || {});
+        if (skills.length === 0) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У агента нет навыков для обучения`);
+            }
+            return;
+        }
+        
         const randomSkill = skills[Math.floor(Math.random() * skills.length)];
         const experienceGain = 5 + Math.floor(Math.random() * 10);
         
-        this.selectedAgent.gainExperience(randomSkill, experienceGain);
+        // Проверяем, что метод gainExperience существует
+        if (typeof this.selectedAgent.gainExperience === 'function') {
+            this.selectedAgent.gainExperience(randomSkill, experienceGain);
+        } else {
+            // Если метода нет, добавляем опыт напрямую
+            if (!this.selectedAgent.experience) {
+                this.selectedAgent.experience = {};
+            }
+            if (!this.selectedAgent.experience[randomSkill]) {
+                this.selectedAgent.experience[randomSkill] = 0;
+            }
+            this.selectedAgent.experience[randomSkill] += experienceGain;
+            if (this.selectedAgent.experience[randomSkill] > 100) {
+                this.selectedAgent.experience[randomSkill] = 100;
+            }
+        }
         
         if (window.addLogEntry) {
             const skillNames = {
@@ -402,7 +429,13 @@ class Simulation {
                 'farming': 'фермерство',
                 'hunting': 'охота'
             };
-            window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[randomSkill] || randomSkill}" (+${experienceGain} опыта)`);
+            const currentExp = this.selectedAgent.experience[randomSkill] || 0;
+            window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[randomSkill] || randomSkill}" (+${experienceGain} опыта, всего: ${Math.floor(currentExp)})`);
+        }
+        
+        // Обновляем панель управления, если она открыта
+        if (document.getElementById('agentControlPanel')?.style.display === 'block') {
+            this.showAgentControlPanel(this.selectedAgent);
         }
     }
     
