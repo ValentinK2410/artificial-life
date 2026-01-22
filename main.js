@@ -196,6 +196,7 @@ class Simulation {
             <div class="agent-control-tabs">
                 <button class="agent-tab-btn active" data-tab="info">Информация</button>
                 <button class="agent-tab-btn" data-tab="skills">Навыки</button>
+                <button class="agent-tab-btn" data-tab="learned">Полученные навыки</button>
                 <button class="agent-tab-btn" data-tab="commands">Команды</button>
             </div>
             <div class="agent-control-content">
@@ -280,6 +281,59 @@ class Simulation {
         panel.style.display = 'block';
     }
     
+    // Получить HTML для полученных навыков
+    getLearnedSkillsHTML(agent) {
+        const learnedSkills = [];
+        const skillNames = {
+            'saw': { name: 'Работа с пилой', icon: '🪚', threshold: 10 },
+            'axe': { name: 'Работа с топором', icon: '🪓', threshold: 10 },
+            'hammer': { name: 'Работа с молотком', icon: '🔨', threshold: 10 },
+            'pickaxe': { name: 'Работа с киркой', icon: '⛏️', threshold: 10 },
+            'shovel': { name: 'Работа с лопатой', icon: '🪤', threshold: 10 },
+            'fishing': { name: 'Рыбалка', icon: '🎣', threshold: 10 },
+            'cooking': { name: 'Готовка', icon: '🍳', threshold: 10 },
+            'building': { name: 'Строительство', icon: '🏗️', threshold: 10 },
+            'farming': { name: 'Фермерство', icon: '🌾', threshold: 10 },
+            'hunting': { name: 'Охота', icon: '🎯', threshold: 10 },
+            'fire_building': { name: 'Разжигание костра', icon: '🔥', threshold: 5 },
+            'bring_wood': { name: 'Принесение дров', icon: '🪵', threshold: 5 },
+            'gather_wood': { name: 'Сбор дров', icon: '🪵', threshold: 5 },
+            'gather_fish': { name: 'Сбор рыбы', icon: '🐟', threshold: 5 },
+            'gather_all': { name: 'Сбор ресурсов', icon: '📦', threshold: 5 }
+        };
+        
+        Object.entries(agent.experience || {}).forEach(([skill, xp]) => {
+            const skillInfo = skillNames[skill];
+            if (skillInfo && xp >= skillInfo.threshold) {
+                const level = Math.floor(xp / 10);
+                learnedSkills.push({
+                    skill,
+                    name: skillInfo.name,
+                    icon: skillInfo.icon,
+                    level,
+                    xp
+                });
+            }
+        });
+        
+        if (learnedSkills.length === 0) {
+            return '<p style="color: #888; text-align: center; padding: 20px;">Навыки еще не получены (нужно минимум 5-10 опыта)</p>';
+        }
+        
+        return `
+            <div class="learned-skills-grid">
+                ${learnedSkills.map(skill => `
+                    <div class="learned-skill-card">
+                        <div class="learned-skill-icon">${skill.icon}</div>
+                        <div class="learned-skill-name">${skill.name}</div>
+                        <div class="learned-skill-level">Уровень ${skill.level}</div>
+                        <div class="learned-skill-xp">Опыт: ${Math.floor(skill.xp)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
     // Получить название состояния
     getStateName(state) {
         const stateNames = {
@@ -339,6 +393,18 @@ class Simulation {
                 }
                 break;
             case 'buildFire':
+                if (this.selectedAgent.experience.fire_building <= 0) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет разжигать костер. Нужен навык "Разжигание костра"`);
+                    }
+                    return;
+                }
+                if (!this.selectedAgent.hasWoodForFire()) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ У ${this.selectedAgent.name} нет дров для костра`);
+                    }
+                    return;
+                }
                 this.selectedAgent.state = 'buildFire';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🔥 ${this.selectedAgent.name} разжигает костер`);
@@ -357,7 +423,7 @@ class Simulation {
                 }
                 break;
             case 'gather':
-                this.selectedAgent.state = 'findFood';
+                this.selectedAgent.state = 'gather';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🌿 ${this.selectedAgent.name} собирает ресурсы`);
                 }

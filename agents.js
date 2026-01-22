@@ -312,9 +312,10 @@ class Agent {
                 Math.pow(nearestFire.y - this.position.y, 2)
             );
             // Тепло от костра уменьшается с расстоянием
-            const fireRadius = 80; // Радиус действия костра
+            const fireRadius = nearestFire.heatRadius || 80; // Радиус действия костра
             if (distance < fireRadius) {
-                heatBonus = (fireRadius - distance) / fireRadius * 25; // До +25 градусов у костра
+                const intensity = nearestFire.intensity || 1.0;
+                heatBonus = (fireRadius - distance) / fireRadius * 25 * intensity; // До +25 градусов у костра (зависит от интенсивности)
             }
         }
         

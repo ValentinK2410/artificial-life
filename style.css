@@ -656,6 +656,60 @@ body {
     transform: translateY(0);
 }
 
+.command-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Полученные навыки */
+.learned-skills-container {
+    padding: 10px;
+}
+
+.learned-skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.learned-skill-card {
+    background-color: #1a1a1a;
+    border: 2px solid #4a9eff;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+.learned-skill-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(74, 158, 255, 0.3);
+}
+
+.learned-skill-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.learned-skill-name {
+    font-size: 14px;
+    color: #e0e0e0;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.learned-skill-level {
+    font-size: 13px;
+    color: #4a9eff;
+    margin-bottom: 3px;
+}
+
+.learned-skill-xp {
+    font-size: 11px;
+    color: #b0b0b0;
+}
+
 /* Админ-панель */
 .admin-panel {
     position: fixed;
