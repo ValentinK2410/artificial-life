@@ -326,6 +326,15 @@ class Simulation {
                 <!-- Вкладка: Команды -->
                 <div class="agent-tab-panel" data-panel="commands">
                     <div class="agent-commands">
+                        ${agent.state === 'sleep' ? `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('wake')" style="background-color: #4caf50; font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">
+                            ☀️ Разбудить
+                        </button>
+                        ` : `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('sleep')" style="background-color: #6c5ce7; font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">
+                            😴 Уложить спать
+                        </button>
+                        `}
                         <button class="command-btn" onclick="window.simulation.giveCommand('teachSkill')">
                             📚 Обучить навыку (10 монет)
                         </button>
@@ -351,15 +360,6 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
                             🌾 Фермерство
                         </button>
-                        ${agent.state === 'sleep' ? `
-                        <button class="command-btn" onclick="window.simulation.giveCommand('wake')" style="background-color: #4caf50;">
-                            ☀️ Разбудить
-                        </button>
-                        ` : `
-                        <button class="command-btn" onclick="window.simulation.giveCommand('sleep')">
-                            😴 Уложить спать
-                        </button>
-                        `}
                     </div>
                 </div>
             </div>
