@@ -237,6 +237,7 @@ class Simulation {
             </div>
             <div class="agent-control-tabs">
                 <button class="agent-tab-btn active" data-tab="info">Информация</button>
+                <button class="agent-tab-btn" data-tab="inventory">Запасы</button>
                 <button class="agent-tab-btn" data-tab="skills">Навыки</button>
                 <button class="agent-tab-btn" data-tab="learned">Полученные навыки</button>
                 <button class="agent-tab-btn" data-tab="commands">Команды</button>
@@ -255,6 +256,13 @@ class Simulation {
                         <p><strong>Состояние:</strong> ${this.getStateName(agent.state)}</p>
                         ${agent.fear > 0 ? `<p><strong>Страх:</strong> ${Math.floor(agent.fear)}% ${agent.panic ? '😱 ПАНИКА!' : ''}</p>` : ''}
                         ${agent.panic ? `<p style="color: #ff4444;"><strong>⚠️ ПАНИКА!</strong></p>` : ''}
+                    </div>
+                </div>
+                
+                <!-- Вкладка: Запасы -->
+                <div class="agent-tab-panel" data-panel="inventory">
+                    <div class="inventory-container">
+                        ${this.getInventoryHTML(agent)}
                     </div>
                 </div>
                 
@@ -327,6 +335,37 @@ class Simulation {
     }
     
     // Получить HTML для полученных навыков
+    getCompactInventoryInfo(agent) {
+        const inventory = agent.inventory || [];
+        const foodStorage = agent.foodStorage || [];
+        const animalFoodStorage = agent.animalFoodStorage || [];
+        
+        // Подсчитываем количество
+        const woodCount = inventory.filter(item => item.type === 'wood').reduce((sum, item) => sum + (item.amount || 1), 0);
+        const foodCount = foodStorage.reduce((sum, item) => sum + (item.amount || 1), 0);
+        const animalFoodCount = animalFoodStorage.reduce((sum, item) => sum + (item.amount || 1), 0);
+        const toolsCount = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(item.type)).length;
+        
+        let html = '';
+        
+        if (woodCount > 0 || foodCount > 0 || animalFoodCount > 0 || toolsCount > 0) {
+            html += '<div class="agent-stat-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3a3a3a;">';
+            html += '<span class="stat-label">📦 Запасы:</span>';
+            html += '<span class="stat-value" style="font-size: 11px;">';
+            
+            const items = [];
+            if (woodCount > 0) items.push(`🪵 ${woodCount}`);
+            if (foodCount > 0) items.push(`🍽️ ${foodCount}`);
+            if (animalFoodCount > 0) items.push(`🐾 ${animalFoodCount}`);
+            if (toolsCount > 0) items.push(`🔧 ${toolsCount}`);
+            
+            html += items.join(' • ') || 'Нет';
+            html += '</span></div>';
+        }
+        
+        return html;
+    }
+    
     getLearnedSkillsHTML(agent) {
         const learnedSkills = [];
         const skillNames = {
@@ -951,6 +990,7 @@ class Simulation {
                             <span class="stat-label">😊 Настроение:</span>
                             <span class="stat-value">${moodState}</span>
                         </div>
+                        ${this.getCompactInventoryInfo(agent)}
                     </div>
                 </div>
             `;
