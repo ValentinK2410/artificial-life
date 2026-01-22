@@ -59,7 +59,8 @@ class Agent {
         this.panic = false; // Паника (true/false)
         
         // Состояние для конечного автомата
-        this.state = 'explore'; // explore, findFood, rest, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood, cook, hunt, build, fish, farm
+        this.state = 'explore'; // explore, findFood, rest, sleep, findHeat, buildFire, defend, feedAnimal, playWithPet, storeFood, cook, hunt, build, fish, farm
+        this.sleepStartTime = 0; // Время начала сна (для определения длительности)
         this.speed = 2; // Базовая скорость движения
         this.maxEnergy = 100;
         this.maxHealth = 100;

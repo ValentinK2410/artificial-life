@@ -431,6 +431,9 @@ class Simulation {
             case 'teachSkill':
                 this.teachSkill();
                 break;
+            case 'sleep':
+                this.makeAgentSleep();
+                break;
             case 'cook':
                 this.selectedAgent.state = 'cook';
                 if (window.addLogEntry) {
