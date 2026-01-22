@@ -93,10 +93,22 @@ class NetworkManager {
             this.isConnected = false;
             console.error('❌ Ошибка подключения к серверу:', error);
             console.error('URL подключения:', serverUrl);
+            console.error('Текущий URL страницы:', window.location.href);
+            console.error('Hostname:', window.location.hostname);
+            console.error('Protocol:', window.location.protocol);
             console.error('Детали ошибки:', {
                 message: error.message,
                 type: error.type,
-                description: error.description
+                description: error.description,
+                data: error.data
+            });
+            
+            // Пробуем проверить доступность сервера через HTTP
+            this.testServerConnection(serverUrl).then((isAvailable) => {
+                console.log('Результат проверки сервера:', isAvailable ? '✅ Доступен' : '❌ Недоступен');
+                if (!isAvailable && window.addLogEntry) {
+                    window.addLogEntry('⚠️ HTTP сервер недоступен. Проверьте настройки Nginx.');
+                }
             });
             
             const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
