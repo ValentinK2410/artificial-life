@@ -385,6 +385,7 @@ class Simulation {
             'explore': 'Исследует',
             'findFood': 'Ищет еду',
             'rest': 'Отдыхает',
+            'sleep': 'Спит',
             'findHeat': 'Ищет тепло',
             'buildFire': 'Разводит костер',
             'defend': 'Обороняется',
