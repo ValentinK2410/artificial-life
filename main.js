@@ -785,18 +785,22 @@ class Simulation {
         if (this.agentsManager) {
             // Сначала пытаемся получить агентов игрока
             playerAgents = this.agentsManager.getPlayerAgents();
+            console.log('Агенты игрока:', playerAgents.length, 'playerId:', this.agentsManager.playerId);
             // Если нет агентов игрока или playerId не установлен, показываем всех
             if (playerAgents.length === 0 || !this.agentsManager.playerId) {
                 playerAgents = this.agentsManager.getAllAgents();
+                console.log('Все агенты:', playerAgents.length);
             }
         } else if (this.agents && Array.isArray(this.agents)) {
             playerAgents = this.agents;
+            console.log('Агенты из this.agents:', playerAgents.length);
+        } else {
+            console.warn('Нет agentsManager и this.agents');
         }
-        
-        console.log('Агенты для отображения:', playerAgents.length, playerAgents);
         
         if (playerAgents.length === 0) {
             container.innerHTML = '<p style="color: #b0b0b0; text-align: center; padding: 20px;">Нет агентов</p>';
+            console.warn('Список агентов пуст');
             return;
         }
         
