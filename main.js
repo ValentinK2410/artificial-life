@@ -210,6 +210,8 @@ class Simulation {
                         <p><strong>Деньги:</strong> ${this.getPlayerMoney()} монет</p>
                         <p><strong>Возраст:</strong> ${agent.age} лет</p>
                         <p><strong>Состояние:</strong> ${this.getStateName(agent.state)}</p>
+                        ${agent.fear > 0 ? `<p><strong>Страх:</strong> ${Math.floor(agent.fear)}% ${agent.panic ? '😱 ПАНИКА!' : ''}</p>` : ''}
+                        ${agent.panic ? `<p style="color: #ff4444;"><strong>⚠️ ПАНИКА!</strong></p>` : ''}
                     </div>
                 </div>
                 
