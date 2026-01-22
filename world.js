@@ -630,8 +630,21 @@ class World {
             x: x,
             y: y,
             amount: amount,
-            id: 'resource_' + Date.now() + '_' + Math.random() // Уникальный ID для синхронизации
+            id: 'resource_' + Date.now() + '_' + Math.random(), // Уникальный ID для синхронизации
+            berryOffsets: null // Для фиксации позиций ягод
         };
+        
+        // Если это ягоды - генерируем фиксированные смещения один раз
+        if (type === 'berries' && !resource.berryOffsets) {
+            resource.berryOffsets = [];
+            const berryCount = 5;
+            for (let i = 0; i < berryCount; i++) {
+                resource.berryOffsets.push({
+                    x: (Math.random() - 0.5) * 8,
+                    y: (Math.random() - 0.5) * 8
+                });
+            }
+        }
         
         this.resources.push(resource);
         
@@ -943,12 +956,23 @@ class World {
         this.resources.forEach(resource => {
             if (resource.type === 'berries') {
                 // Группа ягод (реалистичная)
-                const berryCount = 5;
+                // Используем фиксированные смещения, если они есть, иначе генерируем один раз
+                if (!resource.berryOffsets) {
+                    resource.berryOffsets = [];
+                    const berryCount = 5;
+                    for (let i = 0; i < berryCount; i++) {
+                        resource.berryOffsets.push({
+                            x: (Math.random() - 0.5) * 8,
+                            y: (Math.random() - 0.5) * 8
+                        });
+                    }
+                }
+                
+                const berryCount = resource.berryOffsets.length;
                 for (let i = 0; i < berryCount; i++) {
-                    const offsetX = (Math.random() - 0.5) * 8;
-                    const offsetY = (Math.random() - 0.5) * 8;
-                    const berryX = resource.x + offsetX;
-                    const berryY = resource.y + offsetY;
+                    const offset = resource.berryOffsets[i];
+                    const berryX = resource.x + offset.x;
+                    const berryY = resource.y + offset.y;
                     
                     // Тень ягоды
                     this.ctx.fillStyle = 'rgba(150, 0, 0, 0.4)';
