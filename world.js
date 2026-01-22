@@ -645,7 +645,7 @@ class World {
         }
     }
 
-    addResource(type) {
+    addResource(type, count = 1) {
         // Добавление ресурса на случайную позицию в видимой области
         if (!this.canvas) return;
         
@@ -653,40 +653,45 @@ class World {
         const viewWidth = this.canvas.width / this.camera.scale;
         const viewHeight = this.canvas.height / this.camera.scale;
         
-        // Случайная позиция в видимой области с отступом от краев
-        const margin = 50;
-        const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
-        const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
-        
-        // Определяем количество в зависимости от типа
-        let amount = 1;
-        if (type === 'berries') amount = 10;
-        else if (['meat', 'bird', 'fish', 'cooked_food'].includes(type)) amount = 1;
-        else if (type === 'money') amount = 10 + Math.floor(Math.random() * 50);
-        else if (type === 'wood') amount = 5;
-        
-        const resource = {
-            type: type,
-            x: x,
-            y: y,
-            amount: amount,
-            id: 'resource_' + Date.now() + '_' + Math.random(), // Уникальный ID для синхронизации
-            berryOffsets: null // Для фиксации позиций ягод
-        };
-        
-        // Если это ягоды - генерируем фиксированные смещения один раз
-        if (type === 'berries' && !resource.berryOffsets) {
-            resource.berryOffsets = [];
-            const berryCount = 5;
-            for (let i = 0; i < berryCount; i++) {
-                resource.berryOffsets.push({
-                    x: (Math.random() - 0.5) * 8,
-                    y: (Math.random() - 0.5) * 8
-                });
+        // Добавляем указанное количество ресурсов
+        for (let i = 0; i < count; i++) {
+            // Случайная позиция в видимой области с отступом от краев
+            const margin = 50;
+            const x = this.camera.x + margin + Math.random() * (viewWidth - margin * 2);
+            const y = this.camera.y + margin + Math.random() * (viewHeight - margin * 2);
+            
+            // Определяем количество в зависимости от типа
+            let amount = 1;
+            if (type === 'berries') amount = 10;
+            else if (['meat', 'bird', 'fish', 'cooked_food', 'kebab', 'bread', 'honey', 'milk', 'water', 'tea', 'spices', 'mint', 'st_johns_wort', 'rosehip'].includes(type)) amount = 1;
+            else if (type === 'money') amount = 10 + Math.floor(Math.random() * 50);
+            else if (type === 'wood') amount = 5;
+            else if (['potato', 'salad', 'mushrooms', 'cabbage'].includes(type)) amount = 1 + Math.floor(Math.random() * 3);
+            else if (['banana', 'orange', 'apple', 'lemon'].includes(type)) amount = 1 + Math.floor(Math.random() * 2);
+            
+            const resource = {
+                type: type,
+                x: x,
+                y: y,
+                amount: amount,
+                id: 'resource_' + Date.now() + '_' + Math.random() + '_' + i, // Уникальный ID для синхронизации
+                berryOffsets: null // Для фиксации позиций ягод
+            };
+            
+            // Если это ягоды - генерируем фиксированные смещения один раз
+            if (type === 'berries' && !resource.berryOffsets) {
+                resource.berryOffsets = [];
+                const berryCount = 5;
+                for (let j = 0; j < berryCount; j++) {
+                    resource.berryOffsets.push({
+                        x: (Math.random() - 0.5) * 8,
+                        y: (Math.random() - 0.5) * 8
+                    });
+                }
             }
+            
+            this.resources.push(resource);
         }
-        
-        this.resources.push(resource);
         
         this.draw();
     }
