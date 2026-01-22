@@ -206,6 +206,7 @@ class Simulation {
                         <p><strong>Здоровье:</strong> ${Math.floor(agent.health)}%</p>
                         <p><strong>Энергия:</strong> ${Math.floor(agent.energy)}%</p>
                         <p><strong>Голод:</strong> ${Math.floor(agent.hunger)}%</p>
+                        <p><strong>Жажда:</strong> ${Math.floor(agent.thirst || 0)}%</p>
                         <p><strong>Температура:</strong> ${Math.floor(agent.temperature || 37)}°C</p>
                         <p><strong>Деньги:</strong> ${this.getPlayerMoney()} монет</p>
                         <p><strong>Возраст:</strong> ${agent.age} лет</p>
