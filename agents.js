@@ -1747,6 +1747,285 @@ class Agent {
         }
     }
     
+    stayWithFriend() {
+        // Находиться рядом с другом
+        if (!this.targetFriend) {
+            // Нет целевого друга - возвращаемся к исследованию
+            this.state = 'explore';
+            return;
+        }
+        
+        const friend = this.targetFriend; // Целевой друг (объект Agent)
+        const dx = friend.position.x - this.position.x; // Разница по оси X до друга (пиксели)
+        const dy = friend.position.y - this.position.y; // Разница по оси Y до друга (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до друга (пиксели)
+        const FRIEND_STAY_RADIUS = 100; // Радиус, в котором нужно находиться рядом с другом (пиксели)
+        
+        // Проверяем, жив ли друг
+        if (friend.health <= 0 || friend.state === 'dead') {
+            // Друг мертв - сбрасываем целевого друга и возвращаемся к исследованию
+            this.targetFriend = null;
+            this.state = 'explore';
+            return;
+        }
+        
+        if (distance > FRIEND_STAY_RADIUS) {
+            // Друг далеко - идем к нему
+            this.moveTo(friend.position.x, friend.position.y);
+            // Поворачиваемся к другу
+            this.angle = Math.atan2(dy, dx);
+        } else {
+            // Друг рядом - остаемся на месте или слегка двигаемся, чтобы не стоять на месте
+            // Можно немного улучшить настроение от общения с другом
+            if (Math.random() < 0.01) { // 1% шанс улучшить настроение каждый кадр
+                this.mood = 'happy';
+                this.satisfaction = Math.min(100, this.satisfaction + 0.5);
+            }
+            
+            // Следим за другом, поворачиваемся к нему
+            this.angle = Math.atan2(dy, dx);
+        }
+    }
+    
+    sing() {
+        // Пение песен для поднятия настроения других
+        if (this.experience.singing < 3) {
+            // Недостаточно опыта - возвращаемся к исследованию
+            this.state = 'explore';
+            return;
+        }
+        
+        if (!window.agents || !window.agents.getAllAgents) {
+            this.state = 'explore';
+            return;
+        }
+        
+        const allAgents = window.agents.getAllAgents(); // Все агенты в мире
+        const ENTERTAINMENT_RADIUS = 80; // Радиус воздействия развлечения (пиксели)
+        
+        // Улучшаем настроение агентов поблизости
+        let affectedCount = 0; // Количество затронутых агентов
+        for (const agent of allAgents) {
+            if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') continue;
+            
+            const dx = agent.position.x - this.position.x;
+            const dy = agent.position.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= ENTERTAINMENT_RADIUS) {
+                // Улучшаем настроение и удовлетворенность
+                if (agent.mood === 'sad') {
+                    agent.mood = 'neutral';
+                } else if (agent.mood === 'neutral') {
+                    agent.mood = 'happy';
+                }
+                agent.satisfaction = Math.min(100, (agent.satisfaction || 50) + 2);
+                affectedCount++;
+            }
+        }
+        
+        // Получаем опыт пения
+        this.gainExperience('singing', 0.1);
+        
+        // Иногда логируем действие
+        if (window.addLogEntry && Math.random() < 0.05) {
+            window.addLogEntry(`🎵 ${this.name} поет песни${affectedCount > 0 ? ` (поднял настроение ${affectedCount} агентам)` : ''}`);
+        }
+        
+        // Через некоторое время возвращаемся к исследованию
+        if (!this.entertainmentProgress) {
+            this.entertainmentProgress = 0;
+        }
+        this.entertainmentProgress++;
+        
+        if (this.entertainmentProgress >= 60) { // 60 кадров развлечения
+            this.entertainmentProgress = 0;
+            this.state = 'explore';
+        }
+    }
+    
+    tellStory() {
+        // Рассказывание стихов для поднятия настроения других
+        if (this.experience.storytelling < 3) {
+            // Недостаточно опыта - возвращаемся к исследованию
+            this.state = 'explore';
+            return;
+        }
+        
+        if (!window.agents || !window.agents.getAllAgents) {
+            this.state = 'explore';
+            return;
+        }
+        
+        const allAgents = window.agents.getAllAgents(); // Все агенты в мире
+        const ENTERTAINMENT_RADIUS = 80; // Радиус воздействия развлечения (пиксели)
+        
+        // Улучшаем настроение агентов поблизости
+        let affectedCount = 0; // Количество затронутых агентов
+        for (const agent of allAgents) {
+            if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') continue;
+            
+            const dx = agent.position.x - this.position.x;
+            const dy = agent.position.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= ENTERTAINMENT_RADIUS) {
+                // Улучшаем настроение и удовлетворенность
+                if (agent.mood === 'sad') {
+                    agent.mood = 'neutral';
+                } else if (agent.mood === 'neutral') {
+                    agent.mood = 'happy';
+                }
+                agent.satisfaction = Math.min(100, (agent.satisfaction || 50) + 2);
+                affectedCount++;
+            }
+        }
+        
+        // Получаем опыт рассказывания стихов
+        this.gainExperience('storytelling', 0.1);
+        
+        // Иногда логируем действие
+        if (window.addLogEntry && Math.random() < 0.05) {
+            window.addLogEntry(`📖 ${this.name} рассказывает стихи${affectedCount > 0 ? ` (поднял настроение ${affectedCount} агентам)` : ''}`);
+        }
+        
+        // Через некоторое время возвращаемся к исследованию
+        if (!this.entertainmentProgress) {
+            this.entertainmentProgress = 0;
+        }
+        this.entertainmentProgress++;
+        
+        if (this.entertainmentProgress >= 60) { // 60 кадров развлечения
+            this.entertainmentProgress = 0;
+            this.state = 'explore';
+        }
+    }
+    
+    makeLaugh() {
+        // Смешить других для поднятия настроения
+        if (this.experience.comedy < 3) {
+            // Недостаточно опыта - возвращаемся к исследованию
+            this.state = 'explore';
+            return;
+        }
+        
+        if (!window.agents || !window.agents.getAllAgents) {
+            this.state = 'explore';
+            return;
+        }
+        
+        const allAgents = window.agents.getAllAgents(); // Все агенты в мире
+        const ENTERTAINMENT_RADIUS = 80; // Радиус воздействия развлечения (пиксели)
+        
+        // Улучшаем настроение агентов поблизости
+        let affectedCount = 0; // Количество затронутых агентов
+        for (const agent of allAgents) {
+            if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') continue;
+            
+            const dx = agent.position.x - this.position.x;
+            const dy = agent.position.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= ENTERTAINMENT_RADIUS) {
+                // Улучшаем настроение и удовлетворенность
+                if (agent.mood === 'sad') {
+                    agent.mood = 'neutral';
+                } else if (agent.mood === 'neutral') {
+                    agent.mood = 'happy';
+                }
+                agent.satisfaction = Math.min(100, (agent.satisfaction || 50) + 2);
+                affectedCount++;
+            }
+        }
+        
+        // Получаем опыт комедии
+        this.gainExperience('comedy', 0.1);
+        
+        // Иногда логируем действие
+        if (window.addLogEntry && Math.random() < 0.05) {
+            window.addLogEntry(`😄 ${this.name} смешит других${affectedCount > 0 ? ` (поднял настроение ${affectedCount} агентам)` : ''}`);
+        }
+        
+        // Через некоторое время возвращаемся к исследованию
+        if (!this.entertainmentProgress) {
+            this.entertainmentProgress = 0;
+        }
+        this.entertainmentProgress++;
+        
+        if (this.entertainmentProgress >= 60) { // 60 кадров развлечения
+            this.entertainmentProgress = 0;
+            this.state = 'explore';
+        }
+    }
+    
+    consoleAgent() {
+        // Утешение других агентов
+        if (!this.consolingTarget || this.consolingTarget.health <= 0 || this.consolingTarget.state === 'dead') {
+            // Нет целевого агента или он мертв
+            this.consolingTarget = null;
+            this.state = 'explore';
+            return;
+        }
+        
+        if (this.experience.consoling < 5) {
+            // Недостаточно опыта - возвращаемся к исследованию
+            this.consolingTarget = null;
+            this.state = 'explore';
+            return;
+        }
+        
+        const target = this.consolingTarget; // Целевой агент для утешения (объект Agent)
+        const dx = target.position.x - this.position.x; // Разница по оси X до целевого агента (пиксели)
+        const dy = target.position.y - this.position.y; // Разница по оси Y до целевого агента (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до целевого агента (пиксели)
+        const CONSOLE_DISTANCE = 30; // Расстояние для утешения (пиксели)
+        
+        if (distance > CONSOLE_DISTANCE) {
+            // Целевой агент далеко - идем к нему
+            this.moveTo(target.position.x, target.position.y);
+            // Поворачиваемся к целевому агенту
+            this.angle = Math.atan2(dy, dx);
+            return;
+        }
+        
+        // Рядом с целевым агентом - утешаем
+        if (!this.consolingProgress) {
+            this.consolingProgress = 0; // Прогресс утешения (число кадров, 0 = начало утешения)
+        }
+        
+        this.consolingProgress += 1; // Увеличиваем прогресс утешения
+        
+        // Утешение занимает время (20-30 кадров)
+        const consolingTime = 25; // Время утешения в кадрах
+        if (this.consolingProgress < consolingTime) {
+            // Еще утешаем
+            // Поворачиваемся к целевому агенту
+            this.angle = Math.atan2(dy, dx);
+            return;
+        }
+        
+        // Утешение завершено - улучшаем настроение целевого агента
+        if (target.mood === 'sad') {
+            target.mood = 'neutral';
+        } else if (target.mood === 'neutral') {
+            target.mood = 'happy';
+        }
+        target.satisfaction = Math.min(100, (target.satisfaction || 50) + 5);
+        
+        // Получаем опыт утешения
+        this.gainExperience('consoling', 1);
+        this.increaseSatisfaction('console', 3); // Увеличиваем удовлетворенность от утешения
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`💚 ${this.name} утешил(а) ${target.name}`);
+        }
+        
+        // Сбрасываем прогресс и целевого агента
+        this.consolingProgress = 0;
+        this.consolingTarget = null;
+        this.state = 'explore';
+    }
+    
     cook() {
         // Готовка еды
         if (!window.world) return;
