@@ -248,14 +248,9 @@ class Agent {
         // Получаем критическую температуру смерти из конфига
         const DEATH_TEMPERATURE = window.GAME_CONFIG?.AGENTS?.DEATH_TEMPERATURE || 20; // Критическая температура смерти от переохлаждения (°C, снижено с 28 до 20)
         
-        // Защита от смерти в начале игры (первые 30 секунд)
-        const gameStartTime = window.simulation?.startTime || Date.now();
-        const gameElapsedTime = Date.now() - gameStartTime;
-        const PROTECTION_DURATION = 30000; // 30 секунд защиты
-        const isGameStart = gameElapsedTime < PROTECTION_DURATION;
-        
         // Если температура критически низкая - агент умирает от переохлаждения
         // НО только если прошло достаточно времени с начала игры (защита от мгновенной смерти)
+        // Используем уже объявленные переменные защиты из начала функции
         if (this.temperature < DEATH_TEMPERATURE && this.health > 0 && !isGameStart) {
             // Получаем температуру окружающей среды для установки после смерти
             const ambientTemp = this.getAmbientTemperature();
