@@ -3718,7 +3718,7 @@ class Agent {
         // Собирать все ресурсы поблизости
         if (!window.world) return;
         
-        const gatherRadius = 30; // Радиус сбора ресурсов (пиксели)
+        const gatherRadius = 150; // Радиус сбора ресурсов (пиксели)
         const resources = window.world.resources; // Массив всех ресурсов в мире
         let gathered = false; // Флаг успешного сбора ресурсов (true/false)
         
