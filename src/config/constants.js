@@ -14,8 +14,8 @@ export const GAME_CONFIG = {
         DEFAULT_ENERGY: 100,
         DEFAULT_HUNGER: 0,
         DEFAULT_TEMPERATURE: 37,
-        MIN_TEMPERATURE: 32, // Минимальная температура для выживания
-        DEATH_TEMPERATURE: 28, // Критическая температура смерти от переохлаждения
+        MIN_TEMPERATURE: 25, // Минимальная температура для выживания (снижено с 32 до 25)
+        DEATH_TEMPERATURE: 20, // Критическая температура смерти от переохлаждения (снижено с 28 до 20)
         MAX_TEMPERATURE: 37, // Нормальная температура тела
         MAX_HUNGER: 100,
         
