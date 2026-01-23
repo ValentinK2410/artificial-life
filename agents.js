@@ -3853,7 +3853,9 @@ class AgentsManager {
     }
 
     reset() {
-        this.initializeAgents(); // Переинициализируем агентов
+        // Используем сохраненные типы агентов или дефолтные, если не указаны
+        const selectedAgentTypes = window.selectedAgentTypes || null;
+        this.initializeAgents(this.playerId, selectedAgentTypes); // Переинициализируем агентов с сохраненными типами
         // Инициализация позиций агентов после сброса
         this.agents.forEach(agent => {
             agent.initializePosition(); // Устанавливаем случайные позиции для каждого агента

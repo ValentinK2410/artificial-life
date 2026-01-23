@@ -1555,22 +1555,20 @@ class Simulation {
         const height = this.world.canvas.height;
         
         // Распределяем агентов по разным точкам карты
-        const positions = [
-            { x: width * 0.2, y: height * 0.2 },   // Мужчина
-            { x: width * 0.3, y: height * 0.3 },   // Женщина
-            { x: width * 0.7, y: height * 0.2 },    // Парень
-            { x: width * 0.8, y: height * 0.3 },   // Девушка
-            { x: width * 0.2, y: height * 0.7 },   // Старик
-            { x: width * 0.3, y: height * 0.8 }    // Старуха
-        ];
+        // Используем сетку для равномерного распределения любого количества агентов
+        const cols = Math.ceil(Math.sqrt(this.agents.length));
+        const rows = Math.ceil(this.agents.length / cols);
+        const cellWidth = width / (cols + 1);
+        const cellHeight = height / (rows + 1);
         
         this.agents.forEach((agent, index) => {
-            if (positions[index]) {
-                agent.position.x = positions[index].x;
-                agent.position.y = positions[index].y;
-            } else {
-                agent.initializePosition();
-            }
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            const x = cellWidth * (col + 1) + (Math.random() - 0.5) * cellWidth * 0.3;
+            const y = cellHeight * (row + 1) + (Math.random() - 0.5) * cellHeight * 0.3;
+            
+            agent.position.x = Math.max(50, Math.min(width - 50, x));
+            agent.position.y = Math.max(50, Math.min(height - 50, y));
         });
     }
 
