@@ -861,6 +861,12 @@ class Agent {
         } else if (this.sickAgent && this.hasMedicalSupplies()) {
             // Есть больной агент и есть медицинские принадлежности - лечим
             this.state = 'heal';
+        } else if (this.consolingTarget && this.experience.consoling >= 5) {
+            // Есть агент, которому нужна помощь, и есть навык утешения - утешаем
+            this.state = 'console';
+        } else if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
+            // Есть друг - находимся рядом с ним (если не развлекаем)
+            this.state = 'stayWithFriend';
         } else if (this.temperature < 32) {
             // Критически холодно - ищем одежду (важнее) или тепло
             if (!this.hasEnoughClothes()) {
