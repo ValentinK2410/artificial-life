@@ -2281,72 +2281,106 @@ class Agent {
         const predator = this.nearbyPredator.predator; // Объект хищника (координаты x, y и другие свойства)
         const distance = this.nearbyPredator.distance; // Расстояние до хищника (пиксели)
         const huntingSkill = this.experience.hunting || 0; // Навык охоты агента
+        const hasHuntingSkill = huntingSkill >= 10; // Есть навык охоты (уровень 1+)
+        const isPanicking = this.panic || (this.fear || 0) > 70; // Агент в панике
         
-        // Если есть навык охоты (>= 10) - атакуем хищника
-        if (huntingSkill >= 10 && distance < 40) {
-            // Атакуем хищника
-            if (!this.attackProgress) {
-                this.attackProgress = 0;
-            }
-            
-            this.attackProgress++;
-            
-            // Поворачиваемся к хищнику
-            const dx = predator.x - this.position.x;
-            const dy = predator.y - this.position.y;
-            this.angle = Math.atan2(dy, dx);
-            
-            // Анимация атаки (20 кадров)
-            if (this.attackProgress >= 20) {
-                // Наносим урон хищнику
-                predator.health = (predator.health || 100) - (10 + huntingSkill * 0.5);
-                
-                if (predator.health <= 0) {
-                    // Хищник убит - получаем мясо
-                    if (window.world) {
-                        window.world.resources.push({
-                            type: 'meat',
-                            x: predator.x,
-                            y: predator.y,
-                            amount: 5 + Math.floor(huntingSkill / 5),
-                            id: 'meat_' + Date.now() + '_' + Math.random()
-                        });
-                        
-                        // Удаляем хищника
-                        const index = window.world.predators.indexOf(predator);
-                        if (index > -1) {
-                            window.world.predators.splice(index, 1);
-                        }
-                        
-                        // Отправляем на сервер
-                        if (window.networkManager && window.networkManager.isConnected && predator.id) {
-                            window.networkManager.removePredator(predator.id);
-                        }
-                    }
-                    
-                    // Получаем опыт охоты
-                    this.gainExperience('hunting', 5);
-                    this.increaseSatisfaction('hunt', 10);
-                    
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`🎯 ${this.name} убил хищника и получил мясо!`);
-                    }
-                    
-                    this.nearbyPredator = null;
+        // Если есть навык охоты (>= 10) и НЕТ паники - атакуем или приближаемся к хищнику
+        if (hasHuntingSkill && !isPanicking && distance < 100) {
+            // Если близко (в радиусе атаки) - атакуем
+            if (distance < 60) {
+                // Атакуем хищника
+                if (!this.attackProgress) {
                     this.attackProgress = 0;
-                    this.isRunning = false; // Выключаем анимацию бега
-                    this.state = 'explore';
-                } else {
-                    // Хищник еще жив - продолжаем атаку
-                    this.gainExperience('hunting', 0.5);
-                    if (window.addLogEntry && Math.random() < 0.1) {
-                        window.addLogEntry(`⚔️ ${this.name} атакует хищника!`);
+                }
+                
+                this.attackProgress++;
+                
+                // Поворачиваемся к хищнику
+                const dx = predator.x - this.position.x;
+                const dy = predator.y - this.position.y;
+                this.angle = Math.atan2(dy, dx);
+                
+                // Анимация атаки (20 кадров)
+                if (this.attackProgress >= 20) {
+                    // Наносим урон хищнику
+                    predator.health = (predator.health || 100) - (10 + huntingSkill * 0.5);
+                    
+                    if (predator.health <= 0) {
+                        // Хищник убит - получаем мясо
+                        if (window.world) {
+                            window.world.resources.push({
+                                type: 'meat',
+                                x: predator.x,
+                                y: predator.y,
+                                amount: 5 + Math.floor(huntingSkill / 5),
+                                id: 'meat_' + Date.now() + '_' + Math.random()
+                            });
+                            
+                            // Удаляем хищника
+                            const index = window.world.predators.indexOf(predator);
+                            if (index > -1) {
+                                window.world.predators.splice(index, 1);
+                            }
+                            
+                            // Отправляем на сервер
+                            if (window.networkManager && window.networkManager.isConnected && predator.id) {
+                                window.networkManager.removePredator(predator.id);
+                            }
+                        }
+                        
+                        // Получаем опыт охоты
+                        this.gainExperience('hunting', 5);
+                        this.increaseSatisfaction('hunt', 10);
+                        
+                        // Уменьшаем страх после успешной охоты
+                        this.fear = Math.max(0, (this.fear || 0) - 20);
+                        if (this.fear <= 70) {
+                            this.panic = false;
+                        }
+                        
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`🎯 ${this.name} убил хищника и получил мясо!`);
+                        }
+                        
+                        this.nearbyPredator = null;
+                        this.attackProgress = 0;
+                        this.isRunning = false; // Выключаем анимацию бега
+                        this.state = 'explore';
+                    } else {
+                        // Хищник еще жив - продолжаем атаку
+                        this.gainExperience('hunting', 0.5);
+                        if (window.addLogEntry && Math.random() < 0.1) {
+                            window.addLogEntry(`⚔️ ${this.name} атакует хищника!`);
+                        }
+                        this.attackProgress = 0; // Сбрасываем для следующей атаки
                     }
-                    this.attackProgress = 0; // Сбрасываем для следующей атаки
+                }
+            } else {
+                // Далеко от хищника, но есть навык охоты - приближаемся для атаки
+                const dx = predator.x - this.position.x;
+                const dy = predator.y - this.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    // Двигаемся к хищнику для атаки
+                    const approachSpeed = this.speed * 1.5; // Скорость приближения
+                    this.position.x += (dx / dist) * approachSpeed;
+                    this.position.y += (dy / dist) * approachSpeed;
+                    
+                    // Поворачиваемся к хищнику
+                    this.angle = Math.atan2(dy, dx);
+                    
+                    // Устанавливаем состояние защиты (для атаки)
+                    this.state = 'defend';
+                    this.isRunning = true; // Включаем анимацию бега
+                    
+                    if (window.addLogEntry && Math.random() < 0.05) {
+                        window.addLogEntry(`🎯 ${this.name} приближается к хищнику для атаки!`);
+                    }
                 }
             }
         } else {
-            // Нет навыка охоты или хищник далеко - убегаем
+            // Нет навыка охоты, паника или хищник слишком далеко - убегаем
             const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
             const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
             const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
@@ -2365,15 +2399,21 @@ class Agent {
                 // Поворачиваемся в направлении бега
                 this.angle = Math.atan2(dy, dx);
                 
-                // Увеличиваем страх
-                this.fear = Math.min(100, (this.fear || 0) + 1);
-                if (this.fear > 70) {
-                    this.panic = true;
-                    this.mood = 'anxious';
+                // Увеличиваем страх (только если убегаем из-за отсутствия навыка)
+                if (!hasHuntingSkill) {
+                    this.fear = Math.min(100, (this.fear || 0) + 1);
+                    if (this.fear > 70) {
+                        this.panic = true;
+                        this.mood = 'anxious';
+                    }
                 }
                 
                 if (window.addLogEntry && Math.random() < 0.05) {
-                    window.addLogEntry(`🏃 ${this.name} убегает от хищника!`);
+                    if (isPanicking && hasHuntingSkill) {
+                        window.addLogEntry(`😱 ${this.name} в панике и убегает от хищника!`);
+                    } else {
+                        window.addLogEntry(`🏃 ${this.name} убегает от хищника!`);
+                    }
                 }
             }
         }
