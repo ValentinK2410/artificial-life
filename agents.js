@@ -1008,6 +1008,96 @@ class Agent {
         const woodCount = this.inventory.filter(item => item.type === 'wood').length; // Количество предметов типа 'wood' в инвентаре
         return woodCount >= 3; // Возвращаем true, если есть минимум 3 дрова для костра
     }
+    
+    // Проверка друзей - находимся ли рядом с ними
+    checkForFriends() {
+        if (!this.friends || this.friends.length === 0) return; // Нет друзей
+        
+        if (!window.agents || !window.agents.getAllAgents) return;
+        const allAgents = window.agents.getAllAgents(); // Все агенты в мире
+        
+        // Ищем друзей
+        let nearestFriend = null; // Ближайший друг (объект Agent или null)
+        let minDistance = Infinity; // Минимальное расстояние до друга (пиксели)
+        const FRIEND_STAY_RADIUS = 100; // Радиус, в котором нужно находиться рядом с другом (пиксели)
+        
+        for (const friendId of this.friends) {
+            const friend = allAgents.find(a => a.id === friendId); // Найденный друг
+            if (!friend || friend.health <= 0 || friend.state === 'dead') continue; // Друг не найден или мертв
+            
+            const dx = friend.position.x - this.position.x; // Разница по оси X до друга (пиксели)
+            const dy = friend.position.y - this.position.y; // Разница по оси Y до друга (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до друга (пиксели)
+            
+            if (distance < minDistance) {
+                minDistance = distance; // Обновляем минимальное расстояние
+                nearestFriend = friend; // Сохраняем ближайшего друга
+            }
+        }
+        
+        // Если друг далеко - идем к нему (но только если нет более важных задач)
+        if (nearestFriend && minDistance > FRIEND_STAY_RADIUS && 
+            this.state !== 'heal' && this.state !== 'defend' && this.state !== 'findFood' && this.hunger < 70) {
+            // Друг далеко и нет критических задач - идем к другу
+            this.targetFriend = nearestFriend; // Сохраняем целевого друга
+            this.state = 'stayWithFriend'; // Переходим в состояние "быть с другом"
+        } else if (nearestFriend && minDistance <= FRIEND_STAY_RADIUS) {
+            // Друг рядом - можем взаимодействовать
+            this.targetFriend = nearestFriend; // Сохраняем целевого друга
+        }
+    }
+    
+    // Проверка агентов, которым нужна помощь (плохое настроение, низкая мотивация)
+    checkForAgentsNeedingHelp() {
+        if (!window.agents || !window.agents.getAllAgents) return;
+        const allAgents = window.agents.getAllAgents(); // Все агенты в мире
+        
+        // Ищем агентов с плохим настроением или низкой удовлетворенностью
+        let agentNeedingHelp = null; // Агент, которому нужна помощь (объект Agent или null)
+        let minDistance = Infinity; // Минимальное расстояние до агента (пиксели)
+        const HELP_RADIUS = 80; // Радиус обнаружения агентов, которым нужна помощь (пиксели)
+        
+        for (const agent of allAgents) {
+            if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') continue; // Пропускаем себя и мертвых
+            
+            // Проверяем, нужна ли агенту помощь (плохое настроение или низкая удовлетворенность)
+            const needsHelp = (agent.mood === 'sad' || (agent.satisfaction || 50) < 30) && 
+                             (agent.satisfaction || 50) < (this.satisfaction || 50); // Флаг необходимости помощи (true/false)
+            
+            if (needsHelp) {
+                const dx = agent.position.x - this.position.x; // Разница по оси X до агента (пиксели)
+                const dy = agent.position.y - this.position.y; // Разница по оси Y до агента (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до агента (пиксели)
+                
+                if (distance < HELP_RADIUS && distance < minDistance) {
+                    minDistance = distance; // Обновляем минимальное расстояние
+                    agentNeedingHelp = agent; // Сохраняем агента, которому нужна помощь
+                }
+            }
+        }
+        
+        // Если нашли агента, которому нужна помощь, и есть навык утешения - утешаем
+        if (agentNeedingHelp && this.experience.consoling >= 5 && 
+            this.state !== 'heal' && this.state !== 'defend' && this.hunger < 80) {
+            this.consolingTarget = agentNeedingHelp; // Сохраняем целевого агента для утешения
+            this.state = 'console'; // Переходим в состояние утешения
+        }
+        
+        // Если есть навык развлечения и есть агенты поблизости - развлекаем их
+        if (this.state === 'explore' && minDistance < HELP_RADIUS && 
+            (this.experience.singing >= 3 || this.experience.storytelling >= 3 || this.experience.comedy >= 3)) {
+            // Выбираем случайный навык развлечения
+            const entertainmentSkills = [];
+            if (this.experience.singing >= 3) entertainmentSkills.push('sing');
+            if (this.experience.storytelling >= 3) entertainmentSkills.push('tellStory');
+            if (this.experience.comedy >= 3) entertainmentSkills.push('makeLaugh');
+            
+            if (entertainmentSkills.length > 0 && Math.random() < 0.1) { // 10% шанс начать развлекать
+                const randomSkill = entertainmentSkills[Math.floor(Math.random() * entertainmentSkills.length)]; // Случайный навык развлечения
+                this.state = randomSkill; // Переходим в состояние развлечения
+            }
+        }
+    }
 
     act() {
         // Выполнение действий в зависимости от состояния
