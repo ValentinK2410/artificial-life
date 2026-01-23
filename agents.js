@@ -897,6 +897,10 @@ class Agent {
                 // Ищем еду поблизости
                 this.findAndMoveToFood();
                 break;
+            case 'findClothes':
+                // Ищем одежду поблизости
+                this.findAndMoveToClothes();
+                break;
             case 'findHeat':
                 // Ищем ближайший костер
                 const nearestFire = this.findNearestFire(); // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
@@ -1564,28 +1568,59 @@ class Agent {
             const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до ресурса (пиксели)
             
             if (distance <= scanRadius) {
-                // Проверяем, нет ли уже этого ресурса в памяти
-                const existingMemory = this.memory.find(m => 
-                    Math.abs(m.x - resource.x) < 10 && // Проверка близости по X (в пределах 10 пикселей)
-                    Math.abs(m.y - resource.y) < 10 && // Проверка близости по Y (в пределах 10 пикселей)
-                    m.type === resource.type // Проверка совпадения типа ресурса
-                ); // Существующая запись в памяти о ресурсе (объект {type, x, y} или undefined)
+                // Проверяем, нужен ли этот ресурс агенту
+                const needsResource = this.needsResource(resource.type); // Флаг необходимости ресурса (true/false)
                 
-                if (!existingMemory) {
-                    // Добавляем в память
-                    this.memory.push({
-                        type: resource.type, // Тип ресурса
-                        x: resource.x,       // Координата X ресурса
-                        y: resource.y        // Координата Y ресурса
-                    });
+                if (needsResource) {
+                    // Проверяем, нет ли уже этого ресурса в памяти
+                    const existingMemory = this.memory.find(m => 
+                        Math.abs(m.x - resource.x) < 10 && // Проверка близости по X (в пределах 10 пикселей)
+                        Math.abs(m.y - resource.y) < 10 && // Проверка близости по Y (в пределах 10 пикселей)
+                        m.type === resource.type // Проверка совпадения типа ресурса
+                    ); // Существующая запись в памяти о ресурсе (объект {type, x, y} или undefined)
                     
-                    // Логирование обнаружения ресурса
-                    if (window.addLogEntry && resource.type === 'berries') {
-                        window.addLogEntry(`${this.name} заметил ягоды поблизости`);
+                    if (!existingMemory) {
+                        // Добавляем в память
+                        this.memory.push({
+                            type: resource.type, // Тип ресурса
+                            x: resource.x,       // Координата X ресурса
+                            y: resource.y        // Координата Y ресурса
+                        });
+                        
+                        // Логирование обнаружения ресурса
+                        if (window.addLogEntry && resource.type === 'berries') {
+                            window.addLogEntry(`${this.name} заметил ягоды поблизости`);
+                        }
                     }
                 }
             }
         });
+    }
+    
+    needsResource(resourceType) {
+        // Проверяем, нужен ли агенту этот ресурс
+        const CLOTHES_TYPES = ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman']; // Типы одежды
+        const TOOLS_TYPES = ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod']; // Типы инструментов
+        
+        // Одежда - нужна только если её нет
+        if (CLOTHES_TYPES.includes(resourceType)) {
+            return !this.hasEnoughClothes(); // Нужна одежда только если её нет
+        }
+        
+        // Инструменты - нужны только если их нет
+        if (TOOLS_TYPES.includes(resourceType)) {
+            return !this.inventory.some(item => item.type === resourceType); // Нужен инструмент только если его нет
+        }
+        
+        // Еда - всегда нужна (можно запасать)
+        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+        const FOOD_TYPES = ['berries', 'berry', 'cooked_food', 'meat', 'bird', 'fish', 'honey', 'milk', 'bread', 'kebab', 'potato', 'salad', 'mushrooms', 'banana', 'orange', 'apple']; // Типы еды
+        if (FOOD_TYPES.includes(resourceType) || FOOD_PROPERTIES[resourceType] !== undefined) {
+            return true; // Еда всегда нужна
+        }
+        
+        // Остальные ресурсы - всегда нужны
+        return true; // По умолчанию ресурс нужен
     }
     
     findAndMoveToFood() {
@@ -1871,10 +1906,18 @@ class Agent {
                 }
                 // Одежда
                 else if (['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(resourceType)) {
-                    this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем одежду в инвентарь
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`${this.name} подобрал одежду`);
+                    // Проверяем, нужна ли одежда (не собираем если уже достаточно)
+                    if (!this.hasEnoughClothes()) {
+                        this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем одежду в инвентарь
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`${this.name} подобрал одежду`);
+                        }
+                        // Если были в состоянии поиска одежды - возвращаемся к обычному поведению
+                        if (this.state === 'findClothes') {
+                            this.state = 'explore';
+                        }
                     }
+                    // Если одежды достаточно - не подбираем (оставляем для других)
                 }
                 // Еда
                 else if (['cooked_food', 'meat', 'bird', 'fish'].includes(resourceType)) {
