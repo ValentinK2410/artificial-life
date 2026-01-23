@@ -255,7 +255,9 @@ class Simulation {
             'singing': 'Пение',
             'storytelling': 'Рассказывание стихов',
             'comedy': 'Смешить',
-            'consoling': 'Утешение'
+            'consoling': 'Утешение',
+            'gun_shooting': 'Стрельба из ружья',
+            'bow_shooting': 'Стрельба из лука'
         };
         
         // Иконки навыков
@@ -279,7 +281,9 @@ class Simulation {
             'singing': '🎵',
             'storytelling': '📖',
             'comedy': '😄',
-            'consoling': '🤗'
+            'consoling': '🤗',
+            'gun_shooting': '🔫',
+            'bow_shooting': '🏹'
         };
         
         // Генерируем HTML для навыков
@@ -1408,7 +1412,9 @@ class Simulation {
                 'singing': 'пение',
                 'storytelling': 'рассказывание стихов',
                 'comedy': 'смешить',
-                'consoling': 'утешение'
+                'consoling': 'утешение',
+                'gun_shooting': 'стрельба из ружья',
+                'bow_shooting': 'стрельба из лука'
             };
             const currentExp = this.selectedAgent.experience[skill] || 0;
             window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[skill] || skill}" (+${experienceGain} опыта, всего: ${Math.floor(currentExp)})`);
