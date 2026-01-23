@@ -422,6 +422,11 @@ class Agent {
                 if (distance < 150 && distance < minDistance) {
                     minDistance = distance; // Обновляем минимальное расстояние
                     this.sickAgent = agent; // Сохраняем больного агента
+                    
+                    // Логирование для отладки (только иногда, чтобы не спамить)
+                    if (window.addLogEntry && Math.random() < 0.05 && this.experience.healing >= 5 && this.hasMedicalSupplies()) {
+                        window.addLogEntry(`🔍 ${this.name} обнаружил больного агента ${agent.name} (здоровье: ${Math.floor(agent.health)}%, расстояние: ${Math.floor(distance)}px)`);
+                    }
                 }
             }
         });
