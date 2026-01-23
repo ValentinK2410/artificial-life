@@ -1323,6 +1323,41 @@ class World {
                 this.ctx.fill();
                 break;
         }
+        
+        // Отрисовка здоровья, если хищник находится под атакой
+        if (window.agents && window.agents.agents) {
+            const attackingAgent = window.agents.agents.find(agent => 
+                agent.attackTarget && 
+                agent.attackTarget.type === 'predator' && 
+                agent.attackTarget.obj === predator
+            );
+            
+            if (attackingAgent) {
+                const health = predator.health || 100;
+                const maxHealth = 100;
+                const healthPercent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
+                
+                // Фон полоски здоровья
+                const barWidth = 40;
+                const barHeight = 6;
+                const barX = x - barWidth / 2;
+                const barY = y - size - 15;
+                
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+                
+                // Полоска здоровья
+                const healthWidth = (barWidth * healthPercent) / 100;
+                this.ctx.fillStyle = healthPercent > 50 ? '#4CAF50' : healthPercent > 25 ? '#FF9800' : '#F44336';
+                this.ctx.fillRect(barX, barY, healthWidth, barHeight);
+                
+                // Текст здоровья
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.font = '10px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(Math.ceil(health) + '/' + maxHealth, x, barY - 3);
+            }
+        }
     }
 
     drawAnimal(animal) {
@@ -1430,6 +1465,41 @@ class World {
                 this.ctx.closePath();
                 this.ctx.fill();
                 break;
+        }
+        
+        // Отрисовка здоровья, если животное находится под атакой
+        if (window.agents && window.agents.agents) {
+            const attackingAgent = window.agents.agents.find(agent => 
+                agent.attackTarget && 
+                agent.attackTarget.type === 'animal' && 
+                agent.attackTarget.obj === animal
+            );
+            
+            if (attackingAgent) {
+                const health = animal.health || 100;
+                const maxHealth = 100;
+                const healthPercent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
+                
+                // Фон полоски здоровья
+                const barWidth = 40;
+                const barHeight = 6;
+                const barX = x - barWidth / 2;
+                const barY = y - size - 15;
+                
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+                
+                // Полоска здоровья
+                const healthWidth = (barWidth * healthPercent) / 100;
+                this.ctx.fillStyle = healthPercent > 50 ? '#4CAF50' : healthPercent > 25 ? '#FF9800' : '#F44336';
+                this.ctx.fillRect(barX, barY, healthWidth, barHeight);
+                
+                // Текст здоровья
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.font = '10px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(Math.ceil(health) + '/' + maxHealth, x, barY - 3);
+            }
         }
     }
 

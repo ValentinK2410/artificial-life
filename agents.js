@@ -99,6 +99,7 @@ class Agent {
         this.consolingTarget = null; // Целевой агент для утешения (объект Agent или null)
         this.consolingProgress = 0; // Прогресс утешения (0-100)
         this.lastAutoHealTime = 0; // Время последней попытки автоматического лечения (счетчик кадров)
+        this.attackTarget = null; // Цель атаки (хищник или животное, объект или null)
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -2088,36 +2089,82 @@ class Agent {
         });
         
         if (target) {
+            // Сохраняем ссылку на цель атаки для отображения здоровья
+            this.attackTarget = { type: 'animal', obj: target };
+            
+            // Инициализируем здоровье животного, если его нет
+            if (target.health === undefined) {
+                target.health = 100;
+            }
+            
             if (minDistance > 10) {
                 // Идем к цели
                 this.moveTo(target.x, target.y);
             } else {
-                // Охотимся
-                const success = Math.random() < 0.3 + this.experience.hunting / 100; // Шанс успешной охоты (0-1, зависит от опыта)
-                if (success) {
-                    // Успешная охота
-                    this.inventory.push({ type: 'meat', amount: 1 }); // Добавляем мясо в инвентарь
-                    this.gainExperience('hunting', 3); // Получаем опыт охоты
-                    this.increaseSatisfaction('hunt', 5); // Увеличиваем удовлетворенность от успешной охоты
+                // Охотимся - наносим урон постепенно
+                if (!this.attackProgress) {
+                    this.attackProgress = 0;
+                }
+                
+                this.attackProgress++;
+                
+                // Поворачиваемся к животному
+                const dx = target.x - this.position.x;
+                const dy = target.y - this.position.y;
+                this.angle = Math.atan2(dy, dx);
+                
+                // Анимация атаки (20 кадров)
+                if (this.attackProgress >= 20) {
+                    const huntingSkill = this.experience.hunting || 0;
+                    const damage = 10 + huntingSkill * 0.3; // Урон зависит от навыка охоты
+                    target.health = Math.max(0, (target.health || 100) - damage);
                     
-                    // Удаляем животное
-                    const index = window.world.animals.indexOf(target); // Индекс животного в массиве животных мира
-                    if (index > -1) window.world.animals.splice(index, 1); // Удаляем животное из мира
-                    
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`🎯 ${this.name} успешно охотится!`);
-                    }
-                } else {
-                    if (window.addLogEntry && Math.random() < 0.2) {
-                        window.addLogEntry(`🎯 ${this.name} промахнулся на охоте`);
+                    if (target.health <= 0) {
+                        // Успешная охота - животное убито
+                        this.inventory.push({ type: 'meat', amount: 1 + Math.floor(huntingSkill / 20) }); // Добавляем мясо в инвентарь
+                        this.gainExperience('hunting', 3); // Получаем опыт охоты
+                        this.increaseSatisfaction('hunt', 5); // Увеличиваем удовлетворенность от успешной охоты
+                        
+                        // Удаляем животное
+                        const index = window.world.animals.indexOf(target); // Индекс животного в массиве животных мира
+                        if (index > -1) window.world.animals.splice(index, 1); // Удаляем животное из мира
+                        
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`🎯 ${this.name} успешно охотится!`);
+                        }
+                        
+                        this.attackTarget = null; // Очищаем цель атаки
+                        this.attackProgress = 0;
+                        this.state = 'explore';
+                    } else {
+                        // Животное еще живо - продолжаем атаку
+                        this.gainExperience('hunting', 0.5);
+                        if (window.addLogEntry && Math.random() < 0.1) {
+                            window.addLogEntry(`⚔️ ${this.name} атакует ${this.getAnimalName(target.type)}!`);
+                        }
+                        this.attackProgress = 0; // Сбрасываем для следующей атаки
                     }
                 }
-                this.state = 'explore';
             }
         } else {
             // Нет целей - ищем
+            this.attackTarget = null; // Очищаем цель атаки
             this.moveToRandomPoint();
         }
+    }
+    
+    getAnimalName(type) {
+        const names = {
+            'cow': 'корову',
+            'bull': 'быка',
+            'pig': 'свинью',
+            'chicken': 'курицу',
+            'sheep': 'овцу',
+            'goat': 'козу',
+            'horse': 'лошадь',
+            'rabbit': 'кролика'
+        };
+        return names[type] || 'животное';
     }
     
     build() {
@@ -2286,6 +2333,9 @@ class Agent {
         
         // Если есть навык охоты (>= 10) и НЕТ паники - атакуем или приближаемся к хищнику
         if (hasHuntingSkill && !isPanicking && distance < 100) {
+            // Сохраняем ссылку на цель атаки для отображения здоровья
+            this.attackTarget = { type: 'predator', obj: predator };
+            
             // Если близко (в радиусе атаки) - атакуем
             if (distance < 60) {
                 // Атакуем хищника
@@ -2344,6 +2394,7 @@ class Agent {
                         
                         this.nearbyPredator = null;
                         this.attackProgress = 0;
+                        this.attackTarget = null; // Очищаем цель атаки
                         this.isRunning = false; // Выключаем анимацию бега
                         this.state = 'explore';
                     } else {
@@ -2381,6 +2432,7 @@ class Agent {
             }
         } else {
             // Нет навыка охоты, паника или хищник слишком далеко - убегаем
+            this.attackTarget = null; // Очищаем цель атаки при убегании
             const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
             const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
             const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
