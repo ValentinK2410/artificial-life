@@ -232,7 +232,12 @@ class Simulation {
             'bring_wood': 'Принесение дров',
             'gather_wood': 'Сбор дров',
             'gather_fish': 'Сбор рыбы',
-            'gather_all': 'Сбор ресурсов'
+            'gather_all': 'Сбор ресурсов',
+            'healing': 'Лечение',
+            'singing': 'Пение',
+            'storytelling': 'Рассказывание стихов',
+            'comedy': 'Смешить',
+            'consoling': 'Утешение'
         };
         
         // Иконки навыков
@@ -246,7 +251,17 @@ class Simulation {
             'cooking': '🍳',
             'building': '🏗️',
             'farming': '🌾',
-            'hunting': '🎯'
+            'hunting': '🎯',
+            'fire_building': '🔥',
+            'gather_wood': '🪵',
+            'bring_wood': '🪵',
+            'gather_fish': '🐟',
+            'gather_all': '📦',
+            'healing': '💊',
+            'singing': '🎵',
+            'storytelling': '📖',
+            'comedy': '😄',
+            'consoling': '🤗'
         };
         
         // Генерируем HTML для навыков
@@ -699,7 +714,12 @@ class Simulation {
             'bring_wood': { name: 'Принесение дров', icon: '🪵', threshold: 5 },
             'gather_wood': { name: 'Сбор дров', icon: '🪵', threshold: 5 },
             'gather_fish': { name: 'Сбор рыбы', icon: '🐟', threshold: 5 },
-            'gather_all': { name: 'Сбор ресурсов', icon: '📦', threshold: 5 }
+            'gather_all': { name: 'Сбор ресурсов', icon: '📦', threshold: 5 },
+            'healing': { name: 'Лечение', icon: '💊', threshold: 5 },
+            'singing': { name: 'Пение', icon: '🎵', threshold: 3 },
+            'storytelling': { name: 'Рассказывание стихов', icon: '📖', threshold: 3 },
+            'comedy': { name: 'Смешить', icon: '😄', threshold: 3 },
+            'consoling': { name: 'Утешение', icon: '🤗', threshold: 5 }
         };
         
         Object.entries(agent.experience || {}).forEach(([skill, xp]) => {
@@ -1151,7 +1171,12 @@ class Simulation {
             'building': 'Строительство',
             'fire_building': 'Разжигание костра',
             'gather_wood': 'Рубка дров',
-            'farming': 'Фермерство'
+            'farming': 'Фермерство',
+            'healing': 'Лечение',
+            'singing': 'Пение',
+            'storytelling': 'Рассказывание стихов',
+            'comedy': 'Смешить',
+            'consoling': 'Утешение'
         };
         
         // Ищем требования для действий, использующих этот навык
@@ -1218,7 +1243,12 @@ class Simulation {
                 'gather_wood': 'рубка дров',
                 'bring_wood': 'принесение дров',
                 'gather_fish': 'сбор рыбы',
-                'gather_all': 'сбор ресурсов'
+                'gather_all': 'сбор ресурсов',
+                'healing': 'лечение',
+                'singing': 'пение',
+                'storytelling': 'рассказывание стихов',
+                'comedy': 'смешить',
+                'consoling': 'утешение'
             };
             const currentExp = this.selectedAgent.experience[skill] || 0;
             window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[skill] || skill}" (+${experienceGain} опыта, всего: ${Math.floor(currentExp)})`);
@@ -1304,7 +1334,8 @@ class Simulation {
         const skillIcons = {
             'saw': '🪚', 'axe': '🪓', 'hammer': '🔨', 'pickaxe': '⛏️', 'shovel': '🪣',
             'fishing': '🎣', 'cooking': '🍳', 'building': '🏗️', 'farming': '🌾', 'hunting': '🎯',
-            'fire_building': '🔥', 'gather_wood': '🪵', 'bring_wood': '🪵', 'gather_fish': '🐟', 'gather_all': '📦'
+            'fire_building': '🔥', 'gather_wood': '🪵', 'bring_wood': '🪵', 'gather_fish': '🐟', 'gather_all': '📦',
+            'healing': '💊', 'singing': '🎵', 'storytelling': '📖', 'comedy': '😄', 'consoling': '🤗'
         };
         
         const skillNames = {
@@ -1322,7 +1353,12 @@ class Simulation {
             'gather_wood': 'Рубка дров',
             'bring_wood': 'Принесение дров',
             'gather_fish': 'Сбор рыбы',
-            'gather_all': 'Сбор ресурсов'
+            'gather_all': 'Сбор ресурсов',
+            'healing': 'Лечение',
+            'singing': 'Пение',
+            'storytelling': 'Рассказывание стихов',
+            'comedy': 'Смешить',
+            'consoling': 'Утешение'
         };
         
         skills.forEach(skill => {
