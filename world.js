@@ -1172,8 +1172,11 @@ class World {
             
             // Отрисовка активных путей агентов
             allAgents.forEach(agent => {
-                if (agent.pathType && agent.pathData) {
+                if (agent.pathType === 'polyline' && agent.pathPoints && agent.pathPoints.length > 0) {
                     this.drawAgentPath(agent);
+                } else if (agent.pathType === 'direct' && agent.targetPosition) {
+                    // Для прямого пути рисуем линию к цели
+                    this.drawDirectPath(agent);
                 }
             });
             
@@ -1659,6 +1662,101 @@ class World {
         }
     }
 
+    // Отрисовка предпросмотра пути
+    drawPathPreview() {
+        if (!this.ctx || !window.simulation) return;
+        
+        const sim = window.simulation;
+        const ctx = this.ctx;
+        
+        ctx.save();
+        ctx.strokeStyle = '#4a9eff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.globalAlpha = 0.7;
+        
+        if (sim.pathMode === 'polyline' && sim.pathPoints.length > 0) {
+            // Предпросмотр полилинии
+            ctx.beginPath();
+            ctx.moveTo(sim.pathPoints[0].x, sim.pathPoints[0].y);
+            for (let i = 1; i < sim.pathPoints.length; i++) {
+                ctx.lineTo(sim.pathPoints[i].x, sim.pathPoints[i].y);
+            }
+            
+            // Если есть мышь, добавляем линию к текущей позиции мыши
+            const mousePos = sim.mouseWorldPosition;
+            if (mousePos) {
+                ctx.lineTo(mousePos.x, mousePos.y);
+            }
+            
+            ctx.stroke();
+            
+            // Рисуем точки
+            ctx.fillStyle = '#4a9eff';
+            sim.pathPoints.forEach((point, i) => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        ctx.restore();
+    }
+    
+    // Отрисовка активного пути агента (полилиния)
+    drawAgentPath(agent) {
+        if (!this.ctx || !agent.pathType || agent.pathType !== 'polyline' || !agent.pathPoints || agent.pathPoints.length < 2) return;
+        
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.strokeStyle = '#4caf50';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.globalAlpha = 0.5;
+        
+        ctx.beginPath();
+        ctx.moveTo(agent.pathPoints[0].x, agent.pathPoints[0].y);
+        for (let i = 1; i < agent.pathPoints.length; i++) {
+            ctx.lineTo(agent.pathPoints[i].x, agent.pathPoints[i].y);
+        }
+        ctx.stroke();
+        
+        // Рисуем точки
+        ctx.fillStyle = '#4caf50';
+        agent.pathPoints.forEach(point => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        ctx.restore();
+    }
+    
+    // Отрисовка прямого пути агента
+    drawDirectPath(agent) {
+        if (!this.ctx || !agent.pathType || agent.pathType !== 'direct' || !agent.targetPosition || !agent.position) return;
+        
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.strokeStyle = '#4caf50';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.globalAlpha = 0.5;
+        
+        ctx.beginPath();
+        ctx.moveTo(agent.position.x, agent.position.y);
+        ctx.lineTo(agent.targetPosition.x, agent.targetPosition.y);
+        ctx.stroke();
+        
+        // Рисуем точку цели
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath();
+        ctx.arc(agent.targetPosition.x, agent.targetPosition.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+    
     drawFire(fire) {
         if (!this.ctx) return;
         

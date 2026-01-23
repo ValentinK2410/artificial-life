@@ -419,14 +419,8 @@ class Simulation {
                             <button class="command-btn" onclick="window.simulation.setPathMode('direct')" style="background-color: #3498db; margin-bottom: 5px;">
                                 📍 Прямой путь
                             </button>
-                            <button class="command-btn" onclick="window.simulation.setPathMode('circle')" style="background-color: #e67e22; margin-bottom: 5px;">
-                                ⭕ Путь по кругу
-                            </button>
-                            <button class="command-btn" onclick="window.simulation.setPathMode('rectangle')" style="background-color: #9b59b6; margin-bottom: 5px;">
-                                ▭ Путь по прямоугольнику
-                            </button>
                             <button class="command-btn" onclick="window.simulation.setPathMode('polyline')" style="background-color: #1abc9c; margin-bottom: 5px;">
-                                ✏️ Нарисовать путь
+                                ✏️ Нарисовать путь (ломаная линия)
                             </button>
                             <button class="command-btn" onclick="window.simulation.clearPath()" style="background-color: #e74c3c; margin-top: 5px;">
                                 ❌ Остановить путь
@@ -1515,48 +1509,6 @@ class Simulation {
                 this.pathMode = null;
                 if (window.addLogEntry) {
                     window.addLogEntry(`📍 ${this.selectedAgent.name} движется по прямому пути к (${Math.floor(x)}, ${Math.floor(y)})`);
-                }
-                break;
-                
-            case 'circle':
-                if (!this.pathStartPoint) {
-                    // Первый клик - центр круга
-                    this.pathStartPoint = { x, y };
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`⭕ Центр круга установлен. Кликните еще раз для задания радиуса.`);
-                    }
-                } else {
-                    // Второй клик - радиус круга
-                    const dx = x - this.pathStartPoint.x;
-                    const dy = y - this.pathStartPoint.y;
-                    const radius = Math.sqrt(dx * dx + dy * dy);
-                    const centerX = this.pathStartPoint.x;
-                    const centerY = this.pathStartPoint.y;
-                    
-                    this.selectedAgent.setCirclePath(centerX, centerY, radius);
-                    this.pathMode = null;
-                    this.pathStartPoint = null;
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`⭕ ${this.selectedAgent.name} движется по кругу (центр: ${Math.floor(centerX)}, ${Math.floor(centerY)}, радиус: ${Math.floor(radius)})`);
-                    }
-                }
-                break;
-                
-            case 'rectangle':
-                if (!this.pathStartPoint) {
-                    // Первый клик - первый угол прямоугольника
-                    this.pathStartPoint = { x, y };
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`▭ Первый угол установлен. Кликните еще раз для задания второго угла.`);
-                    }
-                } else {
-                    // Второй клик - второй угол прямоугольника
-                    this.selectedAgent.setRectanglePath(this.pathStartPoint.x, this.pathStartPoint.y, x, y);
-                    this.pathMode = null;
-                    this.pathStartPoint = null;
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`▭ ${this.selectedAgent.name} движется по прямоугольнику`);
-                    }
                 }
                 break;
                 

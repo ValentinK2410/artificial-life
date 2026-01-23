@@ -27,7 +27,7 @@ class Agent {
         this.position = { x: 0, y: 0 }; // Текущая позиция агента на карте (координаты x, y)
         this.targetPosition = null; // Целевая позиция для ручного управления игроком (null или {x, y})
         this.isPlayerControlled = false; // Флаг управления игроком (true = игрок управляет, false = ИИ управляет)
-        this.pathType = null; // Тип пути: 'direct', 'circle', 'rectangle', 'polyline' (null или строка)
+        this.pathType = null; // Тип пути: 'direct', 'polyline' (null или строка)
         this.pathData = null; // Данные пути в зависимости от типа (объект с параметрами пути)
         this.pathPoints = []; // Массив точек для полилинии (массив объектов {x, y})
         this.currentPathIndex = 0; // Текущий индекс точки в пути (для полилинии)
@@ -1172,22 +1172,22 @@ class Agent {
         switch(this.state) {
             case 'moveToPoint':
                 // Движение по пути, указанному игроком - ПРИОРИТЕТ
-                if (this.pathType) {
-                    // Движение по специальному пути (круг, прямоугольник, полилиния)
-                    if (this.pathType === 'polyline' && this.pathPoints && this.pathPoints.length > 0) {
-                        // Для полилинии проверяем pathPoints
-                        this.moveAlongPath();
-                    } else if (this.pathType !== 'polyline' && this.pathData) {
-                        // Для круга и прямоугольника проверяем pathData
-                        this.moveAlongPath();
+                if (this.pathType === 'polyline' && this.pathPoints && this.pathPoints.length > 0) {
+                    // Движение по полилинии
+                    this.moveAlongPolyline();
+                    return; // Выходим, не выполняя другие действия
+                } else if (this.pathType === 'direct' && this.targetPosition) {
+                    // Прямой путь - движение к точке
+                    if (typeof this.targetPosition.x === 'number' && typeof this.targetPosition.y === 'number' &&
+                        !isNaN(this.targetPosition.x) && !isNaN(this.targetPosition.y)) {
+                        this.moveTo(this.targetPosition.x, this.targetPosition.y);
                     } else {
-                        // Нет данных для пути - очищаем
+                        console.error('Некорректные координаты цели:', this.targetPosition);
+                        this.targetPosition = null;
                         this.pathType = null;
-                        this.pathData = null;
-                        this.pathPoints = [];
                         this.isPlayerControlled = false;
-                        this.state = 'explore';
                     }
+                    return; // Выходим, не выполняя другие действия
                 } else if (this.targetPosition) {
                     // Прямое движение к точке (старый способ)
                     if (typeof this.targetPosition.x === 'number' && typeof this.targetPosition.y === 'number' &&
@@ -1531,29 +1531,6 @@ class Agent {
         this.state = 'moveToPoint';
     }
     
-    // Установить путь по кругу
-    setCirclePath(centerX, centerY, radius) {
-        this.pathType = 'circle';
-        this.pathData = { centerX: centerX, centerY: centerY, radius: radius };
-        this.pathProgress = 0;
-        this.isPlayerControlled = true;
-        this.state = 'moveToPoint';
-    }
-    
-    // Установить путь по прямоугольнику
-    setRectanglePath(x1, y1, x2, y2) {
-        this.pathType = 'rectangle';
-        this.pathData = { 
-            x1: Math.min(x1, x2), 
-            y1: Math.min(y1, y2), 
-            x2: Math.max(x1, x2), 
-            y2: Math.max(y1, y2) 
-        };
-        this.pathProgress = 0;
-        this.isPlayerControlled = true;
-        this.state = 'moveToPoint';
-    }
-    
     // Установить путь по полилинии (нарисованному пути)
     setPolylinePath(points) {
         this.pathType = 'polyline';
@@ -1566,97 +1543,6 @@ class Agent {
         if (this.pathPoints.length > 0) {
             this.targetPosition = { x: this.pathPoints[0].x, y: this.pathPoints[0].y };
         }
-    }
-    
-    // Движение по пути
-    moveAlongPath() {
-        if (!this.pathType) return;
-        
-        switch (this.pathType) {
-            case 'circle':
-                this.moveAlongCircle();
-                break;
-            case 'rectangle':
-                this.moveAlongRectangle();
-                break;
-            case 'polyline':
-                this.moveAlongPolyline();
-                break;
-            default:
-                // Неизвестный тип пути - очищаем
-                this.pathType = null;
-                this.pathData = null;
-                this.isPlayerControlled = false;
-                this.state = 'explore';
-        }
-    }
-    
-    // Движение по кругу
-    moveAlongCircle() {
-        if (!this.pathData) return;
-        
-        const { centerX, centerY, radius } = this.pathData;
-        const speed = 0.01; // Скорость движения по кругу (радианы за кадр)
-        
-        // Увеличиваем прогресс (угол в радианах)
-        this.pathProgress += speed;
-        
-        // Рассчитываем позицию на круге
-        const x = centerX + Math.cos(this.pathProgress) * radius;
-        const y = centerY + Math.sin(this.pathProgress) * radius;
-        
-        // Двигаемся к рассчитанной позиции
-        this.moveTo(x, y);
-        
-        // Вычисляем угол поворота для визуализации
-        this.angle = this.pathProgress * 180 / Math.PI;
-    }
-    
-    // Движение по прямоугольнику
-    moveAlongRectangle() {
-        if (!this.pathData) return;
-        
-        const { x1, y1, x2, y2 } = this.pathData;
-        const width = x2 - x1;
-        const height = y2 - y1;
-        const perimeter = 2 * (width + height); // Периметр прямоугольника
-        const speed = this.speed / perimeter; // Скорость движения (доля периметра за кадр)
-        
-        // Увеличиваем прогресс
-        this.pathProgress += speed;
-        if (this.pathProgress >= 1) {
-            this.pathProgress = 0; // Зацикливаем путь
-        }
-        
-        let x, y;
-        const progress = this.pathProgress * perimeter; // Текущая позиция на периметре
-        
-        // Определяем, на какой стороне прямоугольника находимся
-        if (progress < width) {
-            // Верхняя сторона (слева направо)
-            x = x1 + progress;
-            y = y1;
-        } else if (progress < width + height) {
-            // Правая сторона (сверху вниз)
-            x = x2;
-            y = y1 + (progress - width);
-        } else if (progress < 2 * width + height) {
-            // Нижняя сторона (справа налево)
-            x = x2 - (progress - width - height);
-            y = y2;
-        } else {
-            // Левая сторона (снизу вверх)
-            x = x1;
-            y = y2 - (progress - 2 * width - height);
-        }
-        
-        // Двигаемся к рассчитанной позиции
-        this.moveTo(x, y);
-        
-        // Вычисляем угол поворота
-        const dx = x - this.position.x;
-        const dy = y - this.position.y;
-        this.angle = Math.atan2(dy, dx) * 180 / Math.PI;
     }
     
     // Движение по полилинии
