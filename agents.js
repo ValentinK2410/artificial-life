@@ -1101,20 +1101,40 @@ class Agent {
     
     checkForPredators() {
         // Проверка наличия хищников поблизости
-        this.nearbyPredator = null; // Сбрасываем ближайшего хищника
-        if (!window.world || !window.world.predators) return;
-        
-        let minDistance = Infinity; // Минимальное расстояние до хищника (пиксели, изначально бесконечность)
-        window.world.predators.forEach(predator => {
+        // Если есть активная атака на хищника, сохраняем его как nearbyPredator даже если он немного отдалился
+        let activeAttackPredator = null;
+        if (this.attackTarget && this.attackTarget.type === 'predator' && this.attackTarget.obj) {
+            const targetPredator = this.attackTarget.obj;
             const distance = Math.sqrt(
-                Math.pow(predator.x - this.position.x, 2) + 
-                Math.pow(predator.y - this.position.y, 2)
-            ); // Расстояние до текущего хищника (пиксели)
-            if (distance < minDistance && distance < 100) { // Если хищник ближе и в радиусе 100 пикселей
-                minDistance = distance; // Обновляем минимальное расстояние
-                this.nearbyPredator = { predator, distance }; // Сохраняем ближайшего хищника и расстояние до него
+                Math.pow(targetPredator.x - this.position.x, 2) + 
+                Math.pow(targetPredator.y - this.position.y, 2)
+            );
+            // Сохраняем хищника под атакой, если он в радиусе 150 пикселей (больше обычного радиуса)
+            if (distance < 150 && window.world && window.world.predators.includes(targetPredator)) {
+                activeAttackPredator = { predator: targetPredator, distance };
             }
-        });
+        }
+        
+        // Если нет активной атаки, ищем ближайшего хищника
+        if (!activeAttackPredator) {
+            this.nearbyPredator = null; // Сбрасываем ближайшего хищника
+            if (!window.world || !window.world.predators) return;
+            
+            let minDistance = Infinity; // Минимальное расстояние до хищника (пиксели, изначально бесконечность)
+            window.world.predators.forEach(predator => {
+                const distance = Math.sqrt(
+                    Math.pow(predator.x - this.position.x, 2) + 
+                    Math.pow(predator.y - this.position.y, 2)
+                ); // Расстояние до текущего хищника (пиксели)
+                if (distance < minDistance && distance < 100) { // Если хищник ближе и в радиусе 100 пикселей
+                    minDistance = distance; // Обновляем минимальное расстояние
+                    this.nearbyPredator = { predator, distance }; // Сохраняем ближайшего хищника и расстояние до него
+                }
+            });
+        } else {
+            // Обновляем расстояние до хищника под атакой
+            this.nearbyPredator = activeAttackPredator;
+        }
     }
     
     hasHungryPets() {
@@ -2323,17 +2343,26 @@ class Agent {
     
     defendAgainstPredator() {
         // Реакция на хищника: убегание или атака в зависимости от навыка охоты
-        if (!this.nearbyPredator) return;
+        if (!this.nearbyPredator) {
+            this.attackTarget = null; // Очищаем цель атаки, если хищника нет
+            return;
+        }
         
         const predator = this.nearbyPredator.predator; // Объект хищника (координаты x, y и другие свойства)
         const distance = this.nearbyPredator.distance; // Расстояние до хищника (пиксели)
         const huntingSkill = this.experience.hunting || 0; // Навык охоты агента
         const hasHuntingSkill = huntingSkill >= 10; // Есть навык охоты (уровень 1+)
+        const hasHighHuntingSkill = huntingSkill >= 50; // Высокий навык охоты (может преодолеть панику)
         const isPanicking = this.panic || (this.fear || 0) > 70; // Агент в панике
         
-        // Если есть навык охоты (>= 10) и НЕТ паники - атакуем или приближаемся к хищнику
-        if (hasHuntingSkill && !isPanicking && distance < 100) {
-            // Сохраняем ссылку на цель атаки для отображения здоровья
+        // Инициализируем здоровье хищника, если его нет
+        if (predator.health === undefined || predator.health === null) {
+            predator.health = 100;
+        }
+        
+        // Если есть навык охоты (>= 10) и (НЕТ паники ИЛИ высокий навык >= 50) - атакуем или приближаемся к хищнику
+        if (hasHuntingSkill && (!isPanicking || hasHighHuntingSkill) && distance < 100) {
+            // Сохраняем ссылку на цель атаки для отображения здоровья (всегда во время атаки)
             this.attackTarget = { type: 'predator', obj: predator };
             
             // Если близко (в радиусе атаки) - атакуем
@@ -2431,8 +2460,12 @@ class Agent {
                 }
             }
         } else {
-            // Нет навыка охоты, паника или хищник слишком далеко - убегаем
-            this.attackTarget = null; // Очищаем цель атаки при убегании
+            // Нет навыка охоты, паника (и низкий навык) или хищник слишком далеко - убегаем
+            // Очищаем цель атаки только если действительно убегаем (не атакуем)
+            if (!hasHuntingSkill || (isPanicking && !hasHighHuntingSkill) || distance >= 100) {
+                this.attackTarget = null; // Очищаем цель атаки при убегании
+            }
+            
             const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
             const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
             const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
@@ -2461,7 +2494,7 @@ class Agent {
                 }
                 
                 if (window.addLogEntry && Math.random() < 0.05) {
-                    if (isPanicking && hasHuntingSkill) {
+                    if (isPanicking && hasHuntingSkill && !hasHighHuntingSkill) {
                         window.addLogEntry(`😱 ${this.name} в панике и убегает от хищника!`);
                     } else {
                         window.addLogEntry(`🏃 ${this.name} убегает от хищника!`);

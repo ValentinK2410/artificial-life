@@ -1326,14 +1326,17 @@ class World {
         
         // Отрисовка здоровья, если хищник находится под атакой
         if (window.agents && window.agents.agents) {
-            const attackingAgent = window.agents.agents.find(agent => 
-                agent.attackTarget && 
-                agent.attackTarget.type === 'predator' && 
-                agent.attackTarget.obj === predator
-            );
+            // Ищем агента, который атакует этого хищника (сравниваем по ID или по ссылке на объект)
+            const attackingAgent = window.agents.agents.find(agent => {
+                if (!agent.attackTarget || agent.attackTarget.type !== 'predator') return false;
+                const targetPredator = agent.attackTarget.obj;
+                // Сравниваем по ID (если есть) или по ссылке на объект
+                return (predator.id && targetPredator.id && predator.id === targetPredator.id) || 
+                       targetPredator === predator;
+            });
             
             if (attackingAgent) {
-                const health = predator.health || 100;
+                const health = Math.max(0, predator.health || 100);
                 const maxHealth = 100;
                 const healthPercent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
                 
@@ -1469,14 +1472,17 @@ class World {
         
         // Отрисовка здоровья, если животное находится под атакой
         if (window.agents && window.agents.agents) {
-            const attackingAgent = window.agents.agents.find(agent => 
-                agent.attackTarget && 
-                agent.attackTarget.type === 'animal' && 
-                agent.attackTarget.obj === animal
-            );
+            // Ищем агента, который атакует это животное (сравниваем по ID или по ссылке на объект)
+            const attackingAgent = window.agents.agents.find(agent => {
+                if (!agent.attackTarget || agent.attackTarget.type !== 'animal') return false;
+                const targetAnimal = agent.attackTarget.obj;
+                // Сравниваем по ID (если есть) или по ссылке на объект
+                return (animal.id && targetAnimal.id && animal.id === targetAnimal.id) || 
+                       targetAnimal === animal;
+            });
             
             if (attackingAgent) {
-                const health = animal.health || 100;
+                const health = Math.max(0, animal.health || 100);
                 const maxHealth = 100;
                 const healthPercent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
                 
