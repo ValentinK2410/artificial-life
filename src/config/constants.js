@@ -201,7 +201,12 @@ export const SKILLS = {
     BRING_WOOD: 'bring_wood', // Приносить дрова к костру
     GATHER_WOOD: 'gather_wood', // Собирать дрова самостоятельно
     GATHER_FISH: 'gather_fish', // Собирать рыбу
-    GATHER_ALL: 'gather_all' // Собирать все объекты
+    GATHER_ALL: 'gather_all', // Собирать все объекты
+    HEALING: 'healing', // Лечение других агентов
+    SINGING: 'singing', // Пение песен
+    STORYTELLING: 'storytelling', // Рассказывание стихов
+    COMEDY: 'comedy', // Смешить других
+    CONSOLING: 'consoling' // Утешение других
 };
 
 // Требования к навыкам (минимальный опыт для выполнения действий)
@@ -213,5 +218,10 @@ export const SKILL_REQUIREMENTS = {
     build: { skill: 'building', minExp: 10 }, // Строительство требует минимум 10 опыта building
     buildFire: { skill: 'fire_building', minExp: 5 }, // Разжигание костра требует минимум 5 опыта fire_building
     chop_wood: { skill: 'gather_wood', minExp: 5 }, // Рубка дров требует минимум 5 опыта gather_wood
-    farm: { skill: 'farming', minExp: 5 } // Фермерство требует минимум 5 опыта farming
+    farm: { skill: 'farming', minExp: 5 }, // Фермерство требует минимум 5 опыта farming
+    heal: { skill: 'healing', minExp: 5 }, // Лечение требует минимум 5 опыта healing
+    sing: { skill: 'singing', minExp: 3 }, // Пение требует минимум 3 опыта singing
+    tellStory: { skill: 'storytelling', minExp: 3 }, // Рассказывание стихов требует минимум 3 опыта storytelling
+    makeLaugh: { skill: 'comedy', minExp: 3 }, // Смешить требует минимум 3 опыта comedy
+    console: { skill: 'consoling', minExp: 5 } // Утешение требует минимум 5 опыта consoling
 };

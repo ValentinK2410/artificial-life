@@ -54,7 +54,12 @@ class Agent {
             bring_wood: 0,    // Опыт принесения дров к костру (0-100)
             gather_wood: 0,   // Опыт сбора дров (0-100)
             gather_fish: 0,   // Опыт сбора рыбы (0-100)
-            gather_all: 0     // Опыт сбора всех объектов (0-100)
+            gather_all: 0,    // Опыт сбора всех объектов (0-100)
+            healing: 0,       // Опыт лечения других агентов (0-100)
+            singing: 0,       // Опыт пения песен (0-100)
+            storytelling: 0,  // Опыт рассказывания стихов (0-100)
+            comedy: 0,        // Опыт смешить других (0-100)
+            consoling: 0      // Опыт утешения других (0-100)
         };
         
         // Эмоциональное состояние
@@ -62,7 +67,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -76,6 +81,11 @@ class Agent {
         this.targetTree = null; // Целевое дерево для рубки (объект {x, y, id, state} или null)
         this.chopProgress = 0; // Прогресс рубки дерева (0-100)
         this.angle = 0; // Угол поворота агента (градусы, 0-360, для визуализации направления движения)
+        this.friends = []; // Массив ID друзей агента (массив строк, например ['agent_123', 'agent_456'])
+        this.targetFriend = null; // Целевой друг для взаимодействия (объект Agent или null)
+        this.entertainmentProgress = 0; // Прогресс развлечения других агентов (0-100)
+        this.consolingTarget = null; // Целевой агент для утешения (объект Agent или null)
+        this.consolingProgress = 0; // Прогресс утешения (0-100)
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -501,11 +511,82 @@ class Agent {
                     if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
                 }
                 
+                // Отдаем еду больному агенту (если есть)
+                if (this.foodStorage.length > 0) {
+                    const foodToGive = this.foodStorage[0]; // Первая еда из запасов
+                    const giveAmount = Math.min(2, foodToGive.amount); // Отдаем до 2 единиц еды
+                    
+                    if (!this.sickAgent.foodStorage) {
+                        this.sickAgent.foodStorage = []; // Инициализируем запасы еды у больного агента
+                    }
+                    
+                    const existingFood = this.sickAgent.foodStorage.find(item => item.type === foodToGive.type); // Существующая еда того же типа
+                    if (existingFood) {
+                        existingFood.amount += giveAmount; // Увеличиваем количество еды
+                    } else {
+                        this.sickAgent.foodStorage.push({ type: foodToGive.type, amount: giveAmount }); // Добавляем новую еду
+                    }
+                    
+                    foodToGive.amount -= giveAmount; // Уменьшаем количество еды у лечащего агента
+                    if (foodToGive.amount <= 0) {
+                        const index = this.foodStorage.indexOf(foodToGive); // Индекс еды в запасах
+                        if (index > -1) this.foodStorage.splice(index, 1); // Удаляем еду из запасов
+                    }
+                }
+                
+                // Обеспечиваем тепло (разводим костер поблизости, если есть навык и дрова)
+                if (this.experience.fire_building >= 5 && this.hasWoodForFire() && !this.sickAgent.nearbyFire) {
+                    // Разводим костер рядом с больным агентом
+                    if (window.world && window.world.addFire) {
+                        window.world.addFire(this.sickAgent.position.x + 20, this.sickAgent.position.y + 20, this.ownerId);
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`🔥 ${this.name} развел костер рядом с ${this.sickAgent.name} для согревания`);
+                        }
+                    }
+                }
+                
+                // Отдаем аптечку (если есть запасная)
+                const firstAidKits = this.inventory.filter(item => item.type === 'first_aid_kit'); // Все аптечки в инвентаре
+                if (firstAidKits.length > 1) {
+                    // Есть запасная аптечка - отдаем одну
+                    const kitToGive = firstAidKits[0]; // Первая аптечка
+                    kitToGive.amount--; // Уменьшаем количество
+                    if (kitToGive.amount <= 0) {
+                        const index = this.inventory.indexOf(kitToGive); // Индекс аптечки
+                        if (index > -1) this.inventory.splice(index, 1); // Удаляем аптечку
+                    }
+                    
+                    // Добавляем аптечку больному агенту
+                    const existingKit = this.sickAgent.inventory.find(item => item.type === 'first_aid_kit'); // Существующая аптечка
+                    if (existingKit) {
+                        existingKit.amount++; // Увеличиваем количество
+                    } else {
+                        this.sickAgent.inventory.push({ type: 'first_aid_kit', amount: 1 }); // Добавляем новую аптечку
+                    }
+                }
+                
                 // Получаем опыт лечения
-                this.gainExperience('healing', 3); // Получаем опыт лечения (если такой навык будет добавлен)
+                this.gainExperience('healing', 3); // Получаем опыт лечения
+                this.increaseSatisfaction('heal', 5); // Увеличиваем удовлетворенность от помощи
+                
+                // Создаем дружбу - больной агент запоминает, кто его вылечил
+                if (!this.sickAgent.friends) {
+                    this.sickAgent.friends = []; // Инициализируем массив друзей у больного агента
+                }
+                if (!this.sickAgent.friends.includes(this.id)) {
+                    this.sickAgent.friends.push(this.id); // Добавляем лечащего агента в друзья
+                }
+                
+                // Лечащий агент тоже добавляет больного в друзья
+                if (!this.friends) {
+                    this.friends = []; // Инициализируем массив друзей у лечащего агента
+                }
+                if (!this.friends.includes(this.sickAgent.id)) {
+                    this.friends.push(this.sickAgent.id); // Добавляем больного агента в друзья
+                }
                 
                 if (window.addLogEntry) {
-                    window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${this.getFoodName(herbItem.type)}. Здоровье: ${Math.floor(this.sickAgent.health)}%`);
+                    window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${this.getFoodName(herbItem.type)}, еду и тепло. Здоровье: ${Math.floor(this.sickAgent.health)}%. Теперь они друзья! 🤝`);
                 }
             }
         }
@@ -767,7 +848,13 @@ class Agent {
         // Проверяем наличие больных агентов поблизости
         this.checkForSickAgents();
         
-        // Приоритет: оборона > лечение больных > температура (одежда важнее еды) > голод > кормление животных > энергия > игра
+        // Проверяем друзей - если есть друзья, стараемся находиться рядом с ними
+        this.checkForFriends();
+        
+        // Проверяем агентов, которым нужна помощь (плохое настроение, низкая мотивация)
+        this.checkForAgentsNeedingHelp();
+        
+        // Приоритет: оборона > лечение больных > помощь друзьям > утешение > развлечение > температура (одежда важнее еды) > голод > кормление животных > энергия > игра
         if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
             // Хищник близко - обороняемся
             this.state = 'defend';
@@ -870,7 +957,12 @@ class Agent {
                 'moveToPoint': 'движется к указанной точке',
                 'chop_wood': 'рубит дерево',
                 'findClothes': 'ищет одежду',
-                'heal': 'лечит больного'
+                'heal': 'лечит больного',
+                'stayWithFriend': 'находится с другом',
+                'sing': 'поет песни',
+                'tellStory': 'рассказывает стихи',
+                'makeLaugh': 'смешит других',
+                'console': 'утешает'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
@@ -1016,6 +1108,26 @@ class Agent {
             case 'chop_wood':
                 // Рубка дерева для получения дров
                 this.chopWood();
+                break;
+            case 'stayWithFriend':
+                // Находиться рядом с другом
+                this.stayWithFriend();
+                break;
+            case 'sing':
+                // Пение песен для поднятия настроения других
+                this.sing();
+                break;
+            case 'tellStory':
+                // Рассказывание стихов для поднятия настроения других
+                this.tellStory();
+                break;
+            case 'makeLaugh':
+                // Смешить других для поднятия настроения
+                this.makeLaugh();
+                break;
+            case 'console':
+                // Утешение других агентов
+                this.consoleAgent();
                 break;
         }
     }
