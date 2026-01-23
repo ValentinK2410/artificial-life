@@ -3573,8 +3573,8 @@ class Agent {
                 // Обработка всех остальных ресурсов
                 const resourceType = resource.type; // Тип ресурса (строка: 'saw', 'axe', 'money', и т.д.)
                 
-                // Инструменты
-                if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(resourceType)) {
+                // Инструменты и оружие
+                if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow'].includes(resourceType)) {
                     // Проверяем, есть ли уже такой инструмент (не собираем дубликаты)
                     const hasTool = this.inventory.some(item => item.type === resourceType); // Флаг наличия инструмента (true/false)
                     if (!hasTool) {
@@ -3635,6 +3635,32 @@ class Agent {
                     this.inventory.push({ type: 'money', amount: resource.amount || 10 }); // Добавляем деньги в инвентарь (по умолчанию 10 монет)
                     if (window.addLogEntry) {
                         window.addLogEntry(`${this.name} нашел деньги`);
+                    }
+                }
+                // Патроны
+                else if (resourceType === 'ammo') {
+                    // Проверяем, есть ли уже патроны в инвентаре - объединяем количество
+                    const existingAmmo = this.inventory.find(item => item.type === 'ammo');
+                    if (existingAmmo) {
+                        existingAmmo.amount += (resource.amount || 10); // Добавляем к существующим патронам
+                    } else {
+                        this.inventory.push({ type: 'ammo', amount: resource.amount || 10 }); // Добавляем новые патроны
+                    }
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал патроны (${resource.amount || 10} шт.)`);
+                    }
+                }
+                // Стрелы
+                else if (resourceType === 'arrows') {
+                    // Проверяем, есть ли уже стрелы в инвентаре - объединяем количество
+                    const existingArrows = this.inventory.find(item => item.type === 'arrows');
+                    if (existingArrows) {
+                        existingArrows.amount += (resource.amount || 10); // Добавляем к существующим стрелам
+                    } else {
+                        this.inventory.push({ type: 'arrows', amount: resource.amount || 10 }); // Добавляем новые стрелы
+                    }
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`${this.name} подобрал стрелы (${resource.amount || 10} шт.)`);
                     }
                 }
                 
