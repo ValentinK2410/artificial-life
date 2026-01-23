@@ -2216,7 +2216,18 @@ class Agent {
             this.position.x = x; // Устанавливаем точную позицию цели
             this.position.y = y; // Устанавливаем точную позицию цели
             
-            // Очищаем цель и возвращаем управление ИИ
+            // Если есть путь (полилиния) - переходим к следующей точке
+            if (this.pathType === 'polyline' && this.pathPoints && this.pathPoints.length > 0) {
+                // Логика перехода к следующей точке обрабатывается в moveAlongPolyline
+                return; // Не очищаем путь, продолжаем движение по полилинии
+            }
+            
+            // Для прямого пути очищаем цель и возвращаем управление ИИ
+            if (this.pathType === 'direct') {
+                this.pathType = null;
+                this.pathData = null;
+            }
+            
             this.targetPosition = null; // Очищаем целевую позицию
             this.isPlayerControlled = false; // Возвращаем управление ИИ
             
