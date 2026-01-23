@@ -13,10 +13,9 @@ class Simulation {
         this.frameCount = 0;
         this.startTime = Date.now(); // Время начала симуляции (для защиты от быстрой потери здоровья в начале игры)
         this.selectedAgent = null; // Выбранный агент для управления
-        this.pathMode = null; // Режим задания пути: 'direct', 'circle', 'rectangle', 'polyline'
+        this.pathMode = null; // Режим задания пути: 'direct', 'circle', 'rectangle'
         this.pathDrawing = false; // Флаг рисования пути
         this.pathStartPoint = null; // Начальная точка для рисования пути
-        this.pathPoints = []; // Точки для полилинии
         this.pathPreview = []; // Предпросмотр пути для отрисовки
         
         // Инициализация агентов с разными стартовыми координатами
@@ -101,11 +100,6 @@ class Simulation {
             }
             
             if (clickedAgent) {
-                // Если рисуем полилинию - не открываем панель, а завершаем путь
-                if (this.pathMode === 'polyline' && this.pathPoints.length >= 2) {
-                    this.finishPolylinePath();
-                    return;
-                }
                 
                 // Выбираем агента и показываем панель управления
                 this.selectedAgent = clickedAgent;
@@ -419,9 +413,6 @@ class Simulation {
                             <h4 style="color: #4a9eff; margin-bottom: 10px; font-size: 14px;">🛤️ Задать путь:</h4>
                             <button class="command-btn" onclick="window.simulation.setPathMode('direct')" style="background-color: #3498db; margin-bottom: 5px;">
                                 📍 Прямой путь
-                            </button>
-                            <button class="command-btn" onclick="window.simulation.setPathMode('polyline')" style="background-color: #1abc9c; margin-bottom: 5px;">
-                                ✏️ Нарисовать путь (ломаная линия)
                             </button>
                             <button class="command-btn" onclick="window.simulation.clearPath()" style="background-color: #e74c3c; margin-top: 5px;">
                                 ❌ Остановить путь
@@ -1482,20 +1473,11 @@ class Simulation {
         const modeNames = {
             'direct': 'прямой путь',
             'circle': 'путь по кругу',
-            'rectangle': 'путь по прямоугольнику',
-            'polyline': 'нарисовать путь'
+            'rectangle': 'путь по прямоугольнику'
         };
         
         if (window.addLogEntry) {
             window.addLogEntry(`🛤️ Режим: ${modeNames[mode] || mode}. Кликните на карте для задания пути.`);
-        }
-        
-        // Для полилинии начинаем рисование сразу
-        if (mode === 'polyline') {
-            this.pathDrawing = true;
-            if (window.addLogEntry) {
-                window.addLogEntry('✏️ Рисуйте путь на карте. Двойной клик для завершения.');
-            }
         }
     }
     
@@ -1512,18 +1494,6 @@ class Simulation {
                     window.addLogEntry(`📍 ${this.selectedAgent.name} движется по прямому пути к (${Math.floor(x)}, ${Math.floor(y)})`);
                 }
                 break;
-                
-            case 'polyline':
-                // Добавляем точку в путь
-                this.pathPoints.push({ x, y });
-                if (window.addLogEntry) {
-                    if (this.pathPoints.length === 1) {
-                        window.addLogEntry(`✏️ Начало пути. Кликните еще раз для добавления точек. Двойной клик для завершения.`);
-                    } else {
-                        window.addLogEntry(`✏️ Точка ${this.pathPoints.length} добавлена. Двойной клик для завершения.`);
-                    }
-                }
-                break;
         }
     }
     
@@ -1538,7 +1508,6 @@ class Simulation {
         
         this.selectedAgent.pathType = null;
         this.selectedAgent.pathData = null;
-        this.selectedAgent.pathPoints = [];
         this.selectedAgent.targetPosition = null;
         this.selectedAgent.isPlayerControlled = false;
         this.selectedAgent.state = 'explore';
@@ -1546,7 +1515,6 @@ class Simulation {
         this.pathMode = null;
         this.pathDrawing = false;
         this.pathStartPoint = null;
-        this.pathPoints = [];
         this.pathPreview = [];
         
         if (window.addLogEntry) {
@@ -1554,24 +1522,6 @@ class Simulation {
         }
     }
     
-    // Завершить рисование полилинии (вызывается при двойном клике)
-    finishPolylinePath() {
-        if (this.pathMode === 'polyline' && this.pathPoints.length >= 2) {
-            this.selectedAgent.setPolylinePath(this.pathPoints);
-            const pointCount = this.pathPoints.length;
-            this.pathMode = null;
-            this.pathDrawing = false;
-            const savedPoints = [...this.pathPoints];
-            this.pathPoints = [];
-            if (window.addLogEntry) {
-                window.addLogEntry(`✏️ Путь из ${pointCount} точек установлен для ${this.selectedAgent.name}`);
-            }
-        } else if (this.pathPoints.length < 2) {
-            if (window.addLogEntry) {
-                window.addLogEntry('❌ Нужно минимум 2 точки для пути');
-            }
-        }
-    }
     
     // Потратить деньги
     spendMoney(amount) {

@@ -27,11 +27,14 @@ class Agent {
         this.position = { x: 0, y: 0 }; // Текущая позиция агента на карте (координаты x, y)
         this.targetPosition = null; // Целевая позиция для ручного управления игроком (null или {x, y})
         this.isPlayerControlled = false; // Флаг управления игроком (true = игрок управляет, false = ИИ управляет)
-        this.pathType = null; // Тип пути: 'direct', 'polyline' (null или строка)
+        this.pathType = null; // Тип пути: 'direct' (null или строка)
         this.pathData = null; // Данные пути в зависимости от типа (объект с параметрами пути)
-        this.pathPoints = []; // Массив точек для полилинии (массив объектов {x, y})
-        this.currentPathIndex = 0; // Текущий индекс точки в пути (для полилинии)
-        this.pathProgress = 0; // Прогресс движения по пути (0-1, для круга и прямоугольника)
+        
+        // Состояния анимаций
+        this.isChopping = false; // Флаг рубки дерева
+        this.isRunning = false; // Флаг бега
+        this.isBending = false; // Флаг наклонения для сбора ресурсов
+        this.animationFrame = 0; // Счетчик кадров анимации
         this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный идентификатор агента
         this.lastEatTime = 0; // Время последнего приема пищи (timestamp, для ограничения частоты еды)
         this.lastPosition = { x: 0, y: 0 }; // Предыдущая позиция агента (для определения движения и расчета тепла)
@@ -963,9 +966,16 @@ class Agent {
         this.checkForAgentsNeedingHelp();
         
         // Приоритет: оборона > лечение больных > помощь друзьям > утешение > развлечение > температура (одежда важнее еды) > голод > кормление животных > энергия > игра
-        if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
-            // Хищник близко - обороняемся
-            this.state = 'defend';
+        if (this.nearbyPredator && this.nearbyPredator.distance < 100) {
+            // Хищник близко - убегаем или атакуем в зависимости от навыка охоты
+            const huntingSkill = this.experience.hunting || 0;
+            if (huntingSkill >= 10) {
+                // Есть навык охоты (>= 10) - атакуем
+                this.state = 'defend'; // Используем состояние defend для атаки
+            } else {
+                // Нет навыка - убегаем
+                this.state = 'defend';
+            }
         } else if (this.sickAgent && this.hasMedicalSupplies() && this.experience.healing >= 5) {
             // Есть больной агент, есть медицинские принадлежности и есть навык лечения (минимум 5 опыта) - лечим
             this.state = 'heal';
@@ -1216,11 +1226,7 @@ class Agent {
         switch(this.state) {
             case 'moveToPoint':
                 // Движение по пути, указанному игроком - ПРИОРИТЕТ
-                if (this.pathType === 'polyline' && this.pathPoints && this.pathPoints.length > 0) {
-                    // Движение по полилинии
-                    this.moveAlongPolyline();
-                    return; // Выходим, не выполняя другие действия
-                } else if (this.pathType === 'direct' && this.targetPosition) {
+                if (this.pathType === 'direct' && this.targetPosition) {
                     // Прямой путь - движение к точке
                     if (typeof this.targetPosition.x === 'number' && typeof this.targetPosition.y === 'number' &&
                         !isNaN(this.targetPosition.x) && !isNaN(this.targetPosition.y)) {
@@ -1248,7 +1254,7 @@ class Agent {
                     this.isPlayerControlled = false;
                     this.pathType = null;
                     this.pathData = null;
-                    this.pathPoints = [];
+                    this.isRunning = false; // Выключаем анимацию бега
                     this.state = 'explore';
                 }
                 // Если цель потеряна, переходим к обычному поведению
@@ -1588,80 +1594,6 @@ class Agent {
     }
     
     // Установить путь по полилинии (нарисованному пути)
-    setPolylinePath(points) {
-        // Проверяем валидность точек
-        if (!points || !Array.isArray(points) || points.length < 2) {
-            console.error('Некорректные точки для полилинии:', points);
-            return;
-        }
-        
-        // Проверяем валидность координат всех точек
-        for (let point of points) {
-            if (!point || isNaN(point.x) || isNaN(point.y) || !isFinite(point.x) || !isFinite(point.y)) {
-                console.error('Некорректная точка в полилинии:', point);
-                return;
-            }
-        }
-        
-        // Проверяем, что у агента есть позиция
-        if (!this.position) {
-            console.error('Агент без позиции:', this.name);
-            this.position = { x: 0, y: 0 };
-        }
-        
-        this.pathType = 'polyline';
-        this.pathPoints = points; // Массив объектов {x, y}
-        this.currentPathIndex = 0;
-        this.isPlayerControlled = true;
-        this.state = 'moveToPoint';
-        
-        // Если есть точки, устанавливаем первую цель
-        if (this.pathPoints.length > 0) {
-            this.targetPosition = { x: this.pathPoints[0].x, y: this.pathPoints[0].y };
-        }
-    }
-    
-    // Движение по полилинии
-    moveAlongPolyline() {
-        if (!this.pathPoints || this.pathPoints.length === 0) {
-            // Нет точек - очищаем путь
-            this.pathType = null;
-            this.pathPoints = [];
-            this.isPlayerControlled = false;
-            this.state = 'explore';
-            return;
-        }
-        
-        // Если есть текущая цель - двигаемся к ней
-        if (this.targetPosition) {
-            const dx = this.targetPosition.x - this.position.x;
-            const dy = this.targetPosition.y - this.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 5) {
-                // Достигли текущей точки - переходим к следующей
-                this.currentPathIndex++;
-                
-                if (this.currentPathIndex >= this.pathPoints.length) {
-                    // Прошли все точки - зацикливаем или останавливаемся
-                    this.currentPathIndex = 0; // Зацикливаем
-                }
-                
-                // Устанавливаем следующую цель
-                const nextPoint = this.pathPoints[this.currentPathIndex];
-                this.targetPosition = { x: nextPoint.x, y: nextPoint.y };
-            } else {
-                // Двигаемся к текущей точке
-                this.moveTo(this.targetPosition.x, this.targetPosition.y);
-            }
-        } else {
-            // Нет цели - устанавливаем первую точку
-            this.currentPathIndex = 0;
-            const firstPoint = this.pathPoints[0];
-            this.targetPosition = { x: firstPoint.x, y: firstPoint.y };
-        }
-    }
-    
     // Рубка дерева
     chopWood() {
         if (!window.world || !this.targetTree) {
@@ -1687,8 +1619,12 @@ class Agent {
             this.moveTo(tree.x, tree.y);
             // Поворачиваемся к дереву
             this.angle = Math.atan2(dy, dx);
+            this.isChopping = false;
         } else {
             // Дерево близко - рубим его
+            this.isChopping = true; // Включаем анимацию рубки
+            this.animationFrame++; // Увеличиваем счетчик кадров анимации
+            
             if (!this.chopProgress) {
                 this.chopProgress = 0; // Прогресс рубки (0-100)
             }
@@ -1722,6 +1658,8 @@ class Agent {
                     // Сбрасываем прогресс и целевое дерево
                     this.chopProgress = 0;
                     this.targetTree = null;
+                    this.isChopping = false; // Выключаем анимацию рубки
+                    this.animationFrame = 0; // Сбрасываем счетчик анимации
                     
                     // Ищем следующее дерево или возвращаемся к исследованию
                     const nextTree = this.findNearestTree();
@@ -2337,37 +2275,106 @@ class Agent {
     }
     
     defendAgainstPredator() {
-        // Оборона от хищника
+        // Реакция на хищника: убегание или атака в зависимости от навыка охоты
         if (!this.nearbyPredator) return;
         
         const predator = this.nearbyPredator.predator; // Объект хищника (координаты x, y и другие свойства)
         const distance = this.nearbyPredator.distance; // Расстояние до хищника (пиксели)
+        const huntingSkill = this.experience.hunting || 0; // Навык охоты агента
         
-        // Если хищник очень близко - отступаем
-        if (distance < 30) {
-            const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
-            const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
-            const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
-            if (dist > 0) {
-                this.position.x += (dx / dist) * this.speed * 1.5; // Отступаем быстрее (скорость * 1.5)
-                this.position.y += (dy / dist) * this.speed * 1.5;
+        // Если есть навык охоты (>= 10) - атакуем хищника
+        if (huntingSkill >= 10 && distance < 40) {
+            // Атакуем хищника
+            if (!this.attackProgress) {
+                this.attackProgress = 0;
             }
             
-            // Увеличиваем опыт обороны
-            this.defenseSkill += 0.5; // Увеличиваем навык обороны
-            this.gainExperience('hunting', 0.3); // Получаем опыт охоты/обороны
+            this.attackProgress++;
             
-            if (window.addLogEntry && Math.random() < 0.1) {
-                window.addLogEntry(`⚔️ ${this.name} обороняется от хищника!`);
+            // Поворачиваемся к хищнику
+            const dx = predator.x - this.position.x;
+            const dy = predator.y - this.position.y;
+            this.angle = Math.atan2(dy, dx);
+            
+            // Анимация атаки (20 кадров)
+            if (this.attackProgress >= 20) {
+                // Наносим урон хищнику
+                predator.health = (predator.health || 100) - (10 + huntingSkill * 0.5);
+                
+                if (predator.health <= 0) {
+                    // Хищник убит - получаем мясо
+                    if (window.world) {
+                        window.world.resources.push({
+                            type: 'meat',
+                            x: predator.x,
+                            y: predator.y,
+                            amount: 5 + Math.floor(huntingSkill / 5),
+                            id: 'meat_' + Date.now() + '_' + Math.random()
+                        });
+                        
+                        // Удаляем хищника
+                        const index = window.world.predators.indexOf(predator);
+                        if (index > -1) {
+                            window.world.predators.splice(index, 1);
+                        }
+                        
+                        // Отправляем на сервер
+                        if (window.networkManager && window.networkManager.isConnected && predator.id) {
+                            window.networkManager.removePredator(predator.id);
+                        }
+                    }
+                    
+                    // Получаем опыт охоты
+                    this.gainExperience('hunting', 5);
+                    this.increaseSatisfaction('hunt', 10);
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🎯 ${this.name} убил хищника и получил мясо!`);
+                    }
+                    
+                    this.nearbyPredator = null;
+                    this.attackProgress = 0;
+                    this.isRunning = false; // Выключаем анимацию бега
+                    this.state = 'explore';
+                } else {
+                    // Хищник еще жив - продолжаем атаку
+                    this.gainExperience('hunting', 0.5);
+                    if (window.addLogEntry && Math.random() < 0.1) {
+                        window.addLogEntry(`⚔️ ${this.name} атакует хищника!`);
+                    }
+                    this.attackProgress = 0; // Сбрасываем для следующей атаки
+                }
             }
         } else {
-            // Держим дистанцию
+            // Нет навыка охоты или хищник далеко - убегаем
             const dx = this.position.x - predator.x; // Разница по оси X (направление от хищника, пиксели)
             const dy = this.position.y - predator.y; // Разница по оси Y (направление от хищника, пиксели)
             const dist = Math.sqrt(dx * dx + dy * dy); // Расстояние до хищника для нормализации (пиксели)
-            if (dist > 0 && dist < 40) { // Если хищник в радиусе 40 пикселей
-                this.position.x += (dx / dist) * this.speed; // Отступаем с обычной скоростью
-                this.position.y += (dy / dist) * this.speed;
+            
+            if (dist > 0 && distance < 100) {
+                // Убегаем от хищника (быстрее обычной скорости)
+                const runSpeed = this.speed * 2.5; // Скорость бега в 2.5 раза больше обычной
+                this.position.x += (dx / dist) * runSpeed;
+                this.position.y += (dy / dist) * runSpeed;
+                
+                // Устанавливаем состояние бега
+                if (this.state !== 'defend') {
+                    this.state = 'defend';
+                }
+                
+                // Поворачиваемся в направлении бега
+                this.angle = Math.atan2(dy, dx);
+                
+                // Увеличиваем страх
+                this.fear = Math.min(100, (this.fear || 0) + 1);
+                if (this.fear > 70) {
+                    this.panic = true;
+                    this.mood = 'anxious';
+                }
+                
+                if (window.addLogEntry && Math.random() < 0.05) {
+                    window.addLogEntry(`🏃 ${this.name} убегает от хищника!`);
+                }
             }
         }
     }
@@ -2580,22 +2587,23 @@ class Agent {
         const minDistance = 2; // Минимальное расстояние для остановки (пиксели)
         
         if (distance > minDistance) {
+            // Определяем скорость движения (бег при убегании от хищника)
+            const currentSpeed = (this.state === 'defend' || this.isRunning) ? (this.speed || 2) * 2.5 : (this.speed || 2);
+            this.isRunning = (this.state === 'defend' || this.isRunning);
+            
             // Двигаемся в направлении цели
-            const moveDistance = Math.min(distance, this.speed || 2); // Расстояние движения за кадр (не больше скорости агента)
+            const moveDistance = Math.min(distance, currentSpeed); // Расстояние движения за кадр (не больше скорости агента)
             if (moveDistance > 0 && distance > 0) {
                 this.position.x += (dx / distance) * moveDistance; // Двигаемся по оси X (нормализованное направление * расстояние)
                 this.position.y += (dy / distance) * moveDistance; // Двигаемся по оси Y (нормализованное направление * расстояние)
             }
+            
+            // Увеличиваем счетчик кадров анимации
+            this.animationFrame++;
         } else {
             // Достигли цели
             this.position.x = x; // Устанавливаем точную позицию цели
             this.position.y = y; // Устанавливаем точную позицию цели
-            
-            // Если есть путь (полилиния) - переходим к следующей точке
-            if (this.pathType === 'polyline' && this.pathPoints && this.pathPoints.length > 0) {
-                // Логика перехода к следующей точке обрабатывается в moveAlongPolyline
-                return; // Не очищаем путь, продолжаем движение по полилинии
-            }
             
             // Для прямого пути очищаем цель и возвращаем управление ИИ
             if (this.pathType === 'direct') {
@@ -3177,6 +3185,9 @@ class Agent {
         const resource = world.getResourceAt(this.position.x, this.position.y); // Ресурс на текущей позиции агента (объект {type, x, y, amount, id} или null)
         
         if (resource) {
+            // Включаем анимацию наклонения при сборе ресурсов
+            this.isBending = true;
+            this.animationFrame++;
             // Проверяем, является ли ресурс едой
             const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
             const foodProps = FOOD_PROPERTIES[resource.type]; // Свойства текущего типа ресурса (объект {hunger, energy, ...} или undefined)
@@ -3223,6 +3234,7 @@ class Agent {
                 if (window.addLogEntry) {
                     window.addLogEntry(`${this.name} нашел и съел ${this.getFoodName(foodType)}`);
                 }
+                this.isBending = false; // Выключаем анимацию наклонения
             } else if (resource.type === 'wood') {
                 // Собираем дрова
                 this.inventory.push({
@@ -3246,6 +3258,8 @@ class Agent {
                 if (window.addLogEntry) {
                     window.addLogEntry(`${this.name} собрал дрова (в инвентаре: ${this.inventory.filter(i => i.type === 'wood').length})`);
                 }
+                this.isBending = false; // Выключаем анимацию наклонения
+                this.animationFrame = 0; // Сбрасываем счетчик анимации
             } else {
                 // Обработка всех остальных ресурсов
                 const resourceType = resource.type; // Тип ресурса (строка: 'saw', 'axe', 'money', и т.д.)
