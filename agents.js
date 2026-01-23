@@ -1524,6 +1524,18 @@ class Agent {
     
     // Установить прямой путь (к точке)
     setDirectPath(x, y) {
+        // Проверяем валидность координат
+        if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+            console.error('Некорректные координаты для прямого пути:', x, y);
+            return;
+        }
+        
+        // Проверяем, что у агента есть позиция
+        if (!this.position) {
+            console.error('Агент без позиции:', this.name);
+            this.position = { x: 0, y: 0 };
+        }
+        
         this.pathType = 'direct';
         this.pathData = { x: x, y: y };
         this.targetPosition = { x: x, y: y };
@@ -1533,6 +1545,26 @@ class Agent {
     
     // Установить путь по полилинии (нарисованному пути)
     setPolylinePath(points) {
+        // Проверяем валидность точек
+        if (!points || !Array.isArray(points) || points.length < 2) {
+            console.error('Некорректные точки для полилинии:', points);
+            return;
+        }
+        
+        // Проверяем валидность координат всех точек
+        for (let point of points) {
+            if (!point || isNaN(point.x) || isNaN(point.y) || !isFinite(point.x) || !isFinite(point.y)) {
+                console.error('Некорректная точка в полилинии:', point);
+                return;
+            }
+        }
+        
+        // Проверяем, что у агента есть позиция
+        if (!this.position) {
+            console.error('Агент без позиции:', this.name);
+            this.position = { x: 0, y: 0 };
+        }
+        
         this.pathType = 'polyline';
         this.pathPoints = points; // Массив объектов {x, y}
         this.currentPathIndex = 0;
