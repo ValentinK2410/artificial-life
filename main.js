@@ -257,8 +257,12 @@ class Simulation {
                 const level = Math.floor(exp / 10); // Уровень (0-10)
                 const percentage = exp % 10; // Процент до следующего уровня
                 
+                // Получаем требования для навыка
+                const skillReqs = this.getSkillRequirements(skill);
+                const reqText = skillReqs ? `<div class="skill-requirement" style="font-size: 11px; color: #888; margin-top: 3px;">${skillReqs}</div>` : '';
+                
                 skillsHTML += `
-                    <div class="skill-item">
+                    <div class="skill-item" onclick="window.simulation.teachSpecificSkill('${skill}')" style="cursor: pointer;">
                         <div class="skill-icon">${skillIcons[skill] || '📚'}</div>
                         <div class="skill-info">
                             <div class="skill-name">${skillNames[skill] || skill}</div>
@@ -267,6 +271,8 @@ class Simulation {
                                 <div class="skill-progress-bar" style="width: ${percentage * 10}%"></div>
                             </div>
                             <div class="skill-exp">${exp}/100 опыта</div>
+                            ${reqText}
+                            <div style="font-size: 10px; color: #4a9eff; margin-top: 5px;">💡 Кликните для обучения</div>
                         </div>
                     </div>
                 `;
@@ -297,6 +303,7 @@ class Simulation {
                         <p><strong>Деньги:</strong> ${this.getPlayerMoney()} монет</p>
                         <p><strong>Возраст:</strong> ${agent.age} лет</p>
                         <p><strong>Состояние:</strong> ${this.getStateName(agent.state)}</p>
+                        <p><strong>Удовлетворенность:</strong> ${Math.floor(agent.satisfaction || 50)}% ${agent.satisfaction >= 70 ? '😊' : agent.satisfaction >= 40 ? '😐' : '😢'}</p>
                         ${agent.fear > 0 ? `<p><strong>Страх:</strong> ${Math.floor(agent.fear)}% ${agent.panic ? '😱 ПАНИКА!' : ''}</p>` : ''}
                         ${agent.panic ? `<p style="color: #ff4444;"><strong>⚠️ ПАНИКА!</strong></p>` : ''}
                     </div>
@@ -1134,13 +1141,31 @@ class Simulation {
     }
     
     // Обучение навыку
-    teachSkill() {
-        if (!this.selectedAgent) {
-            if (window.addLogEntry) {
-                window.addLogEntry(`❌ Выберите агента для обучения`);
+    // Получить требования для навыка
+    getSkillRequirements(skill) {
+        const SKILL_REQUIREMENTS = window.SKILL_REQUIREMENTS || {};
+        const skillNames = {
+            'cooking': 'Готовка',
+            'fishing': 'Рыбалка',
+            'hunting': 'Охота',
+            'building': 'Строительство',
+            'fire_building': 'Разжигание костра',
+            'gather_wood': 'Рубка дров',
+            'farming': 'Фермерство'
+        };
+        
+        // Ищем требования для действий, использующих этот навык
+        for (const [action, req] of Object.entries(SKILL_REQUIREMENTS)) {
+            if (req.skill === skill) {
+                return `Для "${skillNames[skill] || skill}": минимум ${req.minExp} опыта`;
             }
-            return;
         }
+        return null;
+    }
+    
+    // Обучение конкретному навыку
+    teachSpecificSkill(skill) {
+        if (!this.selectedAgent) return;
         
         const cost = 10;
         const playerMoney = this.getPlayerMoney();
@@ -1155,34 +1180,27 @@ class Simulation {
         // Списываем деньги
         this.spendMoney(cost);
         
-        // Выбираем случайный навык для обучения
-        const skills = Object.keys(this.selectedAgent.experience || {});
-        if (skills.length === 0) {
-            if (window.addLogEntry) {
-                window.addLogEntry(`❌ У агента нет навыков для обучения`);
-            }
-            return;
-        }
-        
-        const randomSkill = skills[Math.floor(Math.random() * skills.length)];
         const experienceGain = 5 + Math.floor(Math.random() * 10);
         
         // Проверяем, что метод gainExperience существует
         if (typeof this.selectedAgent.gainExperience === 'function') {
-            this.selectedAgent.gainExperience(randomSkill, experienceGain);
+            this.selectedAgent.gainExperience(skill, experienceGain);
         } else {
             // Если метода нет, добавляем опыт напрямую
             if (!this.selectedAgent.experience) {
                 this.selectedAgent.experience = {};
             }
-            if (!this.selectedAgent.experience[randomSkill]) {
-                this.selectedAgent.experience[randomSkill] = 0;
+            if (!this.selectedAgent.experience[skill]) {
+                this.selectedAgent.experience[skill] = 0;
             }
-            this.selectedAgent.experience[randomSkill] += experienceGain;
-            if (this.selectedAgent.experience[randomSkill] > 100) {
-                this.selectedAgent.experience[randomSkill] = 100;
+            this.selectedAgent.experience[skill] += experienceGain;
+            if (this.selectedAgent.experience[skill] > 100) {
+                this.selectedAgent.experience[skill] = 100;
             }
         }
+        
+        // Увеличиваем удовлетворенность от обучения
+        this.selectedAgent.increaseSatisfaction('learn', 5);
         
         if (window.addLogEntry) {
             const skillNames = {
@@ -1195,16 +1213,190 @@ class Simulation {
                 'cooking': 'готовка',
                 'building': 'строительство',
                 'farming': 'фермерство',
-                'hunting': 'охота'
+                'hunting': 'охота',
+                'fire_building': 'разжигание костра',
+                'gather_wood': 'рубка дров',
+                'bring_wood': 'принесение дров',
+                'gather_fish': 'сбор рыбы',
+                'gather_all': 'сбор ресурсов'
             };
-            const currentExp = this.selectedAgent.experience[randomSkill] || 0;
-            window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[randomSkill] || randomSkill}" (+${experienceGain} опыта, всего: ${Math.floor(currentExp)})`);
+            const currentExp = this.selectedAgent.experience[skill] || 0;
+            window.addLogEntry(`📚 ${this.selectedAgent.name} обучился навыку "${skillNames[skill] || skill}" (+${experienceGain} опыта, всего: ${Math.floor(currentExp)})`);
         }
         
-        // Обновляем панель управления, если она открыта
+        // Обновляем панель управления, НЕ закрывая её
         if (document.getElementById('agentControlPanel')?.style.display === 'block') {
             this.showAgentControlPanel(this.selectedAgent);
         }
+    }
+    
+    teachSkill() {
+        // Старый метод для случайного обучения (оставляем для совместимости)
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Выберите агента для обучения`);
+            }
+            return;
+        }
+        
+        // Показываем меню выбора навыка
+        this.showSkillSelectionMenu();
+    }
+    
+    // Показать меню выбора навыка для обучения
+    showSkillSelectionMenu() {
+        if (!this.selectedAgent) return;
+        
+        const agent = this.selectedAgent;
+        const cost = 10;
+        const playerMoney = this.getPlayerMoney();
+        
+        if (playerMoney < cost) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ Недостаточно денег! Нужно ${cost} монет, у вас ${playerMoney}`);
+            }
+            return;
+        }
+        
+        const skills = Object.keys(agent.experience || {});
+        if (skills.length === 0) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У агента нет навыков для обучения`);
+            }
+            return;
+        }
+        
+        // Создаем модальное окно для выбора навыка
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background-color: #252525;
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #e0e0e0;
+        `;
+        
+        const title = document.createElement('h3');
+        title.textContent = `📚 Обучить навыку (${cost} монет) - ${agent.name}`;
+        title.style.cssText = 'color: #4a9eff; margin: 0 0 15px 0;';
+        content.appendChild(title);
+        
+        const skillList = document.createElement('div');
+        skillList.style.cssText = 'display: flex; flex-direction: column; gap: 10px;';
+        
+        const skillIcons = {
+            'saw': '🪚', 'axe': '🪓', 'hammer': '🔨', 'pickaxe': '⛏️', 'shovel': '🪣',
+            'fishing': '🎣', 'cooking': '🍳', 'building': '🏗️', 'farming': '🌾', 'hunting': '🎯',
+            'fire_building': '🔥', 'gather_wood': '🪵', 'bring_wood': '🪵', 'gather_fish': '🐟', 'gather_all': '📦'
+        };
+        
+        const skillNames = {
+            'saw': 'Работа с пилой',
+            'axe': 'Работа с топором',
+            'hammer': 'Работа с молотком',
+            'pickaxe': 'Работа с киркой',
+            'shovel': 'Работа с лопатой',
+            'fishing': 'Рыбалка',
+            'cooking': 'Готовка',
+            'building': 'Строительство',
+            'farming': 'Фермерство',
+            'hunting': 'Охота',
+            'fire_building': 'Разжигание костра',
+            'gather_wood': 'Рубка дров',
+            'bring_wood': 'Принесение дров',
+            'gather_fish': 'Сбор рыбы',
+            'gather_all': 'Сбор ресурсов'
+        };
+        
+        skills.forEach(skill => {
+            const exp = Math.floor(agent.experience[skill] || 0);
+            const level = Math.floor(exp / 10);
+            const reqs = this.getSkillRequirements(skill);
+            
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = `
+                background-color: #1e1e1e;
+                border: 1px solid #3a3a3a;
+                border-radius: 5px;
+                padding: 10px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            `;
+            
+            itemDiv.onmouseover = () => {
+                itemDiv.style.backgroundColor = '#2a2a2a';
+            };
+            itemDiv.onmouseout = () => {
+                itemDiv.style.backgroundColor = '#1e1e1e';
+            };
+            
+            itemDiv.onclick = () => {
+                this.teachSpecificSkill(skill);
+                document.body.removeChild(modal);
+            };
+            
+            const skillInfo = document.createElement('div');
+            skillInfo.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">${skillIcons[skill] || '📚'}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #4a9eff;">${skillNames[skill] || skill}</div>
+                        <div style="font-size: 12px; color: #888;">Уровень ${level} (${exp}/100 опыта)</div>
+                        ${reqs ? `<div style="font-size: 11px; color: #4caf50; margin-top: 3px;">${reqs}</div>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            itemDiv.appendChild(skillInfo);
+            skillList.appendChild(itemDiv);
+        });
+        
+        content.appendChild(skillList);
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Закрыть';
+        closeBtn.style.cssText = `
+            margin-top: 15px;
+            width: 100%;
+            background-color: #6c757d;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        closeBtn.onclick = () => {
+            document.body.removeChild(modal);
+        };
+        content.appendChild(closeBtn);
+        
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // Закрытие по клику вне модального окна
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
     }
     
     // Потратить деньги

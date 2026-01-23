@@ -203,3 +203,15 @@ export const SKILLS = {
     GATHER_FISH: 'gather_fish', // Собирать рыбу
     GATHER_ALL: 'gather_all' // Собирать все объекты
 };
+
+// Требования к навыкам (минимальный опыт для выполнения действий)
+export const SKILL_REQUIREMENTS = {
+    // Минимальный опыт для выполнения действия самостоятельно
+    cook: { skill: 'cooking', minExp: 5 }, // Готовка требует минимум 5 опыта cooking
+    fish: { skill: 'fishing', minExp: 5 }, // Рыбалка требует минимум 5 опыта fishing
+    hunt: { skill: 'hunting', minExp: 10 }, // Охота требует минимум 10 опыта hunting
+    build: { skill: 'building', minExp: 10 }, // Строительство требует минимум 10 опыта building
+    buildFire: { skill: 'fire_building', minExp: 5 }, // Разжигание костра требует минимум 5 опыта fire_building
+    chop_wood: { skill: 'gather_wood', minExp: 5 }, // Рубка дров требует минимум 5 опыта gather_wood
+    farm: { skill: 'farming', minExp: 5 } // Фермерство требует минимум 5 опыта farming
+};

@@ -20,6 +20,8 @@ class Agent {
         this.appetite = 50; // Аппетит агента (0-100, влияет на эффективность потребления еды)
         this.temperature = 37; // Температура тела агента (градусы Цельсия, нормальная 37°C)
         this.mood = 'neutral'; // Настроение агента ('neutral', 'happy', 'sad', 'anxious')
+        this.satisfaction = 50; // Удовлетворенность/довольство агента (0-100, влияет на мотивацию повторять действия)
+        this.actionSatisfaction = {}; // Удовлетворенность от конкретных действий (объект {action: satisfaction}, например {'cook': 60, 'fish': 45})
         
         // Позиция и движение
         this.position = { x: 0, y: 0 }; // Текущая позиция агента на карте (координаты x, y)
@@ -1080,6 +1082,7 @@ class Agent {
                     
                     // Получаем опыт рубки дров
                     this.gainExperience('gather_wood', 2); // Получаем опыт сбора дров (2 опыта за дерево)
+                    this.increaseSatisfaction('chop_wood', 3); // Увеличиваем удовлетворенность от рубки дров
                     
                     if (window.addLogEntry) {
                         window.addLogEntry(`🪓 ${this.name} срубил дерево и получил ${woodResult.amount} дров`);
@@ -1185,6 +1188,7 @@ class Agent {
         // Добавляем готовую еду
         this.inventory.push(cookedFood);
         this.gainExperience('cooking', 2);
+        this.increaseSatisfaction('cook', 4); // Увеличиваем удовлетворенность от готовки
         this.cookingProgress = 0;
         
         if (window.addLogEntry) {
@@ -1226,6 +1230,7 @@ class Agent {
                     // Успешная охота
                     this.inventory.push({ type: 'meat', amount: 1 }); // Добавляем мясо в инвентарь
                     this.gainExperience('hunting', 3); // Получаем опыт охоты
+                    this.increaseSatisfaction('hunt', 5); // Увеличиваем удовлетворенность от успешной охоты
                     
                     // Удаляем животное
                     const index = window.world.animals.indexOf(target); // Индекс животного в массиве животных мира
@@ -1333,6 +1338,7 @@ class Agent {
             const fishCount = Math.random() < 0.3 ? 2 : 1; // Количество пойманной рыбы (1 или 2, 30% шанс на 2)
             this.inventory.push({ type: 'fish', amount: fishCount }); // Добавляем рыбу в инвентарь
             this.gainExperience('fishing', 3); // Получаем опыт рыбалки
+            this.increaseSatisfaction('fish', 4); // Увеличиваем удовлетворенность от успешной рыбалки
             
             if (window.addLogEntry) {
                 window.addLogEntry(`🎣 ${this.name} поймал(а) ${fishCount} рыбу(ы)!`);
@@ -1618,6 +1624,7 @@ class Agent {
         if (window.world.addFire) {
             window.world.addFire(this.position.x, this.position.y, this.ownerId);
             this.gainExperience('fire_building', 2); // Опыт разжигания костра
+            this.increaseSatisfaction('buildFire', 5); // Увеличиваем удовлетворенность от разжигания костра
             
             // Отправляем уведомление на сервер
             if (window.networkManager && window.networkManager.isConnected) {
@@ -2112,6 +2119,9 @@ class Agent {
                     this.memory.splice(memoryIndex, 1); // Удаляем запись из памяти
                 }
                 
+                // Увеличиваем удовлетворенность от получения еды
+                this.increaseSatisfaction('gather_food', 3);
+                
                 if (window.addLogEntry) {
                     window.addLogEntry(`${this.name} нашел и съел ${this.getFoodName(foodType)}`);
                 }
@@ -2122,6 +2132,7 @@ class Agent {
                     amount: resource.amount || 1 // Количество дров (по умолчанию 1)
                 });
                 this.gainExperience('axe', 0.5); // Получаем опыт работы с топором при сборе дров
+                this.increaseSatisfaction('gather_wood', 2); // Увеличиваем удовлетворенность от сбора дров
                 
                 // Удаляем ресурс из мира
                 const index = world.resources.indexOf(resource); // Индекс ресурса в массиве ресурсов мира
