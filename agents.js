@@ -813,15 +813,21 @@ class Agent {
         // Ограничиваем температуру (защита от некорректных значений)
         // Минимальная температура тела не может быть ниже 25°C (даже в холодную погоду тело сохраняет некоторое тепло)
         const MIN_TEMP = 25; // Минимальная температура тела (°C, защита от слишком низких значений)
-        const MAX_TEMP = window.GAME_CONFIG?.AGENTS?.MAX_TEMPERATURE || 37; // Максимальная температура тела (°C)
+        const MAX_TEMP = 40; // Максимальная температура тела (°C, увеличено с 37 до 40 для учета небольшого повышения от движения/костра)
         
         // Если температура вышла за разумные пределы - устанавливаем минимум
         if (this.temperature < MIN_TEMP) {
             // Не позволяем температуре упасть ниже 25°C (даже в холодную погоду)
             this.temperature = Math.max(MIN_TEMP, ambientTemp);
-        } else if (this.temperature > MAX_TEMP || isNaN(this.temperature)) {
-            console.warn(`⚠️ Некорректная температура у агента ${this.name}: ${this.temperature}. Устанавливаем максимум.`);
-            this.temperature = MAX_TEMP; // Устанавливаем максимальную температуру
+        } else if (this.temperature > MAX_TEMP || isNaN(this.temperature) || !isFinite(this.temperature)) {
+            // Проверяем только если температура действительно слишком высокая (выше 40°C) или некорректная
+            if (this.temperature > MAX_TEMP) {
+                console.warn(`⚠️ Слишком высокая температура у агента ${this.name}: ${this.temperature}°C. Ограничиваем до ${MAX_TEMP}°C.`);
+                this.temperature = MAX_TEMP; // Устанавливаем максимальную температуру
+            } else if (isNaN(this.temperature) || !isFinite(this.temperature)) {
+                console.warn(`⚠️ Некорректная температура у агента ${this.name}: ${this.temperature}. Устанавливаем нормальную.`);
+                this.temperature = 37; // Устанавливаем нормальную температуру тела
+            }
         }
         
         // Дополнительная защита: температура не может быть ниже окружающей среды более чем на 50°C
@@ -2640,6 +2646,37 @@ class Agent {
     }
     
     // Потребление еды с учетом её свойств
+    // Применить свойства еды (используется в autoHeal и других местах)
+    applyFoodProperties(props) {
+        if (!props) return; // Если свойств нет - выходим
+        
+        // Модификатор аппетита (чем выше аппетит, тем эффективнее еда)
+        const appetiteModifier = 1 + (this.appetite - 50) / 100; // Модификатор эффективности еды (0.5-1.5, зависит от аппетита)
+        
+        // Применяем свойства еды (кроме здоровья, которое применяется отдельно)
+        if (props.hunger) {
+            this.hunger = Math.max(0, this.hunger + props.hunger * appetiteModifier);
+        }
+        if (props.energy) {
+            this.energy = Math.min(100, this.energy + props.energy * appetiteModifier);
+        }
+        if (props.stamina) {
+            this.stamina = Math.min(100, this.stamina + props.stamina);
+        }
+        if (props.immunity) {
+            this.immunity = Math.min(100, this.immunity + props.immunity);
+        }
+        if (props.thirst) {
+            this.thirst = Math.max(0, this.thirst + props.thirst);
+        }
+        if (props.sweetDesire) {
+            this.sweetDesire = Math.max(0, this.sweetDesire + props.sweetDesire);
+        }
+        if (props.appetite) {
+            this.appetite = Math.min(100, this.appetite + props.appetite);
+        }
+    }
+    
     consumeFood(foodType) {
         const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
         const props = FOOD_PROPERTIES[foodType]; // Свойства текущего типа еды (объект {hunger, energy, health, ...} или undefined)
