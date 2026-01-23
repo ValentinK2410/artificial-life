@@ -1802,21 +1802,29 @@ class Simulation {
                         </div>
                         <div class="agent-stat-row">
                             <span class="stat-label">🌡️ Температура:</span>
-                            <span class="stat-value" style="color: ${tempColor};">${temperature}°C</span>
+                            <div class="stat-bar-container">
+                                <span class="stat-value" style="color: ${tempColor};">${temperature}°C</span>
+                            </div>
                         </div>
                         <div class="agent-stat-row">
                             <span class="stat-label">📍 Состояние:</span>
-                            <span class="stat-value">${stateName}</span>
+                            <div class="stat-bar-container">
+                                <span class="stat-value">${stateName}</span>
+                            </div>
                         </div>
                         ${fear > 0 ? `
                         <div class="agent-stat-row">
                             <span class="stat-label">😨 Страх:</span>
-                            <span class="stat-value" style="color: ${fear > 70 ? '#f44336' : '#ff9800'};">${fear}%</span>
+                            <div class="stat-bar-container">
+                                <span class="stat-value" style="color: ${fear > 70 ? '#f44336' : '#ff9800'};">${fear}%</span>
+                            </div>
                         </div>
                         ` : ''}
                         <div class="agent-stat-row">
                             <span class="stat-label">😊 Настроение:</span>
-                            <span class="stat-value">${moodState}</span>
+                            <div class="stat-bar-container">
+                                <span class="stat-value">${moodState}</span>
+                            </div>
                         </div>
                         ${this.getCompactInventoryInfo(agent)}
                     </div>
