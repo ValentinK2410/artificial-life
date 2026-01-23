@@ -91,6 +91,7 @@ class Agent {
         this.entertainmentProgress = 0; // Прогресс развлечения других агентов (0-100)
         this.consolingTarget = null; // Целевой агент для утешения (объект Agent или null)
         this.consolingProgress = 0; // Прогресс утешения (0-100)
+        this.lastAutoHealTime = 0; // Время последней попытки автоматического лечения (счетчик кадров)
         
         // Инициализация случайной позиции
         this.initializePosition();
