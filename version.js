@@ -1,2 +1,2 @@
 // Версия игры - обновляется при каждом коммите
-export const GAME_VERSION = '1.0.24';
+export const GAME_VERSION = '1.0.25';

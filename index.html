@@ -88,17 +88,20 @@
     <!-- Модальное окно для выбора цели и оружия -->
     <div id="shootTargetModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 500px;">
-            <h2>Выбор цели и оружия</h2>
+            <h2>🔫 Выбор цели и оружия</h2>
+            <p style="color: #b0b0b0; font-size: 12px; margin-bottom: 15px;">
+                Выберите цель для стрельбы и оружие. Ружье имеет дальность 200px, лук - 150px.
+            </p>
             <div id="shootTargetsList" style="margin: 20px 0;">
-                <h3>Выберите цель:</h3>
+                <h3 style="color: #4a9eff; font-size: 14px; margin-bottom: 10px;">🎯 Выберите цель:</h3>
                 <div id="targetsContainer"></div>
             </div>
             <div id="weaponsList" style="margin: 20px 0;">
-                <h3>Выберите оружие:</h3>
+                <h3 style="color: #4a9eff; font-size: 14px; margin-bottom: 10px;">⚔️ Выберите оружие:</h3>
                 <div id="weaponsContainer"></div>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button id="confirmShootBtn" class="control-btn">Стрелять</button>
+                <button id="confirmShootBtn" class="control-btn" style="background-color: #e74c3c;">🔫 Стрелять</button>
                 <button id="cancelShootBtn" class="control-btn">Отмена</button>
             </div>
         </div>
