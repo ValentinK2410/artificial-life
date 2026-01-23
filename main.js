@@ -2209,20 +2209,40 @@ function initializeWorldControls() {
 
     // Одежда
     document.getElementById('addSummerClothesManBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('summer_clothes_man');
-        addLogEntry('Мужская летняя одежда добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('summer_clothes_man');
+            }
+        }
+        addLogEntry(`Мужская летняя одежда добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addSummerClothesWomanBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('summer_clothes_woman');
-        addLogEntry('Женская летняя одежда добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('summer_clothes_woman');
+            }
+        }
+        addLogEntry(`Женская летняя одежда добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addWinterClothesManBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('winter_clothes_man');
-        addLogEntry('Мужская зимняя одежда добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('winter_clothes_man');
+            }
+        }
+        addLogEntry(`Мужская зимняя одежда добавлена на карту (${count} шт.)`);
     });
     document.getElementById('addWinterClothesWomanBtn')?.addEventListener('click', () => {
-        if (window.world) world.addResource('winter_clothes_woman');
-        addLogEntry('Женская зимняя одежда добавлена на карту');
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('winter_clothes_woman');
+            }
+        }
+        addLogEntry(`Женская зимняя одежда добавлена на карту (${count} шт.)`);
     });
 
     // Функция для получения выбранного количества ресурсов

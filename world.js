@@ -1965,6 +1965,9 @@ class World {
         
         // Если агент мертв - рисуем его лежащим
         if (isDead) {
+            // Определяем, является ли агент женщиной
+            const isWomanDead = agent.gender === 'female' || ['woman', 'girl', 'oldwoman'].includes(agent.type);
+            
             // Сохраняем контекст для поворота
             this.ctx.save();
             this.ctx.translate(x, y);
@@ -1991,10 +1994,28 @@ class World {
             this.ctx.fillRect(-6, -3, 2, 6);
             this.ctx.fillRect(4, -3, 2, 6);
             
-            // Ноги - вытянуты
-            this.ctx.fillStyle = style.pants;
-            this.ctx.fillRect(-3, 5, 3, 8);
-            this.ctx.fillRect(0, 5, 3, 8);
+            if (isWomanDead) {
+                // Для женщин - платье (расширяется книзу)
+                this.ctx.fillStyle = style.clothes;
+                this.ctx.beginPath();
+                this.ctx.moveTo(-4, 5); // Верх платья
+                this.ctx.lineTo(-6, 12); // Левая нижняя точка
+                this.ctx.lineTo(6, 12); // Правая нижняя точка
+                this.ctx.lineTo(4, 5); // Верх платья
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Ноги под платьем (видны только нижняя часть)
+                this.ctx.fillStyle = style.skin;
+                this.ctx.fillRect(-3, 10, 2, 4);
+                this.ctx.fillRect(1, 10, 2, 4);
+            } else {
+                // Для мужчин - брюки
+                // Ноги - вытянуты
+                this.ctx.fillStyle = style.pants;
+                this.ctx.fillRect(-3, 5, 3, 8);
+                this.ctx.fillRect(0, 5, 3, 8);
+            }
             
             // Обувь
             this.ctx.fillStyle = '#2a1a1a';
@@ -2041,27 +2062,64 @@ class World {
                 legAngle = 0.2 + Math.sin(time * 4 + x * 0.1) * 0.15;
             }
             
-            // Ноги (штаны) с анимацией
-            this.ctx.fillStyle = style.pants;
-            // Левая нога (с анимацией)
-            this.ctx.save();
-            this.ctx.translate(x - 3, y + 8);
-            this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
-            this.ctx.fillRect(0, 0, 3, 8);
-            this.ctx.restore();
-            // Правая нога (с анимацией)
-            this.ctx.save();
-            this.ctx.translate(x, y + 8);
-            this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
-            this.ctx.fillRect(0, 0, 3, 8);
-            this.ctx.restore();
+            // Определяем, является ли агент женщиной
+            const isWoman = agent.gender === 'female' || ['woman', 'girl', 'oldwoman'].includes(agent.type);
             
-            // Ноги (обувь)
-            this.ctx.fillStyle = '#2a1a1a';
-            this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
-            this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
+            if (isWoman) {
+                // Для женщин рисуем платье
+                // Платье (расширяется книзу)
+                this.ctx.fillStyle = style.clothes;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 4, y - 2); // Верх платья (талия)
+                this.ctx.lineTo(x - 5, y + 14); // Левая нижняя точка
+                this.ctx.lineTo(x + 5, y + 14); // Правая нижняя точка
+                this.ctx.lineTo(x + 4, y - 2); // Верх платья (талия)
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Ноги под платьем (видны только нижняя часть)
+                this.ctx.fillStyle = style.skin;
+                // Левая нога (с анимацией)
+                this.ctx.save();
+                this.ctx.translate(x - 3, y + 12);
+                this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+                this.ctx.fillRect(0, 0, 2, 4);
+                this.ctx.restore();
+                // Правая нога (с анимацией)
+                this.ctx.save();
+                this.ctx.translate(x, y + 12);
+                this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+                this.ctx.fillRect(0, 0, 2, 4);
+                this.ctx.restore();
+                
+                // Ноги (обувь)
+                this.ctx.fillStyle = '#2a1a1a';
+                this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
+                this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
+            } else {
+                // Для мужчин рисуем брюки
+                // Ноги (штаны) с анимацией
+                this.ctx.fillStyle = style.pants;
+                // Левая нога (с анимацией)
+                this.ctx.save();
+                this.ctx.translate(x - 3, y + 8);
+                this.ctx.rotate(state !== 'rest' ? -legAngle + Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+                this.ctx.fillRect(0, 0, 3, 8);
+                this.ctx.restore();
+                // Правая нога (с анимацией)
+                this.ctx.save();
+                this.ctx.translate(x, y + 8);
+                this.ctx.rotate(state !== 'rest' ? legAngle - Math.sin(time * 4 + x * 0.1) * 0.2 : 0);
+                this.ctx.fillRect(0, 0, 3, 8);
+                this.ctx.restore();
+                
+                // Ноги (обувь)
+                this.ctx.fillStyle = '#2a1a1a';
+                this.ctx.fillRect(x - 4, y + 15 + walkOffset, 2, 2);
+                this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
+            }
             
-            // Тело (туловище)
+            // Тело (туловище) - для всех одинаково
             this.ctx.fillStyle = style.clothes;
             this.ctx.fillRect(x - 4, y - 2, 8, 10);
             
