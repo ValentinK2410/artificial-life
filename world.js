@@ -1875,10 +1875,22 @@ class World {
     }
     
     drawAgent(agent) {
-        if (!this.ctx) return;
+        if (!this.ctx || !agent) return;
+        
+        // Проверяем наличие позиции
+        if (!agent.position) {
+            console.warn('Агент без позиции:', agent.name, agent);
+            return;
+        }
 
-        const x = agent.position ? agent.position.x : (agent.x || 100);
-        const y = agent.position ? agent.position.y : (agent.y || 100);
+        const x = agent.position.x;
+        const y = agent.position.y;
+        
+        // Проверяем валидность координат
+        if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+            console.warn('Некорректные координаты агента:', agent.name, x, y);
+            return;
+        }
         const state = agent.state || 'explore';
         const health = agent.health !== undefined ? agent.health : 100;
         const time = Date.now() / 1000;
