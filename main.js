@@ -3011,6 +3011,14 @@ function initializeNetwork() {
                     connectionStatus.textContent = 'Подключено!';
                     connectionStatus.className = 'connection-status connected';
                     
+                    // Устанавливаем текущие имя игрока и ID мира (если еще не установлены)
+                    if (!currentPlayerName) {
+                        currentPlayerName = playerName;
+                    }
+                    if (!currentWorldId) {
+                        currentWorldId = worldId;
+                    }
+                    
                     // Скрываем модальное окно и показываем игру
                     setTimeout(() => {
                         loginModal.style.display = 'none';
@@ -3100,13 +3108,37 @@ function initializeGameWithServerData(data, loadSave = false) {
     const playerId = window.networkManager && window.networkManager.socket ? 
                      window.networkManager.socket.id : null;
     
+    // Устанавливаем currentPlayerName и currentWorldId, если они еще не установлены
+    // Получаем их из полей ввода или из networkManager
+    if (!currentPlayerName) {
+        const playerNameInput = document.getElementById('playerNameInput');
+        if (playerNameInput) {
+            currentPlayerName = playerNameInput.value.trim();
+        }
+    }
+    if (!currentWorldId) {
+        const worldIdInput = document.getElementById('worldIdInput');
+        if (worldIdInput) {
+            currentWorldId = worldIdInput.value.trim() || 'default';
+        } else {
+            currentWorldId = 'default';
+        }
+    }
+    
     // Создаем агентов с playerId (семья для текущего игрока)
-    if (window.agents && playerId) {
-        window.agents.playerId = playerId;
-        window.agents.initializeAgents(playerId);
+    if (window.agents) {
+        if (playerId) {
+            window.agents.playerId = playerId;
+            window.agents.initializeAgents(playerId);
+        } else {
+            // Если playerId еще не получен, инициализируем агентов без него
+            // Они будут обновлены когда playerId станет доступен
+            window.agents.initializeAgents(null);
+        }
         
         if (window.addLogEntry) {
-            window.addLogEntry(`👨‍👩‍👧‍👦 Создана ваша семья (${window.agents.getPlayerAgents().length} человек)`);
+            const playerAgents = window.agents.getPlayerAgents();
+            window.addLogEntry(`👨‍👩‍👧‍👦 Создана ваша семья (${playerAgents.length} человек)`);
         }
     }
     
@@ -3303,8 +3335,27 @@ function loadSavedGameState(worldState) {
 
 // Сохранение игры
 function saveCurrentGame() {
+    // Пытаемся получить имя игрока и ID мира, если они не установлены
+    if (!currentPlayerName) {
+        const playerNameInput = document.getElementById('playerNameInput');
+        if (playerNameInput) {
+            currentPlayerName = playerNameInput.value.trim();
+        }
+    }
+    if (!currentWorldId) {
+        const worldIdInput = document.getElementById('worldIdInput');
+        if (worldIdInput) {
+            currentWorldId = worldIdInput.value.trim() || 'default';
+        } else {
+            currentWorldId = 'default';
+        }
+    }
+    
     if (!currentPlayerName || !currentWorldId) {
-        console.warn('Нельзя сохранить: не указаны имя игрока или ID мира');
+        console.warn('Нельзя сохранить: не указаны имя игрока или ID мира', {
+            currentPlayerName,
+            currentWorldId
+        });
         return false;
     }
     
