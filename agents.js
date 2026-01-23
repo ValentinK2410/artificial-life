@@ -264,6 +264,11 @@ class Agent {
             if (this.health < 0) this.health = 0;
         }
         
+        // Автоматическое лечение для больных агентов
+        if (this.health < 100 && this.health > 0) {
+            this.autoHeal();
+        }
+        
         // Используем запасы еды если голодны или хотим пить
         if ((this.hunger > HUNGER_CONFIG.AUTO_EAT_THRESHOLD || this.thirst > 60) && this.foodStorage.length > 0) {
             // Ищем подходящую еду
