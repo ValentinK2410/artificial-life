@@ -845,7 +845,10 @@ class Agent {
                 'feedAnimal': 'кормит животных',
                 'playWithPet': 'играет с питомцем',
                 'storeFood': 'запасает еду',
-                'moveToPoint': 'движется к указанной точке'
+                'moveToPoint': 'движется к указанной точке',
+                'chop_wood': 'рубит дерево',
+                'findClothes': 'ищет одежду',
+                'heal': 'лечит больного'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
