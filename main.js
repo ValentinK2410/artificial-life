@@ -2071,6 +2071,29 @@ function initializeSimulationControls() {
             simulation.reset();
         }
     });
+    
+    // Кнопка сохранения
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            if (saveCurrentGame()) {
+                // Визуальная обратная связь
+                saveBtn.textContent = '✅ Сохранено!';
+                saveBtn.style.backgroundColor = '#4a9eff';
+                setTimeout(() => {
+                    saveBtn.textContent = '💾 Сохранить игру';
+                    saveBtn.style.backgroundColor = '';
+                }, 2000);
+            } else {
+                saveBtn.textContent = '❌ Ошибка сохранения';
+                saveBtn.style.backgroundColor = '#ff6b6b';
+                setTimeout(() => {
+                    saveBtn.textContent = '💾 Сохранить игру';
+                    saveBtn.style.backgroundColor = '';
+                }, 2000);
+            }
+        });
+    }
 }
 
 // Управление аккордеоном агентов
@@ -2800,6 +2823,21 @@ window.adminGiveClothes = function(playerId) {
     }
 };
 
+// Импорт функций сохранения
+let saveGameModule = null;
+if (typeof window !== 'undefined') {
+    // Загружаем модуль сохранения
+    import('./saveGame.js').then(module => {
+        saveGameModule = module;
+        window.saveGameModule = module; // Делаем доступным глобально
+    });
+}
+
+// Глобальные переменные для текущей игры
+let currentPlayerName = null;
+let currentWorldId = null;
+let shouldLoadSave = false;
+
 // Инициализация сетевого подключения
 function initializeNetwork() {
     const loginModal = document.getElementById('loginModal');
@@ -2809,6 +2847,113 @@ function initializeNetwork() {
     const worldIdInput = document.getElementById('worldIdInput');
     const adminPasswordInput = document.getElementById('adminPasswordInput');
     const connectionStatus = document.getElementById('connectionStatus');
+    const saveInfo = document.getElementById('saveInfo');
+    const saveInfoText = document.getElementById('saveInfoText');
+    const continueBtn = document.getElementById('continueBtn');
+    const newGameBtn = document.getElementById('newGameBtn');
+
+    // Проверка сохранений при изменении имени или мира
+    function checkForSave() {
+        const playerName = playerNameInput.value.trim();
+        const worldId = worldIdInput.value.trim() || 'default';
+        
+        if (!playerName) {
+            saveInfo.style.display = 'none';
+            connectBtn.style.display = 'block';
+            return;
+        }
+        
+        // Ждем загрузки модуля сохранения
+        if (!saveGameModule && !window.saveGameModule) {
+            setTimeout(checkForSave, 100);
+            return;
+        }
+        
+        const saveModule = saveGameModule || window.saveGameModule;
+        const hasSave = saveModule.hasSave(playerName, worldId);
+        
+        if (hasSave) {
+            const saveInfoData = saveModule.getSaveInfo(playerName, worldId);
+            if (saveInfoData) {
+                const lastSavedDate = new Date(saveInfoData.lastSaved);
+                const formattedDate = lastSavedDate.toLocaleString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                saveInfoText.innerHTML = `
+                    <div>День: ${saveInfoData.day}</div>
+                    <div>Агентов: ${saveInfoData.agentsCount}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Сохранено: ${formattedDate}</div>
+                `;
+                saveInfo.style.display = 'block';
+                connectBtn.style.display = 'none';
+            } else {
+                saveInfo.style.display = 'none';
+                connectBtn.style.display = 'block';
+            }
+        } else {
+            saveInfo.style.display = 'none';
+            connectBtn.style.display = 'block';
+        }
+    }
+    
+    // Обработчики для проверки сохранений
+    playerNameInput.addEventListener('input', checkForSave);
+    playerNameInput.addEventListener('change', checkForSave);
+    worldIdInput.addEventListener('input', checkForSave);
+    worldIdInput.addEventListener('change', checkForSave);
+    
+    // Обработчик кнопки "Продолжить"
+    if (continueBtn) {
+        continueBtn.addEventListener('click', () => {
+            const playerName = playerNameInput.value.trim();
+            const worldId = worldIdInput.value.trim() || 'default';
+            
+            if (!playerName) {
+                connectionStatus.textContent = 'Введите имя игрока';
+                connectionStatus.className = 'connection-status error';
+                return;
+            }
+            
+            shouldLoadSave = true;
+            currentPlayerName = playerName;
+            currentWorldId = worldId;
+            
+            // Подключаемся как обычно, но загрузим сохранение после подключения
+            connectBtn.click();
+        });
+    }
+    
+    // Обработчик кнопки "Новая игра"
+    if (newGameBtn) {
+        newGameBtn.addEventListener('click', () => {
+            const playerName = playerNameInput.value.trim();
+            const worldId = worldIdInput.value.trim() || 'default';
+            
+            if (!playerName) {
+                connectionStatus.textContent = 'Введите имя игрока';
+                connectionStatus.className = 'connection-status error';
+                return;
+            }
+            
+            // Удаляем старое сохранение
+            const saveModule = saveGameModule || window.saveGameModule;
+            if (saveModule) {
+                saveModule.deleteSave(playerName, worldId);
+            }
+            
+            shouldLoadSave = false;
+            currentPlayerName = playerName;
+            currentWorldId = worldId;
+            
+            // Подключаемся как обычно
+            connectBtn.click();
+        });
+    }
 
     // Обработчик подключения
     connectBtn.addEventListener('click', () => {
@@ -2911,7 +3056,7 @@ function initializeNetwork() {
                         }
                         
                         // Инициализируем игру с данными с сервера
-                        initializeGameWithServerData(data);
+                        initializeGameWithServerData(data, shouldLoadSave);
                     }, 500);
                 };
             }
@@ -2972,7 +3117,7 @@ function initializeNetwork() {
 }
 
 // Инициализация игры с данными сервера
-function initializeGameWithServerData(data) {
+function initializeGameWithServerData(data, loadSave = false) {
     // Создаем мир
     initializeCanvas();
     
@@ -2990,8 +3135,24 @@ function initializeGameWithServerData(data) {
         }
     }
     
-    // Загружаем состояние мира с сервера
-    if (data.world) {
+    // Загружаем сохранение, если нужно
+    if (loadSave && currentPlayerName && currentWorldId) {
+        const saveModule = saveGameModule || window.saveGameModule;
+        if (saveModule) {
+            const saveData = saveModule.loadGame(currentPlayerName, currentWorldId);
+            if (saveData && saveData.worldState) {
+                // Загружаем сохраненное состояние
+                loadSavedGameState(saveData.worldState);
+                
+                if (window.addLogEntry) {
+                    window.addLogEntry(`💾 Игра загружена из сохранения (День ${saveData.worldState.day})`);
+                }
+            }
+        }
+    }
+    
+    // Загружаем состояние мира с сервера (если не загрузили из сохранения)
+    if (data.world && !loadSave) {
         // Загружаем ресурсы
         if (data.world.resources) {
             window.world.resources = data.world.resources.map(r => ({
@@ -3064,6 +3225,164 @@ function initializeGameWithServerData(data) {
 
     // Интегрируем сетевые функции в существующие обработчики
     integrateNetworkWithWorld();
+    
+    // Настраиваем автоматическое сохранение
+    setupAutoSave();
+}
+
+// Загрузка сохраненного состояния игры
+function loadSavedGameState(worldState) {
+    if (!worldState) return;
+    
+    // Загружаем состояние мира
+    if (worldState.day) window.world.day = worldState.day;
+    if (worldState.timeOfDay) window.world.timeOfDay = worldState.timeOfDay;
+    if (worldState.weather) window.world.weather = worldState.weather;
+    
+    // Загружаем ресурсы
+    if (worldState.resources) {
+        window.world.resources = worldState.resources.map(r => ({
+            type: r.type,
+            x: r.x,
+            y: r.y,
+            amount: r.amount || 1,
+            id: r.id
+        }));
+    }
+    
+    // Загружаем животных
+    if (worldState.animals) {
+        window.world.animals = worldState.animals.map(a => ({
+            type: a.type,
+            x: a.x,
+            y: a.y,
+            health: a.health || 100,
+            hunger: a.hunger || 50,
+            id: a.id
+        }));
+    }
+    
+    // Загружаем хищников
+    if (worldState.predators) {
+        window.world.predators = worldState.predators.map(p => ({
+            type: p.type,
+            x: p.x,
+            y: p.y,
+            health: p.health || 100,
+            hunger: p.hunger || 50,
+            id: p.id
+        }));
+    }
+    
+    // Загружаем костры
+    if (worldState.fires) {
+        window.world.fires = worldState.fires.map(f => ({
+            x: f.x,
+            y: f.y,
+            intensity: f.intensity || 1,
+            heatRadius: f.heatRadius || 50,
+            wood: f.wood || 0,
+            ownerId: f.ownerId,
+            id: f.id
+        }));
+    }
+    
+    // Загружаем постройки
+    if (worldState.buildings) {
+        window.world.buildings = worldState.buildings.map(b => ({
+            type: b.type,
+            x: b.x,
+            y: b.y,
+            ownerId: b.ownerId,
+            id: b.id
+        }));
+    }
+    
+    // Загружаем агентов
+    if (worldState.agents && window.agents) {
+        const playerAgents = window.agents.getPlayerAgents();
+        worldState.agents.forEach(savedAgent => {
+            const agent = playerAgents.find(a => a.id === savedAgent.id);
+            if (agent) {
+                // Восстанавливаем состояние агента
+                agent.health = savedAgent.health || 100;
+                agent.energy = savedAgent.energy || 100;
+                agent.hunger = savedAgent.hunger || 20;
+                agent.thirst = savedAgent.thirst || 15;
+                agent.temperature = savedAgent.temperature || 37;
+                agent.mood = savedAgent.mood || 'neutral';
+                agent.satisfaction = savedAgent.satisfaction || 50;
+                agent.position = savedAgent.position || { x: 0, y: 0 };
+                agent.inventory = savedAgent.inventory || [];
+                agent.foodStorage = savedAgent.foodStorage || [];
+                agent.animalFoodStorage = savedAgent.animalFoodStorage || [];
+                agent.experience = savedAgent.experience || {};
+                agent.friends = savedAgent.friends || [];
+                agent.pets = savedAgent.pets || [];
+                agent.state = savedAgent.state || 'explore';
+                agent.angle = savedAgent.angle || 0;
+            }
+        });
+    }
+}
+
+// Сохранение игры
+function saveCurrentGame() {
+    if (!currentPlayerName || !currentWorldId) {
+        console.warn('Нельзя сохранить: не указаны имя игрока или ID мира');
+        return false;
+    }
+    
+    const saveModule = saveGameModule || window.saveGameModule;
+    if (!saveModule) {
+        console.warn('Модуль сохранения не загружен');
+        return false;
+    }
+    
+    // Собираем состояние игры
+    const gameState = {
+        world: {
+            day: window.world?.day || 1,
+            timeOfDay: window.world?.timeOfDay || 'day',
+            weather: window.world?.weather || 'sunny',
+            resources: window.world?.resources || [],
+            animals: window.world?.animals || [],
+            predators: window.world?.predators || [],
+            fires: window.world?.fires || [],
+            buildings: window.world?.buildings || []
+        },
+        agents: window.agents?.getPlayerAgents() || [],
+        simulation: {
+            isRunning: simulation?.isRunning || false,
+            simulationSpeed: simulation?.simulationSpeed || 20,
+            frameCount: simulation?.frameCount || 0
+        }
+    };
+    
+    const success = saveModule.saveGame(currentPlayerName, currentWorldId, gameState);
+    
+    if (success && window.addLogEntry) {
+        window.addLogEntry('💾 Игра сохранена');
+    }
+    
+    return success;
+}
+
+// Настройка автоматического сохранения
+function setupAutoSave() {
+    // Автосохранение каждые 2 минуты
+    setInterval(() => {
+        if (currentPlayerName && currentWorldId && simulation && simulation.isRunning) {
+            saveCurrentGame();
+        }
+    }, 120000); // 2 минуты
+    
+    // Сохранение при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        if (currentPlayerName && currentWorldId) {
+            saveCurrentGame();
+        }
+    });
 }
 
 // Интеграция сетевых функций с миром

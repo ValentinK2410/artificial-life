@@ -18,7 +18,18 @@
                 <input type="text" id="playerNameInput" placeholder="Введите ваше имя" maxlength="20">
                 <label for="worldIdInput">ID мира (опционально):</label>
                 <input type="text" id="worldIdInput" placeholder="default" value="default">
-                <button id="connectBtn" class="control-btn">Подключиться</button>
+                
+                <!-- Информация о сохранении -->
+                <div id="saveInfo" style="display: none; margin: 15px 0; padding: 15px; background-color: rgba(74, 158, 255, 0.1); border: 1px solid #4a9eff; border-radius: 5px;">
+                    <div style="color: #4a9eff; font-weight: bold; margin-bottom: 10px;">💾 Найдено сохранение:</div>
+                    <div id="saveInfoText" style="color: #b0b0b0; font-size: 14px; margin-bottom: 10px;"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="continueBtn" class="control-btn" style="flex: 1; background-color: #4a9eff;">Продолжить</button>
+                        <button id="newGameBtn" class="control-btn" style="flex: 1; background-color: #ff6b6b;">Новая игра</button>
+                    </div>
+                </div>
+                
+                <button id="connectBtn" class="control-btn" style="display: none;">Подключиться</button>
                 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3a3a3a;">
                     <label for="adminPasswordInput">Админ-пароль (опционально):</label>
                     <input type="password" id="adminPasswordInput" placeholder="Введите пароль администратора">
@@ -83,6 +94,9 @@
                             <button id="startBtn" class="control-btn" style="flex: 1;">▶️ Старт</button>
                             <button id="pauseBtn" class="control-btn" style="flex: 1;">⏸️ Пауза</button>
                             <button id="resetBtn" class="control-btn" style="flex: 1;">🔄 Сброс</button>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button id="saveBtn" class="control-btn" style="width: 100%;">💾 Сохранить игру</button>
                         </div>
                         <div class="slider-container">
                             <label for="speedSlider" style="color: #b0b0b0; font-size: 14px;">Скорость
@@ -227,6 +241,7 @@
     <script src="network.js"></script>
     <script src="world.js"></script>
     <script src="agents.js"></script>
+    <script type="module" src="saveGame.js"></script>
     <script src="main.js"></script>
 
     <!-- Новые модули (будут использоваться после полной миграции) -->

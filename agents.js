@@ -1756,6 +1756,26 @@ class Agent {
         }
         
         const friend = this.targetFriend; // Целевой друг (объект Agent)
+        
+        // Проверяем валидность друга и его позиции
+        if (!friend || !friend.position || 
+            typeof friend.position.x !== 'number' || typeof friend.position.y !== 'number' ||
+            !isFinite(friend.position.x) || !isFinite(friend.position.y)) {
+            // Некорректные данные друга - сбрасываем и возвращаемся к исследованию
+            this.targetFriend = null;
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем валидность собственной позиции
+        if (!this.position || 
+            typeof this.position.x !== 'number' || typeof this.position.y !== 'number' ||
+            !isFinite(this.position.x) || !isFinite(this.position.y)) {
+            // Некорректная позиция - возвращаемся к исследованию
+            this.state = 'explore';
+            return;
+        }
+        
         const dx = friend.position.x - this.position.x; // Разница по оси X до друга (пиксели)
         const dy = friend.position.y - this.position.y; // Разница по оси Y до друга (пиксели)
         const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до друга (пиксели)
