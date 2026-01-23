@@ -85,6 +85,25 @@
     </div>
 
     <!-- Модальное окно добавления агента -->
+    <!-- Модальное окно для выбора цели и оружия -->
+    <div id="shootTargetModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>Выбор цели и оружия</h2>
+            <div id="shootTargetsList" style="margin: 20px 0;">
+                <h3>Выберите цель:</h3>
+                <div id="targetsContainer"></div>
+            </div>
+            <div id="weaponsList" style="margin: 20px 0;">
+                <h3>Выберите оружие:</h3>
+                <div id="weaponsContainer"></div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button id="confirmShootBtn" class="control-btn">Стрелять</button>
+                <button id="cancelShootBtn" class="control-btn">Отмена</button>
+            </div>
+        </div>
+    </div>
+
     <div id="addAgentModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 400px;">
             <h2>Добавить агента</h2>
@@ -221,6 +240,11 @@
                         <button id="addShovelBtn" class="resource-btn">Лопата</button>
                         <button id="addFishingRodBtn" class="resource-btn">Удочка</button>
                         <button id="addFirstAidKitBtn" class="resource-btn">Аптечка</button>
+                        <h4>Оружие:</h4>
+                        <button id="addGunBtn" class="resource-btn">Ружье</button>
+                        <button id="addAmmoBtn" class="resource-btn">Патроны</button>
+                        <button id="addBowBtn" class="resource-btn">Лук</button>
+                        <button id="addArrowsBtn" class="resource-btn">Стрелы</button>
                     </div>
                     <div class="resource-buttons">
                         <h4>Одежда:</h4>

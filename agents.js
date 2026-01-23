@@ -71,7 +71,9 @@ class Agent {
             singing: 0,       // Опыт пения песен (0-100)
             storytelling: 0,  // Опыт рассказывания стихов (0-100)
             comedy: 0,        // Опыт смешить других (0-100)
-            consoling: 0      // Опыт утешения других (0-100)
+            consoling: 0,     // Опыт утешения других (0-100)
+            gun_shooting: 0,  // Опыт стрельбы из ружья (0-100)
+            bow_shooting: 0   // Опыт стрельбы из лука (0-100)
         };
         
         // Эмоциональное состояние
@@ -1144,6 +1146,188 @@ class Agent {
             const pet = window.world.animals.find(a => a.id === petId);
             return pet && pet.hunger > 60;
         });
+    }
+    
+    hasGun() {
+        // Проверяем наличие ружья в инвентаре
+        return this.inventory.some(item => item.type === 'gun');
+    }
+    
+    hasAmmo() {
+        // Проверяем наличие патронов в инвентаре
+        return this.inventory.some(item => item.type === 'ammo' && item.amount > 0);
+    }
+    
+    hasBow() {
+        // Проверяем наличие лука в инвентаре
+        return this.inventory.some(item => item.type === 'bow');
+    }
+    
+    hasArrows() {
+        // Проверяем наличие стрел в инвентаре
+        return this.inventory.some(item => item.type === 'arrows' && item.amount > 0);
+    }
+    
+    consumeAmmo() {
+        // Используем один патрон
+        const ammoItem = this.inventory.find(item => item.type === 'ammo' && item.amount > 0);
+        if (ammoItem) {
+            ammoItem.amount--;
+            if (ammoItem.amount <= 0) {
+                const index = this.inventory.indexOf(ammoItem);
+                if (index > -1) this.inventory.splice(index, 1);
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    consumeArrow() {
+        // Используем одну стрелу
+        const arrowItem = this.inventory.find(item => item.type === 'arrows' && item.amount > 0);
+        if (arrowItem) {
+            arrowItem.amount--;
+            if (arrowItem.amount <= 0) {
+                const index = this.inventory.indexOf(arrowItem);
+                if (index > -1) this.inventory.splice(index, 1);
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    shootGun(target) {
+        // Стрельба из ружья по цели
+        if (!this.hasGun() || !this.hasAmmo()) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name} не может стрелять: нет ружья или патронов`);
+            }
+            return false;
+        }
+        
+        const gunSkill = this.experience.gun_shooting || 0;
+        const targetX = target.obj ? target.obj.x : target.x;
+        const targetY = target.obj ? target.obj.y : target.y;
+        const distance = Math.sqrt(
+            Math.pow(targetX - this.position.x, 2) + 
+            Math.pow(targetY - this.position.y, 2)
+        );
+        
+        // Максимальная дальность стрельбы из ружья - 200 пикселей
+        if (distance > 200) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name}: цель слишком далеко для стрельбы из ружья`);
+            }
+            return false;
+        }
+        
+        // Используем патрон
+        if (!this.consumeAmmo()) {
+            return false;
+        }
+        
+        // Шанс попадания зависит от навыка и расстояния
+        const baseAccuracy = 0.7 + (gunSkill / 200); // Базовый шанс 70-95%
+        const distancePenalty = distance / 400; // Штраф за расстояние
+        const accuracy = Math.max(0.3, baseAccuracy - distancePenalty);
+        
+        const hit = Math.random() < accuracy;
+        
+        if (hit) {
+            // Попадание - наносим урон
+            const damage = 30 + gunSkill * 0.5; // Урон 30-80 в зависимости от навыка
+            
+            if (target.type === 'predator') {
+                const predator = target.obj;
+                predator.health = Math.max(0, (predator.health || 100) - damage);
+                // Увеличиваем страх хищника
+                predator.fear = Math.min(100, (predator.fear || 0) + 30);
+            } else if (target.type === 'animal') {
+                const animal = target.obj;
+                if (animal.health === undefined) animal.health = 100;
+                animal.health = Math.max(0, animal.health - damage);
+            }
+            
+            this.gainExperience('gun_shooting', 2);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🔫 ${this.name} выстрелил из ружья и попал! Урон: ${Math.ceil(damage)}`);
+            }
+        } else {
+            this.gainExperience('gun_shooting', 0.5);
+            if (window.addLogEntry) {
+                window.addLogEntry(`🔫 ${this.name} выстрелил из ружья, но промахнулся`);
+            }
+        }
+        
+        return hit;
+    }
+    
+    shootBow(target) {
+        // Стрельба из лука по цели
+        if (!this.hasBow() || !this.hasArrows()) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name} не может стрелять: нет лука или стрел`);
+            }
+            return false;
+        }
+        
+        const bowSkill = this.experience.bow_shooting || 0;
+        const targetX = target.obj ? target.obj.x : target.x;
+        const targetY = target.obj ? target.obj.y : target.y;
+        const distance = Math.sqrt(
+            Math.pow(targetX - this.position.x, 2) + 
+            Math.pow(targetY - this.position.y, 2)
+        );
+        
+        // Максимальная дальность стрельбы из лука - 150 пикселей
+        if (distance > 150) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name}: цель слишком далеко для стрельбы из лука`);
+            }
+            return false;
+        }
+        
+        // Используем стрелу
+        if (!this.consumeArrow()) {
+            return false;
+        }
+        
+        // Шанс попадания зависит от навыка и расстояния
+        const baseAccuracy = 0.6 + (bowSkill / 200); // Базовый шанс 60-90%
+        const distancePenalty = distance / 300; // Штраф за расстояние
+        const accuracy = Math.max(0.2, baseAccuracy - distancePenalty);
+        
+        const hit = Math.random() < accuracy;
+        
+        if (hit) {
+            // Попадание - наносим урон
+            const damage = 20 + bowSkill * 0.4; // Урон 20-60 в зависимости от навыка
+            
+            if (target.type === 'predator') {
+                const predator = target.obj;
+                predator.health = Math.max(0, (predator.health || 100) - damage);
+                // Увеличиваем страх хищника
+                predator.fear = Math.min(100, (predator.fear || 0) + 20);
+            } else if (target.type === 'animal') {
+                const animal = target.obj;
+                if (animal.health === undefined) animal.health = 100;
+                animal.health = Math.max(0, animal.health - damage);
+            }
+            
+            this.gainExperience('bow_shooting', 2);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏹 ${this.name} выстрелил из лука и попал! Урон: ${Math.ceil(damage)}`);
+            }
+        } else {
+            this.gainExperience('bow_shooting', 0.5);
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏹 ${this.name} выстрелил из лука, но промахнулся`);
+            }
+        }
+        
+        return hit;
     }
     
     hasWoodForFire() {

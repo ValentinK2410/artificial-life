@@ -1516,8 +1516,8 @@ class World {
         const y = resource.y;
         const type = resource.type;
         
-        // Инструменты
-        if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(type)) {
+        // Инструменты и оружие
+        if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow'].includes(type)) {
             this.ctx.fillStyle = '#5a5a5a';
             this.ctx.strokeStyle = '#3a3a3a';
             this.ctx.lineWidth = 1;
@@ -1572,7 +1572,66 @@ class World {
                 this.ctx.moveTo(x - 10, y - 15);
                 this.ctx.lineTo(x - 12, y - 20);
                 this.ctx.stroke();
+            } else if (type === 'gun') {
+                // Ружье - длинный прямоугольник с прикладом
+                this.ctx.fillStyle = '#3a3a3a';
+                this.ctx.fillRect(x - 8, y - 2, 16, 4);
+                // Приклад
+                this.ctx.fillRect(x - 10, y - 1, 3, 6);
+                // Ствол
+                this.ctx.fillRect(x + 8, y - 1, 4, 2);
+            } else if (type === 'bow') {
+                // Лук - изогнутая дуга
+                this.ctx.strokeStyle = '#8b4513';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 8, y);
+                this.ctx.quadraticCurveTo(x, y - 8, x + 8, y);
+                this.ctx.stroke();
+                // Тетива
+                this.ctx.strokeStyle = '#cccccc';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 8, y);
+                this.ctx.lineTo(x + 8, y);
+                this.ctx.stroke();
             }
+        }
+        // Боеприпасы
+        else if (type === 'ammo' || type === 'bullets') {
+            // Патроны - маленькие коричневые цилиндры
+            this.ctx.fillStyle = '#8b4513';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y, 2, 3, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.fillStyle = '#ffd700';
+            this.ctx.beginPath();
+            this.ctx.ellipse(x, y - 2, 2, 1, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+        } else if (type === 'arrows') {
+            // Стрелы - тонкая линия с наконечником
+            this.ctx.strokeStyle = '#8b4513';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x + 8, y - 6);
+            this.ctx.stroke();
+            // Наконечник
+            this.ctx.fillStyle = '#5a5a5a';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + 8, y - 6);
+            this.ctx.lineTo(x + 10, y - 5);
+            this.ctx.lineTo(x + 8, y - 4);
+            this.ctx.closePath();
+            this.ctx.fill();
+            // Оперение
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + 2, y - 1);
+            this.ctx.lineTo(x + 3, y - 2);
+            this.ctx.moveTo(x + 2, y + 1);
+            this.ctx.lineTo(x + 3, y + 2);
+            this.ctx.stroke();
         }
         // Еда
         else if (type === 'cooked_food') {
@@ -2382,17 +2441,72 @@ class World {
     updatePredators() {
         // Обновление логики хищников
         this.predators.forEach(predator => {
+            // Инициализируем страх хищника, если его нет
+            if (predator.fear === undefined) {
+                predator.fear = 0;
+            }
+            
+            // Уменьшаем страх со временем
+            predator.fear = Math.max(0, (predator.fear || 0) - 0.5);
+            
             // Увеличение голода
             predator.hunger += 0.3;
             if (predator.hunger > 100) predator.hunger = 100;
             
-            // Поиск цели для атаки
-            if (!predator.target || predator.hunger > 70) {
-                predator.target = this.findNearestPrey(predator);
+            // Проверяем, есть ли рядом агенты, которые атакуют хищника
+            if (window.agents && window.agents.agents) {
+                window.agents.agents.forEach(agent => {
+                    if (agent.attackTarget && agent.attackTarget.type === 'predator' && agent.attackTarget.obj === predator) {
+                        const dx = agent.position.x - predator.x;
+                        const dy = agent.position.y - predator.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Если агент атакует хищника близко - увеличиваем страх
+                        if (distance < 80) {
+                            const huntingSkill = agent.experience.hunting || 0;
+                            predator.fear = Math.min(100, (predator.fear || 0) + (2 + huntingSkill * 0.1));
+                        }
+                    }
+                });
             }
             
-            // Движение к цели или случайное движение
-            if (predator.target) {
+            // Если хищник в страхе (fear > 50), он может убежать
+            const isScared = (predator.fear || 0) > 50;
+            
+            // Поиск цели для атаки (если не в страхе)
+            if (!isScared && (!predator.target || predator.hunger > 70)) {
+                predator.target = this.findNearestPrey(predator);
+            } else if (isScared) {
+                // Если в страхе - убегаем от ближайшего агента
+                predator.target = null;
+                if (window.agents && window.agents.agents) {
+                    let nearestAgent = null;
+                    let minDistance = Infinity;
+                    window.agents.agents.forEach(agent => {
+                        const ax = agent.position ? agent.position.x : agent.x;
+                        const ay = agent.position ? agent.position.y : agent.y;
+                        const distance = Math.sqrt(Math.pow(ax - predator.x, 2) + Math.pow(ay - predator.y, 2));
+                        if (distance < minDistance && distance < 150) {
+                            minDistance = distance;
+                            nearestAgent = { x: ax, y: ay };
+                        }
+                    });
+                    
+                    if (nearestAgent) {
+                        // Убегаем от агента
+                        const dx = predator.x - nearestAgent.x;
+                        const dy = predator.y - nearestAgent.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > 0) {
+                            predator.x += (dx / dist) * predator.speed * 1.5;
+                            predator.y += (dy / dist) * predator.speed * 1.5;
+                        }
+                    }
+                }
+            }
+            
+            // Движение к цели или случайное движение (если не в страхе)
+            if (!isScared && predator.target) {
                 const dx = predator.target.x - predator.x;
                 const dy = predator.target.y - predator.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -2405,7 +2519,7 @@ class World {
                     // Атака цели
                     this.attackTarget(predator, predator.target);
                 }
-            } else {
+            } else if (!isScared) {
                 // Случайное движение
                 predator.direction += (Math.random() - 0.5) * 0.2;
                 predator.x += Math.cos(predator.direction) * predator.speed * 0.5;
