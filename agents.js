@@ -124,6 +124,13 @@ class Agent {
         const oldHealth = this.health; // Сохраняем старое значение здоровья (для определения изменений)
         const oldTemperature = this.temperature; // Сохраняем старое значение температуры (для определения изменений)
         
+        // Защита от быстрой потери здоровья в первые секунды игры (первые 5 секунд = 300 кадров при 60 FPS)
+        // Это дает агентам время адаптироваться к окружающей среде
+        const gameStartTime = window.simulation?.startTime || Date.now();
+        const gameElapsedTime = Date.now() - gameStartTime;
+        const isGameStart = gameElapsedTime < 5000; // Первые 5 секунд игры
+        const healthLossMultiplier = isGameStart ? 0.1 : 1.0; // Уменьшаем потерю здоровья в 10 раз в начале игры
+        
         // Получаем настройки голода (если доступны, иначе используем значения по умолчанию)
         const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {
             INCREASE_RATE: 0.005,       // Скорость увеличения голода за кадр (исправлено: было 0.5, слишком много!)
@@ -254,14 +261,15 @@ class Agent {
         
         // Если температура слишком низкая, теряем здоровье (уменьшена скорость потери)
         if (this.temperature < 35) {
-            const healthLoss = (35 - this.temperature) * 0.02; // Потеря здоровья от холода (уменьшено с 0.1 до 0.02 для баланса)
+            const healthLoss = (35 - this.temperature) * 0.02 * healthLossMultiplier; // Потеря здоровья от холода (уменьшено с 0.1 до 0.02 для баланса)
             this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
         
         // Если голод критический, начинаем терять здоровье
         if (this.hunger > HUNGER_CONFIG.CRITICAL_THRESHOLD) {
-            this.health -= HUNGER_CONFIG.HEALTH_LOSS_RATE; // Потеря здоровья от голода
+            const healthLoss = HUNGER_CONFIG.HEALTH_LOSS_RATE * healthLossMultiplier; // Потеря здоровья от голода (с учетом защиты в начале игры)
+            this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
         

@@ -11,6 +11,7 @@ class Simulation {
         this.colonyDeadShown = false; // Флаг для показа сообщения о гибели колонии
         this.simulationSpeed = 20; // Скорость симуляции (1-50)
         this.frameCount = 0;
+        this.startTime = Date.now(); // Время начала симуляции (для защиты от быстрой потери здоровья в начале игры)
         this.selectedAgent = null; // Выбранный агент для управления
         this.pathMode = null; // Режим задания пути: 'direct', 'circle', 'rectangle', 'polyline'
         this.pathDrawing = false; // Флаг рисования пути

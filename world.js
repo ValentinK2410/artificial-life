@@ -5,8 +5,8 @@ class World {
         this.canvas = canvasElement;
         this.ctx = null;
         this.day = 1;
-        this.timeOfDay = 'day'; // day, night
-        this.weather = 'sunny'; // sunny, rain, night
+        this.timeOfDay = 'day'; // day, night (по умолчанию день для комфортного старта)
+        this.weather = 'sunny'; // sunny, rain, night (по умолчанию солнечная погода для комфортного старта)
         this.isRunning = false;
         this.simulationSpeed = 5;
         this.animationFrameId = null;
