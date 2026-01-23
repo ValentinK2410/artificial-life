@@ -4013,14 +4013,15 @@ function integrateNetworkWithWorld() {
 
     // Обновление камеры
     const originalDraw = window.world.draw.bind(window.world);
+    let drawFrameCount = 0;
     window.world.draw = function() {
         originalDraw();
         
         // Отправляем обновление камеры на сервер
-        if (window.networkManager && window.networkManager.isConnected && this.frameCount % 10 === 0) {
+        drawFrameCount++;
+        if (window.networkManager && window.networkManager.isConnected && drawFrameCount % 10 === 0) {
             window.networkManager.updateCamera(this.camera);
         }
-        this.frameCount = (this.frameCount || 0) + 1;
     };
 }
 

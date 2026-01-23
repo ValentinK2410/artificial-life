@@ -753,7 +753,8 @@ class World {
             return;
         }
 
-        // Очистка canvas
+        // Очистка canvas (ВАЖНО: до применения трансформаций!)
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Сбрасываем все трансформации
         this.ctx.clearRect(0, 0, width, height);
         
         // Применяем трансформацию камеры
