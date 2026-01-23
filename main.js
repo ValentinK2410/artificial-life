@@ -659,7 +659,8 @@ class Simulation {
             'build': 'Строит',
             'fish': 'Рыбачит',
             'farm': 'Занимается фермерством',
-            'heal': 'Лечит'
+            'heal': 'Лечит',
+            'findClothes': 'Ищет одежду'
         };
         return stateNames[state] || state;
     }

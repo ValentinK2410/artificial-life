@@ -60,7 +60,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -578,6 +578,10 @@ class Agent {
         // Определяем температуру окружающей среды в зависимости от погоды
         let ambientTemp = this.getAmbientTemperature(); // Температура окружающей среды (°C)
         
+        // Проверяем наличие одежды и её защиту от холода
+        const clothesBonus = this.getClothesProtection(); // Бонус тепла от одежды (°C, зависит от типа одежды и погоды)
+        ambientTemp += clothesBonus; // Добавляем бонус от одежды к температуре окружающей среды
+        
         // Проверяем, движется ли агент
         let movementBonus = 0; // Бонус тепла от движения (°C, 0 или MOVEMENT_HEAT_BONUS)
         if (this.lastPosition && this.position) {
@@ -654,6 +658,57 @@ class Agent {
         
         return nearestFire; // Возвращаем ближайший костер или null
     }
+    
+    hasClothes() {
+        // Проверяем наличие одежды в инвентаре
+        const clothesTypes = ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman']; // Типы одежды
+        return this.inventory.some(item => clothesTypes.includes(item.type)); // Флаг наличия одежды (true/false)
+    }
+    
+    hasEnoughClothes() {
+        // Проверяем, достаточно ли одежды (минимум 1 предмет одежды)
+        return this.hasClothes(); // Флаг достаточности одежды (true/false)
+    }
+    
+    getClothesProtection() {
+        // Получаем защиту от холода от одежды
+        if (!this.hasClothes()) {
+            return 0; // Без одежды нет защиты
+        }
+        
+        const clothesTypes = ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman']; // Типы одежды
+        const clothes = this.inventory.filter(item => clothesTypes.includes(item.type)); // Массив одежды в инвентаре
+        
+        if (clothes.length === 0) {
+            return 0; // Нет одежды
+        }
+        
+        // Определяем погоду и время суток
+        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night'); // Флаг ночного времени (true/false)
+        const isCold = window.world && (window.world.weather === 'rain' || isNight); // Флаг холодной погоды (true/false)
+        
+        let protection = 0; // Защита от холода (°C)
+        
+        clothes.forEach(cloth => {
+            if (cloth.type.includes('winter')) {
+                // Зимняя одежда - полная защита
+                protection += 10; // Зимняя одежда дает +10°C защиты
+            } else if (cloth.type.includes('summer')) {
+                // Летняя одежда
+                if (isCold) {
+                    // В холодную погоду летняя одежда защищает слабо
+                    protection += 3; // Летняя одежда в холод дает +3°C защиты
+                } else {
+                    // В теплую погоду летняя одежда защищает нормально
+                    protection += 5; // Летняя одежда в тепло дает +5°C защиты
+                }
+            }
+        });
+        
+        // Если есть одежда, температура не может понижаться ниже определенного порога
+        // (одежда предотвращает критическое переохлаждение)
+        return Math.min(protection, 15); // Ограничиваем максимальную защиту 15°C
+    }
 
     decide() {
         // Простой конечный автомат для принятия решений
@@ -699,7 +754,7 @@ class Agent {
         // Проверяем наличие больных агентов поблизости
         this.checkForSickAgents();
         
-        // Приоритет: оборона > лечение больных > температура > голод > кормление животных > энергия > игра
+        // Приоритет: оборона > лечение больных > температура (одежда важнее еды) > голод > кормление животных > энергия > игра
         if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
             // Хищник близко - обороняемся
             this.state = 'defend';
@@ -707,11 +762,31 @@ class Agent {
             // Есть больной агент и есть медицинские принадлежности - лечим
             this.state = 'heal';
         } else if (this.temperature < 32) {
-            // Критически холодно - ищем тепло
-            this.state = 'findHeat';
-        } else if (this.temperature < 35 && this.experience.fire_building > 0 && this.hasWoodForFire()) {
-            // Холодно и есть навык разжигания костра и дрова - разводим костер автоматически
-            this.state = 'buildFire';
+            // Критически холодно - ищем одежду (важнее) или тепло
+            if (!this.hasEnoughClothes()) {
+                // Нет одежды - ищем одежду (приоритет)
+                this.state = 'findClothes';
+            } else {
+                // Есть одежда - ищем тепло или еду
+                this.state = 'findHeat';
+            }
+        } else if (this.temperature < 35) {
+            // Холодно - ищем одежду или разводим костер
+            if (!this.hasEnoughClothes()) {
+                // Нет одежды - ищем одежду (приоритет)
+                this.state = 'findClothes';
+            } else if (this.experience.fire_building > 0 && this.hasWoodForFire()) {
+                // Есть одежда, навык и дрова - разводим костер
+                this.state = 'buildFire';
+            } else {
+                // Есть одежда, но нет навыка или дров - ищем еду для энергии
+                const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
+                if (this.hunger > SEARCH_FOOD_THRESHOLD) {
+                    this.state = 'findFood';
+                } else {
+                    this.state = 'findHeat';
+                }
+            }
         } else {
             const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70; // Порог голода для начала поиска еды (0-100)
             const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50; // Порог голода для начала запасания еды (0-100)
@@ -1766,21 +1841,26 @@ class Agent {
                 
                 // Инструменты
                 if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod'].includes(resourceType)) {
-                    this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем инструмент в инвентарь
-                    const skillMap = {
-                        'saw': 'saw',              // Пила -> опыт работы с пилой
-                        'axe': 'axe',              // Топор -> опыт работы с топором
-                        'hammer': 'building',      // Молоток -> опыт строительства
-                        'pickaxe': 'building',      // Кирка -> опыт строительства
-                        'shovel': 'farming',        // Лопата -> опыт фермерства
-                        'fishing_rod': 'fishing'   // Удочка -> опыт рыбалки
-                    }; // Карта соответствия инструментов и навыков опыта
-                    if (skillMap[resourceType]) {
-                        this.gainExperience(skillMap[resourceType], 1); // Получаем опыт соответствующего навыка
+                    // Проверяем, есть ли уже такой инструмент (не собираем дубликаты)
+                    const hasTool = this.inventory.some(item => item.type === resourceType); // Флаг наличия инструмента (true/false)
+                    if (!hasTool) {
+                        this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем инструмент в инвентарь
+                        const skillMap = {
+                            'saw': 'saw',              // Пила -> опыт работы с пилой
+                            'axe': 'axe',              // Топор -> опыт работы с топором
+                            'hammer': 'building',      // Молоток -> опыт строительства
+                            'pickaxe': 'building',      // Кирка -> опыт строительства
+                            'shovel': 'farming',        // Лопата -> опыт фермерства
+                            'fishing_rod': 'fishing'   // Удочка -> опыт рыбалки
+                        }; // Карта соответствия инструментов и навыков опыта
+                        if (skillMap[resourceType]) {
+                            this.gainExperience(skillMap[resourceType], 1); // Получаем опыт соответствующего навыка
+                        }
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
+                        }
                     }
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
-                    }
+                    // Если инструмент уже есть - не подбираем (оставляем для других)
                 }
                 // Медицинские предметы
                 else if (resourceType === 'first_aid_kit') {
