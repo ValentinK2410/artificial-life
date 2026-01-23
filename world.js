@@ -1606,6 +1606,17 @@ class World {
             this.ctx.beginPath();
             this.ctx.arc(x, y, 3, 0, Math.PI * 2);
             this.ctx.fill();
+        } else if (type === 'first_aid_kit') {
+            // Аптечка - красный крест на белом фоне
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillRect(x - 6, y - 6, 12, 12);
+            this.ctx.strokeStyle = '#cccccc';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x - 6, y - 6, 12, 12);
+            // Красный крест
+            this.ctx.fillStyle = '#ff0000';
+            this.ctx.fillRect(x - 1, y - 4, 2, 8);
+            this.ctx.fillRect(x - 4, y - 1, 8, 2);
         } else if (type === 'mint') {
             // Мята - зеленый
             this.ctx.fillStyle = '#66bb6a';
