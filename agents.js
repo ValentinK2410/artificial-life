@@ -70,6 +70,9 @@ class Agent {
         this.nearbyPredator = null; // Ближайший хищник поблизости (null или объект {predator, distance})
         this.sickAgent = null; // Больной агент, которого нужно вылечить (объект Agent или null)
         this.targetFood = null; // Целевая еда для сбора (объект {resource, distance} или null)
+        this.targetClothes = null; // Целевая одежда для сбора (объект {resource: {x, y, type}} или null)
+        this.targetTree = null; // Целевое дерево для рубки (объект {x, y, id, state} или null)
+        this.chopProgress = 0; // Прогресс рубки дерева (0-100)
         this.angle = 0; // Угол поворота агента (градусы, 0-360, для визуализации направления движения)
         
         // Инициализация случайной позиции
