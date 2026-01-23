@@ -12,8 +12,8 @@ class Agent {
         // Характеристики здоровья и выживания
         this.health = 100; // Здоровье агента (0-100, при 0 агент умирает)
         this.energy = 100; // Энергия агента (0-100, влияет на скорость и активность)
-        this.hunger = 0; // Голод агента (0-100, при высоком значении теряется здоровье)
-        this.thirst = 0; // Жажда агента (0-100, при высоком значении требуется вода)
+        this.hunger = 20; // Голод агента (0-100, при высоком значении теряется здоровье) - начинаем с небольшого голода
+        this.thirst = 15; // Жажда агента (0-100, при высоком значении требуется вода) - начинаем с небольшой жажды
         this.sweetDesire = 0; // Желание сладкого (0-100, влияет на предпочтения в еде)
         this.stamina = 100; // Выносливость агента (0-100, влияет на потерю энергии)
         this.immunity = 50; // Иммунитет агента (0-100, влияет на сопротивляемость болезням)
@@ -264,14 +264,20 @@ class Agent {
         
         // Если температура слишком низкая, теряем здоровье (уменьшена скорость потери)
         if (this.temperature < 35) {
-            const healthLoss = (35 - this.temperature) * 0.02 * healthLossMultiplier; // Потеря здоровья от холода (уменьшено с 0.1 до 0.02 для баланса)
+            // Дополнительная защита: если температура выше 30°C, потери минимальны
+            const tempDiff = 35 - this.temperature;
+            const baseHealthLoss = tempDiff > 5 ? tempDiff * 0.02 : tempDiff * 0.01; // Меньше потерь при температуре 30-35°C
+            const healthLoss = baseHealthLoss * healthLossMultiplier; // Потеря здоровья от холода (с учетом защиты)
             this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
         
         // Если голод критический, начинаем терять здоровье
         if (this.hunger > HUNGER_CONFIG.CRITICAL_THRESHOLD) {
-            const healthLoss = HUNGER_CONFIG.HEALTH_LOSS_RATE * healthLossMultiplier; // Потеря здоровья от голода (с учетом защиты в начале игры)
+            // Дополнительная защита: потери начинаются только при очень высоком голоде (>90)
+            const hungerExcess = this.hunger - HUNGER_CONFIG.CRITICAL_THRESHOLD;
+            const adjustedLossRate = this.hunger > 90 ? HUNGER_CONFIG.HEALTH_LOSS_RATE : HUNGER_CONFIG.HEALTH_LOSS_RATE * 0.5;
+            const healthLoss = adjustedLossRate * healthLossMultiplier; // Потеря здоровья от голода (с учетом защиты)
             this.health -= healthLoss;
             if (this.health < 0) this.health = 0;
         }
