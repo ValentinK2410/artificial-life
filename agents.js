@@ -124,12 +124,15 @@ class Agent {
         const oldHealth = this.health; // Сохраняем старое значение здоровья (для определения изменений)
         const oldTemperature = this.temperature; // Сохраняем старое значение температуры (для определения изменений)
         
-        // Защита от быстрой потери здоровья в первые секунды игры (первые 5 секунд = 300 кадров при 60 FPS)
-        // Это дает агентам время адаптироваться к окружающей среде
+        // Защита от быстрой потери здоровья в первые секунды игры (первые 30 секунд)
+        // Это дает агентам время адаптироваться к окружающей среде и найти ресурсы
         const gameStartTime = window.simulation?.startTime || Date.now();
         const gameElapsedTime = Date.now() - gameStartTime;
-        const isGameStart = gameElapsedTime < 5000; // Первые 5 секунд игры
-        const healthLossMultiplier = isGameStart ? 0.1 : 1.0; // Уменьшаем потерю здоровья в 10 раз в начале игры
+        const PROTECTION_DURATION = 30000; // 30 секунд защиты
+        const isGameStart = gameElapsedTime < PROTECTION_DURATION;
+        // Плавное уменьшение защиты: от 0.01 (в начале) до 1.0 (после 30 секунд)
+        const protectionFactor = isGameStart ? Math.max(0.01, 1.0 - (gameElapsedTime / PROTECTION_DURATION) * 0.99) : 1.0;
+        const healthLossMultiplier = protectionFactor; // Уменьшаем потерю здоровья в начале игры
         
         // Получаем настройки голода (если доступны, иначе используем значения по умолчанию)
         const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {
