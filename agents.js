@@ -418,8 +418,8 @@ class Agent {
                 const dy = agent.position.y - this.position.y; // Разница по оси Y до больного агента (пиксели)
                 const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до больного агента (пиксели)
                 
-                // Если больной агент в радиусе 100 пикселей и ближе предыдущего
-                if (distance < 100 && distance < minDistance) {
+                // Если больной агент в радиусе 150 пикселей и ближе предыдущего (увеличен радиус для лучшего обнаружения)
+                if (distance < 150 && distance < minDistance) {
                     minDistance = distance; // Обновляем минимальное расстояние
                     this.sickAgent = agent; // Сохраняем больного агента
                 }
@@ -435,11 +435,17 @@ class Agent {
             return false; // Без аптечки нельзя лечить
         }
         
-        // Проверяем наличие лечебных трав (шиповник, зверобой, мята, лимон)
+        // Проверяем наличие лечебных трав (шиповник, зверобой, мята, лимон, мед)
+        // Травы могут быть как в inventory, так и в foodStorage
         const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey']; // Массив типов лечебных трав
-        const hasHerbs = this.inventory.some(item => healingHerbs.includes(item.type)); // Флаг наличия лечебных трав в инвентаре (true/false)
         
-        return hasHerbs; // Возвращаем true, если есть и аптечка, и травы
+        // Проверяем в инвентаре
+        const hasHerbsInInventory = this.inventory.some(item => healingHerbs.includes(item.type)); // Флаг наличия лечебных трав в инвентаре (true/false)
+        
+        // Проверяем в запасах еды
+        const hasHerbsInStorage = this.foodStorage && this.foodStorage.some(item => healingHerbs.includes(item.type)); // Флаг наличия лечебных трав в запасах еды (true/false)
+        
+        return hasHerbsInInventory || hasHerbsInStorage; // Возвращаем true, если есть и аптечка, и травы (в любом месте)
     }
     
     heal() {
@@ -487,7 +493,16 @@ class Agent {
         
         // Лечение завершено - используем лечебные травы
         const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey']; // Массив типов лечебных трав
-        const herbItem = this.inventory.find(item => healingHerbs.includes(item.type)); // Найденная лечебная трава в инвентаре (объект {type, amount} или undefined)
+        
+        // Ищем травы сначала в инвентаре, потом в запасах еды
+        let herbItem = this.inventory.find(item => healingHerbs.includes(item.type)); // Найденная лечебная трава в инвентаре (объект {type, amount} или undefined)
+        let herbSource = 'inventory'; // Источник травы ('inventory' или 'foodStorage')
+        
+        if (!herbItem && this.foodStorage && this.foodStorage.length > 0) {
+            // Если не нашли в инвентаре, ищем в запасах еды
+            herbItem = this.foodStorage.find(item => healingHerbs.includes(item.type)); // Найденная лечебная трава в запасах еды
+            herbSource = 'foodStorage'; // Источник - запасы еды
+        }
         
         if (herbItem) {
             // Используем траву для лечения
@@ -504,11 +519,16 @@ class Agent {
                     this.sickAgent.immunity = Math.min(100, this.sickAgent.immunity + immunityRestore); // Восстанавливаем иммунитет (не выше 100)
                 }
                 
-                // Убираем использованную траву из инвентаря
+                // Убираем использованную траву из инвентаря или запасов еды
                 herbItem.amount--; // Уменьшаем количество травы
                 if (herbItem.amount <= 0) {
-                    const index = this.inventory.indexOf(herbItem); // Индекс травы в инвентаре
-                    if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
+                    if (herbSource === 'inventory') {
+                        const index = this.inventory.indexOf(herbItem); // Индекс травы в инвентаре
+                        if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
+                    } else {
+                        const index = this.foodStorage.indexOf(herbItem); // Индекс травы в запасах еды
+                        if (index > -1) this.foodStorage.splice(index, 1); // Удаляем траву из запасов еды
+                    }
                 }
                 
                 // Отдаем еду больному агенту (если есть)
@@ -858,8 +878,8 @@ class Agent {
         if (this.nearbyPredator && this.nearbyPredator.distance < 50) {
             // Хищник близко - обороняемся
             this.state = 'defend';
-        } else if (this.sickAgent && this.hasMedicalSupplies()) {
-            // Есть больной агент и есть медицинские принадлежности - лечим
+        } else if (this.sickAgent && this.hasMedicalSupplies() && this.experience.healing >= 5) {
+            // Есть больной агент, есть медицинские принадлежности и есть навык лечения (минимум 5 опыта) - лечим
             this.state = 'heal';
         } else if (this.consolingTarget && this.experience.consoling >= 5) {
             // Есть агент, которому нужна помощь, и есть навык утешения - утешаем
