@@ -1332,6 +1332,182 @@ class Agent {
         return nearestTree; // Возвращаем ближайшее дерево или null
     }
     
+    // Автоматическое лечение больного агента
+    autoHeal() {
+        // Лечение происходит только если здоровье ниже 100 и агент жив
+        if (this.health >= 100 || this.health <= 0) return;
+        
+        // Получаем настройки автоматического лечения из конфига
+        const AUTO_HEAL_CONFIG = window.GAME_CONFIG?.AGENTS?.AUTO_HEAL_CONFIG || {
+            INTERVAL: 60,          // Интервал между попытками лечения (в кадрах)
+            FIRST_AID_KIT_HEAL: 2, // Количество здоровья, восстанавливаемого аптечкой за раз
+            LOW_HEALTH_THRESHOLD: 80, // Порог низкого здоровья для лечения через питание
+            CRITICAL_HEALTH_THRESHOLD: 70 // Критический порог здоровья для лечения через обычное питание
+        };
+        
+        // Проверяем интервал между попытками лечения
+        this.lastAutoHealTime++;
+        if (this.lastAutoHealTime < AUTO_HEAL_CONFIG.INTERVAL) {
+            return; // Еще не время для лечения
+        }
+        
+        this.lastAutoHealTime = 0; // Сбрасываем счетчик
+        
+        // 1. Лечение через аптечку (если есть)
+        if (this.hasFirstAidKit()) {
+            const healAmount = AUTO_HEAL_CONFIG.FIRST_AID_KIT_HEAL; // Количество здоровья, восстанавливаемого аптечкой за раз
+            this.health = Math.min(100, this.health + healAmount);
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`💊 ${this.name} использует аптечку. Здоровье: ${Math.floor(this.health)}%`);
+            }
+            return; // Аптечка - приоритетный метод лечения
+        }
+        
+        // 2. Лечение через лечебные продукты (мед, лимон, шиповник, зверобой, мята)
+        const healingFoods = ['honey', 'lemon', 'rosehip', 'st_johns_wort', 'mint']; // Массив типов лечебных продуктов
+        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+        
+        // Ищем лечебные продукты в инвентаре
+        let healingFood = this.inventory.find(item => healingFoods.includes(item.type)); // Найденный лечебный продукт в инвентаре (объект {type, amount} или undefined)
+        
+        // Если не нашли в инвентаре, ищем в запасах еды
+        if (!healingFood && this.foodStorage && this.foodStorage.length > 0) {
+            healingFood = this.foodStorage.find(item => healingFoods.includes(item.type)); // Найденный лечебный продукт в запасах еды
+        }
+        
+        if (healingFood) {
+            // Используем лечебный продукт
+            const props = FOOD_PROPERTIES[healingFood.type]; // Свойства лечебного продукта (объект {health, immunity, ...} или undefined)
+            
+            if (props) {
+                const healthRestore = props.health || 0; // Количество восстанавливаемого здоровья
+                const immunityRestore = props.immunity || 0; // Количество восстанавливаемого иммунитета
+                
+                // Восстанавливаем здоровье и иммунитет
+                this.health = Math.min(100, this.health + healthRestore);
+                if (immunityRestore > 0) {
+                    this.immunity = Math.min(100, this.immunity + immunityRestore);
+                }
+                
+                // Убираем использованный продукт
+                healingFood.amount--; // Уменьшаем количество продукта
+                if (healingFood.amount <= 0) {
+                    // Удаляем продукт из массива
+                    if (this.inventory.includes(healingFood)) {
+                        const index = this.inventory.indexOf(healingFood);
+                        this.inventory.splice(index, 1);
+                    } else if (this.foodStorage && this.foodStorage.includes(healingFood)) {
+                        const index = this.foodStorage.indexOf(healingFood);
+                        this.foodStorage.splice(index, 1);
+                    }
+                }
+                
+                // Применяем другие свойства продукта (голод, энергия и т.д.)
+                this.applyFoodProperties(props);
+                
+                if (window.addLogEntry && Math.random() < 0.15) {
+                    window.addLogEntry(`🌿 ${this.name} использует ${this.getFoodName(healingFood.type)} для лечения. Здоровье: ${Math.floor(this.health)}%`);
+                }
+                return; // Лечебные продукты - второй приоритет
+            }
+        }
+        
+        // 3. Лечение через слушание песен других агентов (социальные навыки)
+        if (this.health < AUTO_HEAL_CONFIG.LOW_HEALTH_THRESHOLD) {
+            // Ищем агентов, которые поют, рассказывают истории или смешат поблизости
+            const nearbyAgents = this.getNearbyAgents(100); // Агенты в радиусе 100 пикселей (массив объектов Agent)
+            
+            for (let agent of nearbyAgents) {
+                if (agent.id === this.id) continue; // Пропускаем себя
+                
+                // Проверяем, использует ли агент социальные навыки
+                if (agent.state === 'sing' || agent.state === 'tellStory' || agent.state === 'makeLaugh') {
+                    // Получаем бонус от социальных навыков
+                    const SOCIAL_INTERACTION_CONFIG = window.GAME_CONFIG?.AGENTS?.SOCIAL_INTERACTION_CONFIG || {
+                        MOOD_BONUS: 5, // Бонус к настроению от социальных навыков
+                        SATISFACTION_BONUS: 3, // Бонус к удовлетворенности
+                        HEALTH_BONUS: 1 // Бонус к здоровью от прослушивания песен/историй
+                    };
+                    
+                    // Восстанавливаем здоровье от прослушивания
+                    const healthBonus = SOCIAL_INTERACTION_CONFIG.HEALTH_BONUS || 1;
+                    this.health = Math.min(100, this.health + healthBonus);
+                    
+                    // Улучшаем настроение и удовлетворенность
+                    if (this.mood !== 'happy') {
+                        this.satisfaction = Math.min(100, (this.satisfaction || 50) + SOCIAL_INTERACTION_CONFIG.SATISFACTION_BONUS);
+                    }
+                    
+                    if (window.addLogEntry && Math.random() < 0.05) {
+                        window.addLogEntry(`🎵 ${this.name} слушает ${agent.name} и чувствует себя лучше. Здоровье: ${Math.floor(this.health)}%`);
+                    }
+                    return; // Социальные навыки - третий приоритет
+                }
+            }
+        }
+        
+        // 4. Лечение через обычное питание (если есть еда с положительным эффектом на здоровье)
+        if (this.health < AUTO_HEAL_CONFIG.CRITICAL_HEALTH_THRESHOLD) {
+            // Ищем любую еду с положительным эффектом на здоровье
+            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
+            
+            // Проверяем запасы еды
+            if (this.foodStorage && this.foodStorage.length > 0) {
+                for (let foodItem of this.foodStorage) {
+                    const props = FOOD_PROPERTIES[foodItem.type];
+                    if (props && props.health && props.health > 0) {
+                        // Используем еду для лечения
+                        const healthRestore = props.health || 0;
+                        this.health = Math.min(100, this.health + healthRestore);
+                        
+                        // Применяем другие свойства еды
+                        this.applyFoodProperties(props);
+                        
+                        // Убираем использованную еду
+                        foodItem.amount--;
+                        if (foodItem.amount <= 0) {
+                            const index = this.foodStorage.indexOf(foodItem);
+                            this.foodStorage.splice(index, 1);
+                        }
+                        
+                        if (window.addLogEntry && Math.random() < 0.1) {
+                            window.addLogEntry(`🍽️ ${this.name} питается для восстановления здоровья. Здоровье: ${Math.floor(this.health)}%`);
+                        }
+                        return; // Обычное питание - четвертый приоритет
+                    }
+                }
+            }
+        }
+    }
+    
+    // Проверить наличие аптечки
+    hasFirstAidKit() {
+        return this.inventory.some(item => item.type === 'first_aid_kit'); // Флаг наличия аптечки в инвентаре (true/false)
+    }
+    
+    // Получить агентов поблизости
+    getNearbyAgents(radius) {
+        const nearbyAgents = []; // Массив агентов поблизости (массив объектов Agent)
+        
+        if (!window.agents || !window.agents.getAllAgents) return nearbyAgents;
+        
+        const allAgents = window.agents.getAllAgents(); // Все агенты в игре (массив объектов Agent)
+        
+        for (let agent of allAgents) {
+            if (!agent.position || agent.id === this.id) continue; // Пропускаем себя и агентов без позиции
+            
+            const dx = agent.position.x - this.position.x; // Разница по оси X до агента (пиксели)
+            const dy = agent.position.y - this.position.y; // Разница по оси Y до агента (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до агента (пиксели)
+            
+            if (distance <= radius) {
+                nearbyAgents.push(agent); // Добавляем агента в список поблизости
+            }
+        }
+        
+        return nearbyAgents; // Возвращаем массив агентов поблизости
+    }
+    
     // Рубка дерева
     chopWood() {
         if (!window.world || !this.targetTree) {
