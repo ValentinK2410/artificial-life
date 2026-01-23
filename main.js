@@ -413,6 +413,28 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
                             🌾 Фермерство
                         </button>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3a3a3a;">
+                            <h4 style="color: #4a9eff; margin-bottom: 10px; font-size: 14px;">🎭 Развлечения:</h4>
+                            <button class="command-btn" onclick="window.simulation.giveCommand('sing')" 
+                                    ${agent.experience.singing < 3 ? 'disabled style="opacity: 0.5;"' : ''}>
+                                🎵 Петь ${agent.experience.singing < 3 ? '(нужен опыт ≥3)' : ''}
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.giveCommand('tellStory')" 
+                                    ${agent.experience.storytelling < 3 ? 'disabled style="opacity: 0.5;"' : ''}>
+                                📖 Рассказывать стихи ${agent.experience.storytelling < 3 ? '(нужен опыт ≥3)' : ''}
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.giveCommand('makeLaugh')" 
+                                    ${agent.experience.comedy < 3 ? 'disabled style="opacity: 0.5;"' : ''}>
+                                😄 Шутить ${agent.experience.comedy < 3 ? '(нужен опыт ≥3)' : ''}
+                            </button>
+                        </div>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3a3a3a;">
+                            <h4 style="color: #4a9eff; margin-bottom: 10px; font-size: 14px;">💊 Помощь:</h4>
+                            <button class="command-btn" onclick="window.simulation.giveCommand('console')" 
+                                    ${agent.experience.consoling < 5 ? 'disabled style="opacity: 0.5;"' : ''}>
+                                🤗 Утешать ${agent.experience.consoling < 5 ? '(нужен опыт ≥5)' : ''}
+                            </button>
+                        </div>
                         <button class="command-btn" onclick="window.simulation.showDropResourceMenu()" style="background-color: #9b59b6; margin-top: 10px;">
                             📦 Оставить ресурс
                         </button>
@@ -915,6 +937,87 @@ class Simulation {
                 this.selectedAgent.state = 'farm';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🌾 ${this.selectedAgent.name} занимается фермерством`);
+                }
+                break;
+            case 'sing':
+                if (this.selectedAgent.experience.singing < 3) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет петь. Нужен опыт пения ≥3`);
+                    }
+                    return;
+                }
+                this.selectedAgent.state = 'sing';
+                this.selectedAgent.entertainmentProgress = 0;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🎵 ${this.selectedAgent.name} начинает петь`);
+                }
+                break;
+            case 'tellStory':
+                if (this.selectedAgent.experience.storytelling < 3) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет рассказывать стихи. Нужен опыт рассказывания ≥3`);
+                    }
+                    return;
+                }
+                this.selectedAgent.state = 'tellStory';
+                this.selectedAgent.entertainmentProgress = 0;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`📖 ${this.selectedAgent.name} начинает рассказывать стихи`);
+                }
+                break;
+            case 'makeLaugh':
+                if (this.selectedAgent.experience.comedy < 3) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет шутить. Нужен опыт комедии ≥3`);
+                    }
+                    return;
+                }
+                this.selectedAgent.state = 'makeLaugh';
+                this.selectedAgent.entertainmentProgress = 0;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`😄 ${this.selectedAgent.name} начинает шутить`);
+                }
+                break;
+            case 'console':
+                if (this.selectedAgent.experience.consoling < 5) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет утешать. Нужен опыт утешения ≥5`);
+                    }
+                    return;
+                }
+                // Ищем ближайшего грустного или напуганного агента
+                const allAgents = this.agentsManager.getAllAgents();
+                let targetAgent = null;
+                let minDistance = Infinity;
+                
+                allAgents.forEach(agent => {
+                    if (agent.id === this.selectedAgent.id || agent.health <= 0 || agent.state === 'dead') return;
+                    
+                    // Ищем грустных или напуганных агентов
+                    if (agent.mood === 'sad' || agent.mood === 'anxious' || (agent.fear || 0) > 50) {
+                        const dx = agent.position.x - this.selectedAgent.position.x;
+                        const dy = agent.position.y - this.selectedAgent.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < minDistance && distance < 150) {
+                            minDistance = distance;
+                            targetAgent = agent;
+                        }
+                    }
+                });
+                
+                if (!targetAgent) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не нашел никого, кому нужна помощь`);
+                    }
+                    return;
+                }
+                
+                this.selectedAgent.consolingTarget = targetAgent;
+                this.selectedAgent.state = 'console';
+                this.selectedAgent.consolingProgress = 0;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`🤗 ${this.selectedAgent.name} идет утешать ${targetAgent.name}`);
                 }
                 break;
         }
