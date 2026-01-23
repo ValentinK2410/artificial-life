@@ -100,6 +100,12 @@ class Simulation {
             }
             
             if (clickedAgent) {
+                // Если рисуем полилинию - не открываем панель, а завершаем путь
+                if (this.pathMode === 'polyline' && this.pathPoints.length >= 2) {
+                    this.finishPolylinePath();
+                    return;
+                }
+                
                 // Выбираем агента и показываем панель управления
                 this.selectedAgent = clickedAgent;
                 console.log('✅✅✅ Двойной клик - открываю панель управления для агента:', clickedAgent.name, clickedAgent.id);
@@ -1461,6 +1467,157 @@ class Simulation {
                 document.body.removeChild(modal);
             }
         };
+    }
+    
+    // Установить режим задания пути
+    setPathMode(mode) {
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry('❌ Выберите агента для задания пути');
+            }
+            return;
+        }
+        
+        this.pathMode = mode;
+        this.pathDrawing = false;
+        this.pathStartPoint = null;
+        this.pathPoints = [];
+        this.pathPreview = [];
+        
+        const modeNames = {
+            'direct': 'прямой путь',
+            'circle': 'путь по кругу',
+            'rectangle': 'путь по прямоугольнику',
+            'polyline': 'нарисовать путь'
+        };
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`🛤️ Режим: ${modeNames[mode] || mode}. Кликните на карте для задания пути.`);
+        }
+        
+        // Для полилинии начинаем рисование сразу
+        if (mode === 'polyline') {
+            this.pathDrawing = true;
+            if (window.addLogEntry) {
+                window.addLogEntry('✏️ Рисуйте путь на карте. Двойной клик для завершения.');
+            }
+        }
+    }
+    
+    // Обработка клика для задания пути
+    handlePathClick(x, y) {
+        if (!this.selectedAgent) return;
+        
+        switch (this.pathMode) {
+            case 'direct':
+                // Прямой путь - просто устанавливаем цель
+                this.selectedAgent.setDirectPath(x, y);
+                this.pathMode = null;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`📍 ${this.selectedAgent.name} движется по прямому пути к (${Math.floor(x)}, ${Math.floor(y)})`);
+                }
+                break;
+                
+            case 'circle':
+                if (!this.pathStartPoint) {
+                    // Первый клик - центр круга
+                    this.pathStartPoint = { x, y };
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`⭕ Центр круга установлен. Кликните еще раз для задания радиуса.`);
+                    }
+                } else {
+                    // Второй клик - радиус круга
+                    const dx = x - this.pathStartPoint.x;
+                    const dy = y - this.pathStartPoint.y;
+                    const radius = Math.sqrt(dx * dx + dy * dy);
+                    const centerX = this.pathStartPoint.x;
+                    const centerY = this.pathStartPoint.y;
+                    
+                    this.selectedAgent.setCirclePath(centerX, centerY, radius);
+                    this.pathMode = null;
+                    this.pathStartPoint = null;
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`⭕ ${this.selectedAgent.name} движется по кругу (центр: ${Math.floor(centerX)}, ${Math.floor(centerY)}, радиус: ${Math.floor(radius)})`);
+                    }
+                }
+                break;
+                
+            case 'rectangle':
+                if (!this.pathStartPoint) {
+                    // Первый клик - первый угол прямоугольника
+                    this.pathStartPoint = { x, y };
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`▭ Первый угол установлен. Кликните еще раз для задания второго угла.`);
+                    }
+                } else {
+                    // Второй клик - второй угол прямоугольника
+                    this.selectedAgent.setRectanglePath(this.pathStartPoint.x, this.pathStartPoint.y, x, y);
+                    this.pathMode = null;
+                    this.pathStartPoint = null;
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`▭ ${this.selectedAgent.name} движется по прямоугольнику`);
+                    }
+                }
+                break;
+                
+            case 'polyline':
+                // Добавляем точку в путь
+                this.pathPoints.push({ x, y });
+                if (window.addLogEntry) {
+                    if (this.pathPoints.length === 1) {
+                        window.addLogEntry(`✏️ Начало пути. Кликните еще раз для добавления точек. Двойной клик для завершения.`);
+                    } else {
+                        window.addLogEntry(`✏️ Точка ${this.pathPoints.length} добавлена. Двойной клик для завершения.`);
+                    }
+                }
+                break;
+        }
+    }
+    
+    // Очистить путь
+    clearPath() {
+        if (!this.selectedAgent) {
+            if (window.addLogEntry) {
+                window.addLogEntry('❌ Выберите агента для остановки пути');
+            }
+            return;
+        }
+        
+        this.selectedAgent.pathType = null;
+        this.selectedAgent.pathData = null;
+        this.selectedAgent.pathPoints = [];
+        this.selectedAgent.targetPosition = null;
+        this.selectedAgent.isPlayerControlled = false;
+        this.selectedAgent.state = 'explore';
+        
+        this.pathMode = null;
+        this.pathDrawing = false;
+        this.pathStartPoint = null;
+        this.pathPoints = [];
+        this.pathPreview = [];
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`❌ Путь ${this.selectedAgent.name} остановлен. Управление возвращено ИИ.`);
+        }
+    }
+    
+    // Завершить рисование полилинии (вызывается при двойном клике)
+    finishPolylinePath() {
+        if (this.pathMode === 'polyline' && this.pathPoints.length >= 2) {
+            this.selectedAgent.setPolylinePath(this.pathPoints);
+            const pointCount = this.pathPoints.length;
+            this.pathMode = null;
+            this.pathDrawing = false;
+            const savedPoints = [...this.pathPoints];
+            this.pathPoints = [];
+            if (window.addLogEntry) {
+                window.addLogEntry(`✏️ Путь из ${pointCount} точек установлен для ${this.selectedAgent.name}`);
+            }
+        } else if (this.pathPoints.length < 2) {
+            if (window.addLogEntry) {
+                window.addLogEntry('❌ Нужно минимум 2 точки для пути');
+            }
+        }
     }
     
     // Потратить деньги
