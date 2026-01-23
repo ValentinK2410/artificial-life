@@ -995,3 +995,10 @@ body {
         right: -100%;
     }
 }
+
+/* Версия игры */
+.game-version {
+    user-select: none;
+    pointer-events: none;
+    text-shadow: 0 0 5px rgba(74, 158, 255, 0.5);
+}
