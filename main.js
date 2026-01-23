@@ -3213,6 +3213,18 @@ function initializeGameWithServerData(data, loadSave = false) {
         if (saveModule) {
             const saveData = saveModule.loadGame(currentPlayerName, currentWorldId);
             if (saveData && saveData.worldState) {
+                // Используем типы агентов из сохранения
+                if (saveData.selectedAgentTypes) {
+                    selectedAgentTypes = saveData.selectedAgentTypes;
+                    window.selectedAgentTypes = selectedAgentTypes;
+                }
+                
+                // Пересоздаем агентов с правильными типами из сохранения
+                if (playerId && selectedAgentTypes) {
+                    window.agents.playerId = playerId;
+                    window.agents.initializeAgents(playerId, selectedAgentTypes);
+                }
+                
                 // Загружаем сохраненное состояние
                 loadSavedGameState(saveData.worldState);
                 
@@ -3373,8 +3385,21 @@ function loadSavedGameState(worldState) {
     // Загружаем агентов
     if (worldState.agents && window.agents) {
         const playerAgents = window.agents.getPlayerAgents();
-        worldState.agents.forEach(savedAgent => {
-            const agent = playerAgents.find(a => a.id === savedAgent.id);
+        
+        // Если количество агентов не совпадает, пересоздаем агентов
+        if (playerAgents.length !== worldState.agents.length) {
+            // Агенты уже пересозданы в initializeGameWithServerData с правильными типами
+            // Просто обновляем их состояние
+        }
+        
+        worldState.agents.forEach((savedAgent, index) => {
+            let agent = playerAgents[index];
+            
+            // Если агент не найден по индексу, ищем по ID
+            if (!agent) {
+                agent = playerAgents.find(a => a.id === savedAgent.id);
+            }
+            
             if (agent) {
                 // Восстанавливаем состояние агента
                 agent.health = savedAgent.health || 100;
