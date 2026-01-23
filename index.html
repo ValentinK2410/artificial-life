@@ -241,8 +241,12 @@
     <script src="network.js"></script>
     <script src="world.js"></script>
     <script src="agents.js"></script>
-    <script type="module" src="saveGame.js"></script>
     <script src="main.js"></script>
+    <script type="module">
+        // Загружаем модуль сохранения и делаем доступным глобально
+        import * as saveGameModule from './saveGame.js';
+        window.saveGameModule = saveGameModule;
+    </script>
 
     <!-- Новые модули (будут использоваться после полной миграции) -->
     <!--
