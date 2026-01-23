@@ -401,6 +401,11 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('hunt')">
                             🎯 Охотиться
                         </button>
+                        ${(agent.hasGun() || agent.hasBow()) ? `
+                        <button class="command-btn" onclick="window.simulation.giveCommand('shoot')" style="background-color: #e74c3c; margin-top: 5px;">
+                            🔫 Стрелять
+                        </button>
+                        ` : ''}
                         <button class="command-btn" onclick="window.simulation.giveCommand('build')">
                             🏗️ Строить
                         </button>
@@ -902,11 +907,36 @@ class Simulation {
                 }
                 break;
             case 'hunt':
+                // Если есть оружие - показываем модальное окно выбора цели и оружия
+                if (this.selectedAgent.hasGun() || this.selectedAgent.hasBow()) {
+                    const nearbyTargets = this.findNearbyTargets(this.selectedAgent);
+                    if (nearbyTargets.length > 0) {
+                        this.showShootTargetModal(this.selectedAgent, nearbyTargets);
+                        return; // Не закрываем панель, показываем модальное окно
+                    } else {
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`❌ ${this.selectedAgent.name} не видит целей для стрельбы`);
+                        }
+                        return;
+                    }
+                }
+                // Если нет оружия - обычная охота
                 this.selectedAgent.state = 'hunt';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🎯 ${this.selectedAgent.name} идет на охоту`);
                 }
                 break;
+            case 'shoot':
+                // Показываем модальное окно выбора цели и оружия
+                const nearbyTargets = this.findNearbyTargets(this.selectedAgent);
+                if (nearbyTargets.length === 0) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не видит целей для стрельбы`);
+                    }
+                    return;
+                }
+                this.showShootTargetModal(this.selectedAgent, nearbyTargets);
+                return; // Не закрываем панель, показываем модальное окно
             case 'build':
                 this.selectedAgent.state = 'build';
                 if (window.addLogEntry) {
@@ -2119,9 +2149,10 @@ class Simulation {
         targets.forEach((target, index) => {
             const targetDiv = document.createElement('div');
             targetDiv.style.cssText = 'padding: 10px; margin: 5px 0; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; cursor: pointer;';
+            const targetTypeIcon = target.type === 'predator' ? '🐻' : '🐄';
             targetDiv.innerHTML = `
                 <input type="radio" name="shootTarget" value="${index}" ${index === 0 ? 'checked' : ''} style="margin-right: 10px;">
-                <span>${target.name} (${Math.floor(target.distance)}px, HP: ${Math.floor(target.health)})</span>
+                <span>${targetTypeIcon} ${target.name} (${Math.floor(target.distance)}px, HP: ${Math.floor(target.health)}/${target.type === 'predator' ? 100 : 100})</span>
             `;
             targetDiv.addEventListener('click', () => {
                 targetDiv.querySelector('input').checked = true;
@@ -2400,8 +2431,18 @@ function initializeShootTargetModal() {
         
         modal.style.display = 'none';
         
+        // Обновляем панель управления, если она открыта
+        if (window.simulation && window.simulation.selectedAgent && window.simulation.selectedAgent.id === agent.id) {
+            const panel = document.getElementById('agentControlPanel');
+            if (panel && panel.style.display === 'block') {
+                window.simulation.showAgentControlPanel(agent);
+            }
+        }
+        
         if (success && window.addLogEntry) {
             window.addLogEntry(`🎯 ${agent.name} выстрелил в ${target.name}`);
+        } else if (!success && window.addLogEntry) {
+            window.addLogEntry(`❌ ${agent.name} промахнулся или не может стрелять`);
         }
     });
 }
