@@ -678,6 +678,8 @@ class World {
             else if (type === 'wood') amount = 5;
             else if (['potato', 'salad', 'mushrooms', 'cabbage'].includes(type)) amount = 1 + Math.floor(Math.random() * 3);
             else if (['banana', 'orange', 'apple', 'lemon'].includes(type)) amount = 1 + Math.floor(Math.random() * 2);
+            else if (type === 'ammo') amount = 10; // Патроны - по 10 штук
+            else if (type === 'arrows') amount = 10; // Стрелы - по 10 штук
             
             const resource = {
                 type: type,
