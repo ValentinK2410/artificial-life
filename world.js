@@ -1158,11 +1158,23 @@ class World {
             this.drawPredator(predator);
         });
 
+        // Отрисовка предпросмотра пути (если рисуется)
+        if (window.simulation && window.simulation.pathMode) {
+            this.drawPathPreview();
+        }
+        
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
+            });
+            
+            // Отрисовка активных путей агентов
+            allAgents.forEach(agent => {
+                if (agent.pathType && agent.pathData) {
+                    this.drawAgentPath(agent);
+                }
             });
             
             // Рисуем агентов других игроков

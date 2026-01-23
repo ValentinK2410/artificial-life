@@ -27,6 +27,11 @@ class Agent {
         this.position = { x: 0, y: 0 }; // Текущая позиция агента на карте (координаты x, y)
         this.targetPosition = null; // Целевая позиция для ручного управления игроком (null или {x, y})
         this.isPlayerControlled = false; // Флаг управления игроком (true = игрок управляет, false = ИИ управляет)
+        this.pathType = null; // Тип пути: 'direct', 'circle', 'rectangle', 'polyline' (null или строка)
+        this.pathData = null; // Данные пути в зависимости от типа (объект с параметрами пути)
+        this.pathPoints = []; // Массив точек для полилинии (массив объектов {x, y})
+        this.currentPathIndex = 0; // Текущий индекс точки в пути (для полилинии)
+        this.pathProgress = 0; // Прогресс движения по пути (0-1, для круга и прямоугольника)
         this.id = 'agent_' + Date.now() + '_' + Math.random(); // Уникальный идентификатор агента
         this.lastEatTime = 0; // Время последнего приема пищи (timestamp, для ограничения частоты еды)
         this.lastPosition = { x: 0, y: 0 }; // Предыдущая позиция агента (для определения движения и расчета тепла)
@@ -1160,9 +1165,12 @@ class Agent {
         // Выполнение действий в зависимости от состояния
         switch(this.state) {
             case 'moveToPoint':
-                // Движение к точке, указанной игроком - ПРИОРИТЕТ
-                if (this.targetPosition) {
-                    // Проверяем, что координаты валидны
+                // Движение по пути, указанному игроком - ПРИОРИТЕТ
+                if (this.pathType && this.pathData) {
+                    // Движение по специальному пути (круг, прямоугольник, полилиния)
+                    this.moveAlongPath();
+                } else if (this.targetPosition) {
+                    // Прямое движение к точке (старый способ)
                     if (typeof this.targetPosition.x === 'number' && typeof this.targetPosition.y === 'number' &&
                         !isNaN(this.targetPosition.x) && !isNaN(this.targetPosition.y)) {
                         this.moveTo(this.targetPosition.x, this.targetPosition.y);
@@ -1175,6 +1183,9 @@ class Agent {
                 } else {
                     // Цель потеряна - очищаем флаг управления
                     this.isPlayerControlled = false;
+                    this.pathType = null;
+                    this.pathData = null;
+                    this.pathPoints = [];
                     this.state = 'explore';
                 }
                 // Если цель потеряна, переходим к обычному поведению

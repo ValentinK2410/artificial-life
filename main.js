@@ -12,6 +12,11 @@ class Simulation {
         this.simulationSpeed = 20; // Скорость симуляции (1-50)
         this.frameCount = 0;
         this.selectedAgent = null; // Выбранный агент для управления
+        this.pathMode = null; // Режим задания пути: 'direct', 'circle', 'rectangle', 'polyline'
+        this.pathDrawing = false; // Флаг рисования пути
+        this.pathStartPoint = null; // Начальная точка для рисования пути
+        this.pathPoints = []; // Точки для полилинии
+        this.pathPreview = []; // Предпросмотр пути для отрисовки
         
         // Инициализация агентов с разными стартовыми координатами
         this.initializeAgentsPositions();
@@ -176,20 +181,25 @@ class Simulation {
                     }
                     this.world.draw();
                 } else if (this.selectedAgent) {
-                    // Если есть выбранный агент, устанавливаем цель
-                    this.selectedAgent.setTarget(worldCoords.x, worldCoords.y);
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(worldCoords.x)}, ${Math.floor(worldCoords.y)})`);
-                    }
-                    
-                    // Синхронизация с сервером
-                    if (window.networkManager && window.networkManager.isConnected) {
-                        window.networkManager.updateAgent({
-                            id: this.selectedAgent.id,
-                            position: this.selectedAgent.position,
-                            targetPosition: this.selectedAgent.targetPosition,
-                            isPlayerControlled: true
-                        });
+                    // Если есть выбранный агент и режим задания пути
+                    if (this.pathMode) {
+                        this.handlePathClick(worldCoords.x, worldCoords.y);
+                    } else {
+                        // Обычное движение к точке
+                        this.selectedAgent.setTarget(worldCoords.x, worldCoords.y);
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`📍 ${this.selectedAgent.name} направляется к (${Math.floor(worldCoords.x)}, ${Math.floor(worldCoords.y)})`);
+                        }
+                        
+                        // Синхронизация с сервером
+                        if (window.networkManager && window.networkManager.isConnected) {
+                            window.networkManager.updateAgent({
+                                id: this.selectedAgent.id,
+                                position: this.selectedAgent.position,
+                                targetPosition: this.selectedAgent.targetPosition,
+                                isPlayerControlled: true
+                            });
+                        }
                     }
                 }
             }, 250); // Задержка 250мс для определения двойного клика
@@ -398,6 +408,24 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.showDropResourceMenu()" style="background-color: #9b59b6; margin-top: 10px;">
                             📦 Оставить ресурс
                         </button>
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3a3a3a;">
+                            <h4 style="color: #4a9eff; margin-bottom: 10px; font-size: 14px;">🛤️ Задать путь:</h4>
+                            <button class="command-btn" onclick="window.simulation.setPathMode('direct')" style="background-color: #3498db; margin-bottom: 5px;">
+                                📍 Прямой путь
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.setPathMode('circle')" style="background-color: #e67e22; margin-bottom: 5px;">
+                                ⭕ Путь по кругу
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.setPathMode('rectangle')" style="background-color: #9b59b6; margin-bottom: 5px;">
+                                ▭ Путь по прямоугольнику
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.setPathMode('polyline')" style="background-color: #1abc9c; margin-bottom: 5px;">
+                                ✏️ Нарисовать путь
+                            </button>
+                            <button class="command-btn" onclick="window.simulation.clearPath()" style="background-color: #e74c3c; margin-top: 5px;">
+                                ❌ Остановить путь
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
