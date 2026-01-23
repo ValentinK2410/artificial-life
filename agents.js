@@ -618,8 +618,12 @@ class Agent {
                 if (window.addLogEntry) {
                     window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${this.getFoodName(herbItem.type)}, еду и тепло. Здоровье: ${Math.floor(this.sickAgent.health)}%. Теперь они друзья! 🤝`);
                 }
+            } else {
+                // Свойства травы не найдены - не можем лечить
+                if (window.addLogEntry) {
+                    window.addLogEntry(`💊 ${this.name} не может лечить ${this.sickAgent.name} - свойства травы не найдены`);
+                }
             }
-        }
         
         this.healingProgress = 0; // Сбрасываем прогресс лечения
         this.sickAgent = null; // Очищаем ссылку на больного агента
