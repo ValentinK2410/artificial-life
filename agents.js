@@ -818,12 +818,18 @@ class Agent {
                 this.state = 'storeFood';
             } else if (this.experience.gather_wood >= 5 && !this.hasWoodForFire()) {
                 // Есть навык рубки дров и нет дров - рубим дерево
-                const nearestTree = this.findNearestTree(); // Ближайшее дерево для рубки
-                if (nearestTree) {
-                    this.state = 'chop_wood';
-                    this.targetTree = nearestTree; // Сохраняем целевое дерево
+                // Проверяем мотивацию (удовлетворенность от рубки дров)
+                const motivation = this.getActionMotivation('chop_wood'); // Мотивация для рубки дров (0-100)
+                if (motivation >= 40 || (this.satisfaction || 50) < 30) { // Рубим если есть мотивация или низкая общая удовлетворенность
+                    const nearestTree = this.findNearestTree(); // Ближайшее дерево для рубки
+                    if (nearestTree) {
+                        this.state = 'chop_wood';
+                        this.targetTree = nearestTree; // Сохраняем целевое дерево
+                    } else {
+                        this.state = 'explore';
+                    }
                 } else {
-                    this.state = 'explore';
+                    this.state = 'explore'; // Нет мотивации - исследуем
                 }
             } else if (this.energy < 30) {
                 this.state = 'rest';
@@ -831,7 +837,21 @@ class Agent {
                 // Иногда играем с домашними животными
                 this.state = 'playWithPet';
             } else {
-                this.state = 'explore';
+                // Выбираем действие на основе мотивации (удовлетворенности от действий)
+                const cookMotivation = this.getActionMotivation('cook'); // Мотивация для готовки
+                const fishMotivation = this.getActionMotivation('fish'); // Мотивация для рыбалки
+                const huntMotivation = this.getActionMotivation('hunt'); // Мотивация для охоты
+                
+                // Если есть высокая мотивация для какого-то действия и есть навык - выполняем его
+                if (cookMotivation >= 60 && this.experience.cooking >= 5 && this.foodStorage.length > 0) {
+                    this.state = 'cook';
+                } else if (fishMotivation >= 60 && this.experience.fishing >= 5) {
+                    this.state = 'fish';
+                } else if (huntMotivation >= 60 && this.experience.hunting >= 10) {
+                    this.state = 'hunt';
+                } else {
+                    this.state = 'explore';
+                }
             }
         }
         
