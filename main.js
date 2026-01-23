@@ -2228,7 +2228,12 @@ function initializeWorldControls() {
     // Функция для получения выбранного количества ресурсов
     function getResourceAmount() {
         const resourceAmountInput = document.getElementById('resourceAmount');
-        return select ? parseInt(select.value) || 1 : 1;
+        if (!resourceAmountInput) return 1;
+        const value = parseInt(resourceAmountInput.value);
+        // Ограничиваем значение от 1 до 100
+        if (isNaN(value) || value < 1) return 1;
+        if (value > 100) return 100;
+        return value;
     }
     
     // Ресурсы
