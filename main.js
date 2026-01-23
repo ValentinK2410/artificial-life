@@ -2227,7 +2227,7 @@ function initializeWorldControls() {
 
     // Функция для получения выбранного количества ресурсов
     function getResourceAmount() {
-        const select = document.getElementById('resourceAmount');
+        const resourceAmountInput = document.getElementById('resourceAmount');
         return select ? parseInt(select.value) || 1 : 1;
     }
     
