@@ -69,6 +69,8 @@ class Agent {
         this.defenseSkill = 0; // Навык обороны от хищников (число, увеличивается при обороне)
         this.nearbyPredator = null; // Ближайший хищник поблизости (null или объект {predator, distance})
         this.sickAgent = null; // Больной агент, которого нужно вылечить (объект Agent или null)
+        this.targetFood = null; // Целевая еда для сбора (объект {resource, distance} или null)
+        this.angle = 0; // Угол поворота агента (градусы, 0-360, для визуализации направления движения)
         
         // Инициализация случайной позиции
         this.initializePosition();
@@ -714,7 +716,11 @@ class Agent {
             const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70; // Порог голода для начала поиска еды (0-100)
             const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50; // Порог голода для начала запасания еды (0-100)
             
-            if (this.hunger > SEARCH_FOOD_THRESHOLD) {
+            // Если голоден и нет припасов - ищем еду
+            if (this.hunger > SEARCH_FOOD_THRESHOLD && this.foodStorage.length === 0) {
+                this.state = 'findFood';
+            } else if (this.hunger > SEARCH_FOOD_THRESHOLD) {
+                // Голоден, но есть припасы - используем их
                 this.state = 'findFood';
             } else if (this.hasHungryPets()) {
                 // Есть голодные домашние животные
@@ -813,13 +819,8 @@ class Agent {
                 this.scanForResources();
                 break;
             case 'findFood':
-                let foodLocation = this.memory.find(item => item.type === 'berry' || item.type === 'berries'); // Найденная в памяти локация еды (объект {type, x, y} или undefined)
-                if (foodLocation) {
-                    this.moveTo(foodLocation.x, foodLocation.y); // Двигаемся к найденной еде
-                } else {
-                    this.moveToRandomPoint(); // Если еды в памяти нет - двигаемся случайно
-                    this.scanForResources(); // Сканируем ресурсы вокруг
-                }
+                // Ищем еду поблизости
+                this.findAndMoveToFood();
                 break;
             case 'findHeat':
                 // Ищем ближайший костер
@@ -1510,6 +1511,100 @@ class Agent {
                 }
             }
         });
+    }
+    
+    findAndMoveToFood() {
+        // Поиск и движение к еде
+        if (!window.world) {
+            this.moveToRandomPoint();
+            return;
+        }
+        
+        const FOOD_TYPES = ['berries', 'berry', 'cooked_food', 'meat', 'bird', 'fish', 'honey', 'milk', 'bread', 'kebab', 'potato', 'salad', 'mushrooms', 'banana', 'orange', 'apple']; // Типы еды, которую можно собирать
+        const DETECTION_RADIUS = 150; // Радиус обнаружения еды (пиксели, увеличен для лучшего поиска)
+        const FOOD_SATISFACTION_THRESHOLD = 30; // Порог сытости, при котором прекращаем собирать еду (0-100)
+        const MIN_FOOD_STORAGE = 3; // Минимальное количество припасов для прекращения сбора еды
+        
+        // Проверяем, нужно ли еще собирать еду
+        const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {};
+        const SEARCH_FOOD_THRESHOLD = HUNGER_CONFIG.SEARCH_FOOD_THRESHOLD || 70;
+        
+        // Если голод утолен и есть припасы - прекращаем поиск
+        if (this.hunger < FOOD_SATISFACTION_THRESHOLD && this.foodStorage.length >= MIN_FOOD_STORAGE) {
+            this.targetFood = null; // Очищаем целевую еду
+            this.state = 'explore'; // Возвращаемся к исследованию
+            return;
+        }
+        
+        // Ищем еду в мире
+        let nearestFood = null; // Ближайшая еда (объект {resource, distance} или null)
+        let minDistance = Infinity; // Минимальное расстояние до еды (пиксели, изначально бесконечность)
+        
+        window.world.resources.forEach(resource => {
+            // Проверяем, является ли ресурс едой
+            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
+            const isFood = FOOD_TYPES.includes(resource.type) || FOOD_PROPERTIES[resource.type] !== undefined; // Флаг, является ли ресурс едой (true/false)
+            
+            if (isFood) {
+                const dx = resource.x - this.position.x; // Разница по оси X до еды (пиксели)
+                const dy = resource.y - this.position.y; // Разница по оси Y до еды (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до еды (пиксели)
+                
+                // Если еда в радиусе обнаружения и ближе предыдущей
+                if (distance <= DETECTION_RADIUS && distance < minDistance) {
+                    minDistance = distance; // Обновляем минимальное расстояние
+                    nearestFood = { resource: resource, distance: distance }; // Сохраняем ближайшую еду
+                }
+            }
+        });
+        
+        // Если нашли еду - идем к ней
+        if (nearestFood) {
+            this.targetFood = nearestFood; // Сохраняем целевую еду
+            
+            // Вычисляем угол поворота к еде
+            const dx = nearestFood.resource.x - this.position.x; // Разница по оси X до еды (пиксели)
+            const dy = nearestFood.resource.y - this.position.y; // Разница по оси Y до еды (пиксели)
+            this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к еде (градусы, -180 до 180)
+            
+            // Двигаемся к еде
+            this.moveTo(nearestFood.resource.x, nearestFood.resource.y);
+            
+            // Если очень близко к еде - она будет собрана в interactWithWorld()
+            if (nearestFood.distance < 5) {
+                // Еда будет собрана автоматически при взаимодействии с миром
+            }
+        } else {
+            // Еды поблизости нет - ищем в памяти или двигаемся случайно
+            this.targetFood = null; // Очищаем целевую еду
+            
+            // Ищем еду в памяти
+            const foodInMemory = this.memory.find(item => 
+                FOOD_TYPES.includes(item.type) || FOOD_PROPERTIES[item.type] !== undefined
+            ); // Найденная в памяти локация еды (объект {type, x, y} или undefined)
+            
+            if (foodInMemory) {
+                // Двигаемся к еде из памяти
+                const dx = foodInMemory.x - this.position.x; // Разница по оси X до еды (пиксели)
+                const dy = foodInMemory.y - this.position.y; // Разница по оси Y до еды (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до еды (пиксели)
+                
+                // Вычисляем угол поворота к еде
+                this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к еде (градусы)
+                
+                this.moveTo(foodInMemory.x, foodInMemory.y); // Двигаемся к еде из памяти
+                
+                // Если достигли места из памяти, но еды там нет - удаляем из памяти
+                if (distance < 10) {
+                    const index = this.memory.indexOf(foodInMemory); // Индекс записи в памяти
+                    if (index > -1) this.memory.splice(index, 1); // Удаляем из памяти
+                }
+            } else {
+                // Нет еды в памяти - двигаемся случайно и сканируем
+                this.moveToRandomPoint(); // Двигаемся случайно
+                this.scanForResources(); // Сканируем ресурсы вокруг
+            }
+        }
     }
 
     gainExperience(skill, amount = 1) {
