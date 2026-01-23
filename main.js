@@ -311,6 +311,10 @@ class Simulation {
                 
                 <!-- Вкладка: Навыки -->
                 <div class="agent-tab-panel" data-panel="skills">
+                    <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #3a3a3a;">
+                        <h4 style="color: #4a9eff; margin: 0 0 5px 0; font-size: 16px;">📊 Все навыки</h4>
+                        <p style="color: #888; font-size: 12px; margin: 0;">Показывает все навыки агента с текущим прогрессом, включая навыки с нулевым опытом</p>
+                    </div>
                     <div class="skills-container">
                         ${skillsHTML || '<p style="color: #888; text-align: center; padding: 20px;">Навыки еще не изучены</p>'}
                     </div>
@@ -318,6 +322,10 @@ class Simulation {
                 
                 <!-- Вкладка: Полученные навыки -->
                 <div class="agent-tab-panel" data-panel="learned">
+                    <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #3a3a3a;">
+                        <h4 style="color: #4caf50; margin: 0 0 5px 0; font-size: 16px;">✅ Полученные навыки</h4>
+                        <p style="color: #888; font-size: 12px; margin: 0;">Показывает только освоенные навыки (минимум 5-10 опыта). Компактный вид в виде сетки</p>
+                    </div>
                     <div class="learned-skills-container">
                         ${this.getLearnedSkillsHTML(agent)}
                     </div>
