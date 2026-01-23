@@ -1628,6 +1628,7 @@ class Simulation {
         if (!this.isRunning) {
             this.isRunning = true;
             this.frameCount = 0; // Сброс счетчика кадров
+            this.startTime = Date.now(); // Обновляем время начала симуляции
             this.gameLoop();
             if (window.addLogEntry) {
                 window.addLogEntry('▶️ Симуляция запущена - агенты начали движение');
