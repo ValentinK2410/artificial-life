@@ -1900,6 +1900,38 @@ class Agent {
         }
     }
     
+    // Увеличение удовлетворенности агента
+    increaseSatisfaction(action, amount = 1) {
+        // Увеличиваем общую удовлетворенность
+        this.satisfaction = Math.min(100, (this.satisfaction || 50) + amount); // Ограничиваем максимум 100
+        
+        // Увеличиваем удовлетворенность от конкретного действия
+        if (!this.actionSatisfaction) {
+            this.actionSatisfaction = {}; // Инициализируем объект, если его нет
+        }
+        if (!this.actionSatisfaction[action]) {
+            this.actionSatisfaction[action] = 50; // Начальное значение для нового действия (50 - нейтральное)
+        }
+        this.actionSatisfaction[action] = Math.min(100, this.actionSatisfaction[action] + amount); // Увеличиваем и ограничиваем максимум 100
+        
+        // Обновляем настроение на основе удовлетворенности
+        if (this.satisfaction >= 70) {
+            this.mood = 'happy'; // Счастлив при высокой удовлетворенности
+        } else if (this.satisfaction >= 40) {
+            this.mood = 'neutral'; // Нейтральное настроение при средней удовлетворенности
+        } else {
+            this.mood = 'sad'; // Грустное настроение при низкой удовлетворенности
+        }
+    }
+    
+    // Получить мотивацию для выполнения действия (на основе удовлетворенности от этого действия)
+    getActionMotivation(action) {
+        if (!this.actionSatisfaction || !this.actionSatisfaction[action]) {
+            return 50; // Нейтральная мотивация, если действие еще не выполнялось
+        }
+        return this.actionSatisfaction[action]; // Возвращаем удовлетворенность от действия (0-100)
+    }
+    
     // Потребление еды с учетом её свойств
     consumeFood(foodType) {
         const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
