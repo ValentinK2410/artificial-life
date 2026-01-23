@@ -40,6 +40,11 @@
     </div>
 
     <div class="main-container" id="mainContainer" style="display: none;">
+        <!-- Версия игры -->
+        <div id="gameVersion" class="game-version" style="position: fixed; top: 10px; right: 10px; background-color: rgba(0, 0, 0, 0.7); color: #4a9eff; padding: 5px 10px; border-radius: 5px; font-size: 12px; z-index: 1000; font-family: 'Courier New', monospace;">
+            Версия: <span id="versionNumber">загрузка...</span>
+        </div>
+        
         <!-- Левая область - Canvas для карты -->
         <div class="canvas-area">
             <canvas id="worldCanvas"></canvas>
