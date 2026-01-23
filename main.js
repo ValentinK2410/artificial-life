@@ -434,6 +434,24 @@ class Simulation {
         return hasHerbs && hasSickAgent;
     }
     
+    // Функция группировки одинаковых предметов
+    groupItems(items) {
+        const grouped = {};
+        items.forEach(item => {
+            const type = item.type;
+            const amount = item.amount || 1;
+            if (grouped[type]) {
+                grouped[type] += amount;
+            } else {
+                grouped[type] = amount;
+            }
+        });
+        return Object.entries(grouped).map(([type, totalAmount]) => ({
+            type,
+            amount: totalAmount
+        }));
+    }
+    
     // Получить HTML для инвентаря и запасов
     getInventoryHTML(agent) {
         const inventory = agent.inventory || [];
@@ -485,12 +503,57 @@ class Simulation {
             'st_johns_wort': 'Зверобой'
         };
         
+        // Иконки для всех предметов
+        const itemIcons = {
+            // Инструменты
+            'saw': '🪚',
+            'axe': '🪓',
+            'hammer': '🔨',
+            'pickaxe': '⛏️',
+            'shovel': '🪣',
+            'fishing_rod': '🎣',
+            'first_aid_kit': '💊',
+            // Одежда
+            'summer_clothes_man': '👕',
+            'summer_clothes_woman': '👚',
+            'winter_clothes_man': '🧥',
+            'winter_clothes_woman': '🧥',
+            // Ресурсы
+            'wood': '🪵',
+            'stone': '🪨',
+            'money': '💰',
+            // Еда
+            'berries': '🫐',
+            'meat': '🥩',
+            'bird': '🍗',
+            'fish': '🐟',
+            'cooked_food': '🍲',
+            'honey': '🍯',
+            'milk': '🥛',
+            'water': '💧',
+            'bread': '🍞',
+            'kebab': '🍢',
+            'potato': '🥔',
+            'salad': '🥗',
+            'mushrooms': '🍄',
+            'tea': '🍵',
+            'banana': '🍌',
+            'orange': '🍊',
+            'apple': '🍎',
+            'lemon': '🍋',
+            'rosehip': '🌹',
+            'cabbage': '🥬',
+            'spices': '🌶️',
+            'mint': '🌿',
+            'st_johns_wort': '🌼'
+        };
+        
         let html = '';
         
-        // Инвентарь (инструменты, одежда, ресурсы)
-        const tools = inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit'].includes(item.type));
-        const clothes = inventory.filter(item => ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(item.type));
-        const resources = inventory.filter(item => ['wood', 'stone', 'money'].includes(item.type));
+        // Инвентарь (инструменты, одежда, ресурсы) - группируем
+        const tools = this.groupItems(inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit'].includes(item.type)));
+        const clothes = this.groupItems(inventory.filter(item => ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(item.type)));
+        const resources = this.groupItems(inventory.filter(item => ['wood', 'stone', 'money'].includes(item.type)));
         
         if (tools.length > 0 || clothes.length > 0 || resources.length > 0) {
             html += '<div class="inventory-section">';
@@ -499,8 +562,8 @@ class Simulation {
             if (tools.length > 0) {
                 html += '<div class="inventory-category"><strong>🔧 Инструменты:</strong><ul class="inventory-list">';
                 tools.forEach(item => {
-                    const amount = item.amount || 1;
-                    html += `<li>${itemNames[item.type] || item.type} × ${amount}</li>`;
+                    const icon = itemIcons[item.type] || '📦';
+                    html += `<li>${icon} ${itemNames[item.type] || item.type} × ${item.amount}</li>`;
                 });
                 html += '</ul></div>';
             }
@@ -508,8 +571,8 @@ class Simulation {
             if (clothes.length > 0) {
                 html += '<div class="inventory-category"><strong>👕 Одежда:</strong><ul class="inventory-list">';
                 clothes.forEach(item => {
-                    const amount = item.amount || 1;
-                    html += `<li>${itemNames[item.type] || item.type} × ${amount}</li>`;
+                    const icon = itemIcons[item.type] || '👕';
+                    html += `<li>${icon} ${itemNames[item.type] || item.type} × ${item.amount}</li>`;
                 });
                 html += '</ul></div>';
             }
@@ -517,9 +580,8 @@ class Simulation {
             if (resources.length > 0) {
                 html += '<div class="inventory-category"><strong>🌲 Ресурсы:</strong><ul class="inventory-list">';
                 resources.forEach(item => {
-                    const amount = item.amount || 1;
-                    const icon = item.type === 'wood' ? '🪵' : item.type === 'stone' ? '🪨' : item.type === 'money' ? '💰' : '';
-                    html += `<li>${icon} ${itemNames[item.type] || item.type} × ${amount}</li>`;
+                    const icon = itemIcons[item.type] || '📦';
+                    html += `<li>${icon} ${itemNames[item.type] || item.type} × ${item.amount}</li>`;
                 });
                 html += '</ul></div>';
             }
@@ -527,34 +589,48 @@ class Simulation {
             html += '</div>';
         }
         
-        // Запасы еды для агента
-        if (foodStorage.length > 0) {
+        // Запасы еды для агента - группируем и отображаем плиткой
+        const groupedFood = this.groupItems(foodStorage);
+        if (groupedFood.length > 0) {
             html += '<div class="inventory-section" style="margin-top: 15px;">';
             html += '<h4 style="color: #4caf50; margin-top: 0; margin-bottom: 10px;">🍽️ Запасы еды</h4>';
-            html += '<ul class="inventory-list">';
-            foodStorage.forEach(item => {
-                const amount = item.amount || 1;
+            html += '<div class="food-storage-grid">';
+            groupedFood.forEach(item => {
+                const icon = itemIcons[item.type] || '🍽️';
                 const name = itemNames[item.type] || item.type;
-                html += `<li>${name} × ${amount}</li>`;
+                html += `
+                    <div class="food-item-card">
+                        <div class="food-item-icon">${icon}</div>
+                        <div class="food-item-name">${name}</div>
+                        <div class="food-item-amount">× ${item.amount}</div>
+                    </div>
+                `;
             });
-            html += '</ul></div>';
+            html += '</div></div>';
         } else {
             html += '<div class="inventory-section" style="margin-top: 15px;">';
             html += '<p style="color: #888; text-align: center; padding: 10px;">Нет запасов еды</p>';
             html += '</div>';
         }
         
-        // Запасы еды для животных
-        if (animalFoodStorage.length > 0) {
+        // Запасы еды для животных - группируем и отображаем плиткой
+        const groupedAnimalFood = this.groupItems(animalFoodStorage);
+        if (groupedAnimalFood.length > 0) {
             html += '<div class="inventory-section" style="margin-top: 15px;">';
             html += '<h4 style="color: #ff9800; margin-top: 0; margin-bottom: 10px;">🐾 Запасы для животных</h4>';
-            html += '<ul class="inventory-list">';
-            animalFoodStorage.forEach(item => {
-                const amount = item.amount || 1;
+            html += '<div class="food-storage-grid">';
+            groupedAnimalFood.forEach(item => {
+                const icon = itemIcons[item.type] || '🍽️';
                 const name = itemNames[item.type] || item.type;
-                html += `<li>${name} × ${amount}</li>`;
+                html += `
+                    <div class="food-item-card">
+                        <div class="food-item-icon">${icon}</div>
+                        <div class="food-item-name">${name}</div>
+                        <div class="food-item-amount">× ${item.amount}</div>
+                    </div>
+                `;
             });
-            html += '</ul></div>';
+            html += '</div></div>';
         }
         
         if (inventory.length === 0 && foodStorage.length === 0 && animalFoodStorage.length === 0) {
