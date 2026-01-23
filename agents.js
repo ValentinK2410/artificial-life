@@ -1874,6 +1874,9 @@ class Agent {
             if (this.experience[skill] > 100) {
                 this.experience[skill] = 100; // Ограничиваем максимальный опыт значением 100
             }
+            
+            // Увеличиваем удовлетворенность от получения опыта
+            this.increaseSatisfaction('gain_experience', 2);
         }
     }
     
