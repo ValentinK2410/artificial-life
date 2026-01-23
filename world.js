@@ -585,10 +585,19 @@ class World {
         const treeCount = 100; // Увеличено для бесконечного мира
         const worldSize = Math.max(width, height) * 3; // Генерируем в большем диапазоне
         for (let i = 0; i < treeCount; i++) {
+            const age = Math.random() * 150; // Случайный возраст от 0 до 150 дней
+            let state = 'young';
+            if (age >= 200) state = 'dead_stump';
+            else if (age >= 100) state = 'old';
+            else if (age >= 30) state = 'mature';
+            
             this.terrain.forest.push({
                 x: (Math.random() - 0.5) * worldSize,
                 y: (Math.random() - 0.5) * worldSize,
-                size: 15 + Math.random() * 10 // Размер дерева
+                size: 10 + Math.random() * 20, // Размер дерева
+                age: age,                      // Возраст дерева в днях
+                state: state,                  // Состояние: young, mature, old, dead_stump
+                id: 'tree_' + Date.now() + '_' + i // Уникальный ID дерева
             });
         }
         
@@ -852,20 +861,23 @@ class World {
             }
         }
 
-        // Отрисовка деревьев (реалистичные)
+        // Отрисовка деревьев (реалистичные, с учетом состояния)
         this.terrain.forest.forEach(tree => {
-            // Тень дерева
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            this.ctx.beginPath();
-            this.ctx.ellipse(tree.x + 3, tree.y + tree.size * 0.6 + 2, tree.size * 0.3, tree.size * 0.15, 0, 0, Math.PI * 2);
-            this.ctx.fill();
+            if (!tree) return;
             
-            // Ствол дерева (коричневый, с текстурой)
+            const state = tree.state || 'mature';
             const trunkHeight = tree.size * 0.6;
             const trunkWidth = 4 + tree.size * 0.1;
             
+            // Тень дерева
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            this.ctx.beginPath();
+            this.ctx.ellipse(tree.x + 3, tree.y + trunkHeight + 2, tree.size * 0.3, tree.size * 0.15, 0, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Ствол дерева (коричневый, с текстурой)
             // Основной ствол
-            this.ctx.fillStyle = '#6b4a3a';
+            this.ctx.fillStyle = state === 'dead_stump' ? '#4a3a2a' : '#6b4a3a';
             this.ctx.fillRect(tree.x - trunkWidth/2, tree.y, trunkWidth, trunkHeight);
             
             // Текстура ствола (темные линии)
@@ -878,26 +890,79 @@ class World {
                 this.ctx.stroke();
             }
             
-            // Крона дерева (несколько слоев для объема)
-            const crownRadius = tree.size * 0.5;
-            
-            // Внешний слой (темнее)
-            this.ctx.fillStyle = '#1a4a1a';
-            this.ctx.beginPath();
-            this.ctx.arc(tree.x, tree.y - 2, crownRadius, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Средний слой
-            this.ctx.fillStyle = '#2a6a2a';
-            this.ctx.beginPath();
-            this.ctx.arc(tree.x - 2, tree.y - 4, crownRadius * 0.8, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Внутренний слой (светлее)
-            this.ctx.fillStyle = '#3a8a3a';
-            this.ctx.beginPath();
-            this.ctx.arc(tree.x + 2, tree.y - 3, crownRadius * 0.6, 0, Math.PI * 2);
-            this.ctx.fill();
+            // Крона дерева в зависимости от состояния
+            if (state !== 'dead_stump') {
+                const crownRadius = tree.size * 0.5;
+                
+                if (state === 'young') {
+                    // Молодое дерево - маленькая зеленая крона
+                    this.ctx.fillStyle = '#2a7a2a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x, tree.y - 2, crownRadius * 0.6, 0, Math.PI * 2);
+                    this.ctx.fill();
+                } else if (state === 'mature') {
+                    // Зрелое дерево - полная крона (несколько слоев)
+                    // Внешний слой (темнее)
+                    this.ctx.fillStyle = '#1a4a1a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x, tree.y - 2, crownRadius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Средний слой
+                    this.ctx.fillStyle = '#2a6a2a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x - 2, tree.y - 4, crownRadius * 0.8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Внутренний слой (светлее)
+                    this.ctx.fillStyle = '#3a8a3a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x + 2, tree.y - 3, crownRadius * 0.6, 0, Math.PI * 2);
+                    this.ctx.fill();
+                } else if (state === 'old') {
+                    // Старое дерево - частично голая крона
+                    // Внешний слой (меньше)
+                    this.ctx.fillStyle = '#1a4a1a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x, tree.y - 2, crownRadius * 0.7, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Средний слой (еще меньше)
+                    this.ctx.fillStyle = '#2a5a2a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(tree.x - 1, tree.y - 3, crownRadius * 0.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Показываем голые ветки
+                    this.ctx.strokeStyle = '#4a3a2a';
+                    this.ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        const angle = (i * Math.PI * 2 / 3) + Math.PI / 2;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(tree.x, tree.y - 2);
+                        this.ctx.lineTo(
+                            tree.x + Math.cos(angle) * crownRadius * 0.6,
+                            tree.y - 2 + Math.sin(angle) * crownRadius * 0.6
+                        );
+                        this.ctx.stroke();
+                    }
+                }
+            } else {
+                // Голый ствол - только ствол, без кроны
+                // Можно добавить небольшие сучки
+                this.ctx.strokeStyle = '#3a2a1a';
+                this.ctx.lineWidth = 2;
+                for (let i = 0; i < 2; i++) {
+                    const angle = (i * Math.PI) + Math.PI / 4;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tree.x, tree.y);
+                    this.ctx.lineTo(
+                        tree.x + Math.cos(angle) * 8,
+                        tree.y + Math.sin(angle) * 8
+                    );
+                    this.ctx.stroke();
+                }
+            }
         });
 
         // Отрисовка камней (реалистичные)
@@ -1956,6 +2021,9 @@ class World {
         // Обновление логики мира
         // Здесь будет логика обновления дня, времени суток и т.д.
         
+        // Обновление деревьев (рост и старение)
+        this.updateTrees();
+        
         // Обновление животных (ПЕРЕД хищниками, чтобы они могли их видеть)
         this.updateAnimals();
         
@@ -1967,6 +2035,87 @@ class World {
             // window.agents.update() вызывается в Simulation.gameLoop()
             // Не вызываем здесь, чтобы избежать двойного обновления
         }
+    }
+    
+    // Обновление жизненного цикла деревьев
+    updateTrees() {
+        if (!this.terrain || !this.terrain.forest) return;
+        
+        // Используем константы из GAME_CONFIG, если доступны, иначе значения по умолчанию
+        const TREE_CONFIG = window.GAME_CONFIG?.TREES || {
+            GROWTH_RATE: 0.1,
+            AGE_RATE: 0.05,
+            MATURE_AGE: 30,
+            OLD_AGE: 100,
+            DEAD_AGE: 200,
+            MIN_SIZE: 10,
+            MAX_SIZE: 30
+        };
+        
+        this.terrain.forest.forEach(tree => {
+            if (!tree) return;
+            
+            // Увеличиваем возраст дерева
+            tree.age = (tree.age || 0) + TREE_CONFIG.AGE_RATE;
+            
+            // Обновляем размер дерева (растет до зрелости)
+            if (tree.age < TREE_CONFIG.MATURE_AGE && tree.size < TREE_CONFIG.MAX_SIZE) {
+                tree.size = Math.min(
+                    TREE_CONFIG.MAX_SIZE,
+                    (tree.size || TREE_CONFIG.MIN_SIZE) + TREE_CONFIG.GROWTH_RATE
+                );
+            }
+            
+            // Обновляем состояние дерева в зависимости от возраста
+            if (tree.age >= TREE_CONFIG.DEAD_AGE) {
+                tree.state = 'dead_stump';
+            } else if (tree.age >= TREE_CONFIG.OLD_AGE) {
+                tree.state = 'old';
+            } else if (tree.age >= TREE_CONFIG.MATURE_AGE) {
+                tree.state = 'mature';
+            } else {
+                tree.state = 'young';
+            }
+        });
+    }
+    
+    // Получить дерево по координатам (для рубки)
+    getTreeAt(x, y, radius = 20) {
+        if (!this.terrain || !this.terrain.forest) return null;
+        
+        for (const tree of this.terrain.forest) {
+            if (!tree) continue;
+            const dx = tree.x - x;
+            const dy = tree.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= radius) {
+                return tree;
+            }
+        }
+        return null;
+    }
+    
+    // Рубка дерева (превращает в дрова)
+    chopTree(treeId) {
+        if (!this.terrain || !this.terrain.forest) return null;
+        
+        const treeIndex = this.terrain.forest.findIndex(t => t && t.id === treeId);
+        if (treeIndex === -1) return null;
+        
+        const tree = this.terrain.forest[treeIndex];
+        const woodAmount = window.GAME_CONFIG?.TREES?.WOOD_PER_TREE || 3;
+        
+        // Удаляем дерево из леса
+        this.terrain.forest.splice(treeIndex, 1);
+        
+        // Возвращаем количество дров
+        return {
+            type: 'wood',
+            amount: woodAmount,
+            x: tree.x,
+            y: tree.y
+        };
     }
     
     updatePredators() {

@@ -60,7 +60,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -811,6 +811,15 @@ class Agent {
             } else if (this.hunger < STORE_FOOD_THRESHOLD && this.foodStorage.length < 5) {
                 // Запасаем еду
                 this.state = 'storeFood';
+            } else if (this.experience.gather_wood >= 5 && !this.hasWoodForFire()) {
+                // Есть навык рубки дров и нет дров - рубим дерево
+                const nearestTree = this.findNearestTree(); // Ближайшее дерево для рубки
+                if (nearestTree) {
+                    this.state = 'chop_wood';
+                    this.targetTree = nearestTree; // Сохраняем целевое дерево
+                } else {
+                    this.state = 'explore';
+                }
             } else if (this.energy < 30) {
                 this.state = 'rest';
             } else if (this.pets.length > 0 && Math.random() < 0.1) {
@@ -976,6 +985,125 @@ class Agent {
                 // Лечение больного агента
                 this.heal();
                 break;
+            case 'chop_wood':
+                // Рубка дерева для получения дров
+                this.chopWood();
+                break;
+        }
+    }
+    
+    // Поиск ближайшего дерева для рубки
+    findNearestTree() {
+        if (!window.world || !window.world.terrain || !window.world.terrain.forest) return null;
+        
+        let nearestTree = null; // Ближайшее дерево (объект {x, y, id, state} или null)
+        let minDistance = Infinity; // Минимальное расстояние до дерева (пиксели)
+        const DETECTION_RADIUS = 200; // Радиус обнаружения деревьев (пиксели)
+        
+        for (const tree of window.world.terrain.forest) {
+            if (!tree) continue;
+            
+            // Предпочитаем голые стволы (dead_stump) или старые деревья (old)
+            const isPreferred = tree.state === 'dead_stump' || tree.state === 'old';
+            
+            const dx = tree.x - this.position.x; // Расстояние по оси X до дерева (пиксели)
+            const dy = tree.y - this.position.y; // Расстояние по оси Y до дерева (пиксели)
+            const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до дерева (пиксели)
+            
+            // Если дерево в радиусе обнаружения и ближе предыдущего
+            if (distance < DETECTION_RADIUS && distance < minDistance) {
+                // Если есть предпочтительное дерево, выбираем его
+                if (isPreferred || !nearestTree || (nearestTree.state !== 'dead_stump' && nearestTree.state !== 'old')) {
+                    nearestTree = tree;
+                    minDistance = distance;
+                }
+            }
+        }
+        
+        return nearestTree; // Возвращаем ближайшее дерево или null
+    }
+    
+    // Рубка дерева
+    chopWood() {
+        if (!window.world || !this.targetTree) {
+            // Нет дерева для рубки - ищем новое
+            const nearestTree = this.findNearestTree();
+            if (nearestTree) {
+                this.targetTree = nearestTree;
+            } else {
+                // Нет деревьев - возвращаемся к исследованию
+                this.state = 'explore';
+                return;
+            }
+        }
+        
+        const tree = this.targetTree; // Целевое дерево для рубки (объект {x, y, id, state})
+        const dx = tree.x - this.position.x; // Расстояние по оси X до дерева (пиксели)
+        const dy = tree.y - this.position.y; // Расстояние по оси Y до дерева (пиксели)
+        const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до дерева (пиксели)
+        const CHOP_DISTANCE = 25; // Расстояние для рубки дерева (пиксели)
+        
+        if (distance > CHOP_DISTANCE) {
+            // Дерево далеко - идем к нему
+            this.moveTo(tree.x, tree.y);
+            // Поворачиваемся к дереву
+            this.angle = Math.atan2(dy, dx);
+        } else {
+            // Дерево близко - рубим его
+            if (!this.chopProgress) {
+                this.chopProgress = 0; // Прогресс рубки (0-100)
+            }
+            
+            this.chopProgress += 2; // Увеличиваем прогресс рубки
+            
+            if (this.chopProgress >= 100) {
+                // Дерево срублено - получаем дрова
+                const woodResult = window.world.chopTree(tree.id); // Результат рубки дерева (объект {type, amount, x, y} или null)
+                
+                if (woodResult) {
+                    // Добавляем дрова в инвентарь
+                    const existingWood = this.inventory.find(item => item.type === 'wood'); // Существующее дерево в инвентаре (объект {type, amount} или undefined)
+                    if (existingWood) {
+                        existingWood.amount += woodResult.amount; // Увеличиваем количество дров
+                    } else {
+                        this.inventory.push({
+                            type: 'wood',
+                            amount: woodResult.amount
+                        }); // Добавляем новое дерево в инвентарь
+                    }
+                    
+                    // Получаем опыт рубки дров
+                    this.gainExperience('gather_wood', 2); // Получаем опыт сбора дров (2 опыта за дерево)
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🪓 ${this.name} срубил дерево и получил ${woodResult.amount} дров`);
+                    }
+                    
+                    // Сбрасываем прогресс и целевое дерево
+                    this.chopProgress = 0;
+                    this.targetTree = null;
+                    
+                    // Ищем следующее дерево или возвращаемся к исследованию
+                    const nextTree = this.findNearestTree();
+                    if (nextTree && !this.hasWoodForFire()) {
+                        // Есть еще деревья и нужны дрова - продолжаем рубить
+                        this.targetTree = nextTree;
+                    } else {
+                        // Нет деревьев или достаточно дров - возвращаемся к исследованию
+                        this.state = 'explore';
+                    }
+                } else {
+                    // Дерево уже было срублено - ищем новое
+                    this.chopProgress = 0;
+                    this.targetTree = null;
+                    const nextTree = this.findNearestTree();
+                    if (nextTree) {
+                        this.targetTree = nextTree;
+                    } else {
+                        this.state = 'explore';
+                    }
+                }
+            }
         }
     }
     
