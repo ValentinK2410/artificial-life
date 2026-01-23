@@ -1642,10 +1642,14 @@ class Simulation {
     
     // Проверка на смерть всех агентов
     checkAllAgentsDead() {
+        // Не проверяем в первые 5 секунд игры (300 кадров при 60 FPS)
+        if (this.frameCount < 300) return;
+        
         const playerAgents = this.agentsManager.getPlayerAgents();
         if (playerAgents.length === 0) return; // Нет агентов игрока
         
-        const allDead = playerAgents.every(agent => agent.health <= 0);
+        // Проверяем, что все агенты действительно мертвы (health <= 0 И state === 'dead')
+        const allDead = playerAgents.every(agent => agent.health <= 0 && agent.state === 'dead');
         
         if (allDead && !this.colonyDeadShown) {
             this.colonyDeadShown = true;
