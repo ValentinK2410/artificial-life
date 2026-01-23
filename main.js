@@ -777,7 +777,9 @@ class Simulation {
             'singing': { name: 'Пение', icon: '🎵', threshold: 3 },
             'storytelling': { name: 'Рассказывание стихов', icon: '📖', threshold: 3 },
             'comedy': { name: 'Смешить', icon: '😄', threshold: 3 },
-            'consoling': { name: 'Утешение', icon: '🤗', threshold: 5 }
+            'consoling': { name: 'Утешение', icon: '🤗', threshold: 5 },
+            'gun_shooting': { name: 'Стрельба из ружья', icon: '🔫', threshold: 10 },
+            'bow_shooting': { name: 'Стрельба из лука', icon: '🏹', threshold: 10 }
         };
         
         Object.entries(agent.experience || {}).forEach(([skill, xp]) => {
@@ -1340,7 +1342,9 @@ class Simulation {
             'singing': 'Пение',
             'storytelling': 'Рассказывание стихов',
             'comedy': 'Смешить',
-            'consoling': 'Утешение'
+            'consoling': 'Утешение',
+            'gun_shooting': 'Стрельба из ружья',
+            'bow_shooting': 'Стрельба из лука'
         };
         
         // Ищем требования для действий, использующих этот навык
@@ -1524,7 +1528,9 @@ class Simulation {
             'singing': 'Пение',
             'storytelling': 'Рассказывание стихов',
             'comedy': 'Смешить',
-            'consoling': 'Утешение'
+            'consoling': 'Утешение',
+            'gun_shooting': 'Стрельба из ружья',
+            'bow_shooting': 'Стрельба из лука'
         };
         
         skills.forEach(skill => {
