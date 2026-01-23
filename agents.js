@@ -3636,6 +3636,77 @@ class AgentsManager {
         return this.agents.filter(agent => agent.ownerId === this.playerId); // Фильтруем агентов по ownerId
     }
     
+    // Добавить нового агента во время игры
+    addAgent(agentType, playerId = null) {
+        const targetPlayerId = playerId || this.playerId;
+        if (!targetPlayerId) {
+            console.warn('Нельзя добавить агента: не указан playerId');
+            return null;
+        }
+        
+        // Маппинг типов агентов на классы и параметры
+        const agentConfigs = {
+            'man': { class: MiddleAgedMan, name: 'Мужчина', age: 35, type: 'man' },
+            'woman': { class: MiddleAgedWoman, name: 'Женщина', age: 32, type: 'woman' },
+            'boy': { class: YoungMan, name: 'Парень', age: 18, type: 'boy' },
+            'girl': { class: YoungWoman, name: 'Девушка', age: 17, type: 'girl' },
+            'oldman': { class: OldMan, name: 'Старик', age: 68, type: 'oldman' },
+            'oldwoman': { class: OldWoman, name: 'Старуха', age: 65, type: 'oldwoman' }
+        };
+        
+        const config = agentConfigs[agentType];
+        if (!config) {
+            console.error('Неизвестный тип агента:', agentType);
+            return null;
+        }
+        
+        // Создаем нового агента
+        const newAgent = new config.class(config.name, config.age, config.type, targetPlayerId);
+        
+        // Устанавливаем случайную позицию рядом с другими агентами игрока
+        const playerAgents = this.getPlayerAgents();
+        if (playerAgents.length > 0 && window.world && window.world.canvas) {
+            // Находим среднюю позицию существующих агентов
+            let avgX = 0;
+            let avgY = 0;
+            playerAgents.forEach(agent => {
+                avgX += agent.position.x;
+                avgY += agent.position.y;
+            });
+            avgX /= playerAgents.length;
+            avgY /= playerAgents.length;
+            
+            // Добавляем случайное смещение
+            const offsetX = (Math.random() - 0.5) * 100;
+            const offsetY = (Math.random() - 0.5) * 100;
+            
+            newAgent.position.x = avgX + offsetX;
+            newAgent.position.y = avgY + offsetY;
+            
+            // Убеждаемся, что позиция в пределах карты
+            if (window.world.canvas) {
+                newAgent.position.x = Math.max(50, Math.min(window.world.canvas.width - 50, newAgent.position.x));
+                newAgent.position.y = Math.max(50, Math.min(window.world.canvas.height - 50, newAgent.position.y));
+            }
+        } else {
+            // Если нет других агентов, устанавливаем случайную позицию
+            newAgent.initializePosition();
+        }
+        
+        // Добавляем агента в список
+        this.agents.push(newAgent);
+        
+        // Обновляем список выбранных типов агентов
+        if (!window.selectedAgentTypes) {
+            window.selectedAgentTypes = [];
+        }
+        if (!window.selectedAgentTypes.includes(agentType)) {
+            window.selectedAgentTypes.push(agentType);
+        }
+        
+        return newAgent;
+    }
+    
     // Получить агента по ID
     getAgentById(agentId) {
         return this.agents.find(agent => agent.id === agentId); // Находим агента по уникальному ID (объект Agent или undefined)

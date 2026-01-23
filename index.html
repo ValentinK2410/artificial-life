@@ -84,6 +84,48 @@
         </div>
     </div>
 
+    <!-- Модальное окно добавления агента -->
+    <div id="addAgentModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <h2>Добавить агента</h2>
+            <div class="login-form">
+                <div style="margin-bottom: 15px;">
+                    <label style="color: #b0b0b0; font-size: 14px; margin-bottom: 10px; display: block;">Выберите тип агента:</label>
+                    <div id="agentTypeSelection" style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="man" checked>
+                            <span>👨 Мужчина (35 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="woman">
+                            <span>👩 Женщина (32 года)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="boy">
+                            <span>👦 Парень (18 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="girl">
+                            <span>👧 Девушка (17 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="oldman">
+                            <span>👴 Старик (68 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer; padding: 8px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                            <input type="radio" name="agentType" value="oldwoman">
+                            <span>👵 Старуха (65 лет)</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="confirmAddAgentBtn" class="control-btn" style="flex: 1; background-color: #4a9eff;">Добавить</button>
+                    <button id="cancelAddAgentBtn" class="control-btn" style="flex: 1; background-color: #666;">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="main-container" id="mainContainer" style="display: none;">
         <!-- Версия игры -->
         <div id="gameVersion" class="game-version"
@@ -140,6 +182,10 @@
                         </div>
                     </div>
 
+                    <div style="margin-bottom: 15px;">
+                        <button id="addAgentBtn" class="control-btn" style="width: 100%; background-color: #4a9eff;">➕ Добавить агента</button>
+                    </div>
+                    
                     <div class="agents-compact-list" id="agentsListContainer">
                         <!-- Агенты будут добавлены динамически -->
                     </div>

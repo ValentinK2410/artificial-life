@@ -2044,6 +2044,82 @@ function initializeSimulationControls() {
             }
         });
     }
+    
+    // Кнопка добавления агента
+    const addAgentBtn = document.getElementById('addAgentBtn');
+    const addAgentModal = document.getElementById('addAgentModal');
+    const confirmAddAgentBtn = document.getElementById('confirmAddAgentBtn');
+    const cancelAddAgentBtn = document.getElementById('cancelAddAgentBtn');
+    
+    if (addAgentBtn && addAgentModal) {
+        // Открытие модального окна
+        addAgentBtn.addEventListener('click', () => {
+            addAgentModal.style.display = 'flex';
+        });
+        
+        // Закрытие модального окна
+        if (cancelAddAgentBtn) {
+            cancelAddAgentBtn.addEventListener('click', () => {
+                addAgentModal.style.display = 'none';
+            });
+        }
+        
+        // Добавление агента
+        if (confirmAddAgentBtn) {
+            confirmAddAgentBtn.addEventListener('click', () => {
+                const selectedType = document.querySelector('input[name="agentType"]:checked');
+                if (!selectedType) {
+                    return;
+                }
+                
+                const agentType = selectedType.value;
+                const playerId = window.networkManager && window.networkManager.socket ? 
+                                window.networkManager.socket.id : null;
+                
+                if (!playerId) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry('❌ Не удалось добавить агента: нет подключения к серверу');
+                    }
+                    addAgentModal.style.display = 'none';
+                    return;
+                }
+                
+                // Добавляем агента
+                if (window.agents) {
+                    const newAgent = window.agents.addAgent(agentType, playerId);
+                    if (newAgent) {
+                        // Обновляем UI
+                        if (simulation) {
+                            simulation.updateSidebar();
+                        }
+                        
+                        // Перерисовываем мир
+                        if (window.world) {
+                            window.world.draw();
+                        }
+                        
+                        if (window.addLogEntry) {
+                            window.addLogEntry(`➕ Добавлен новый агент: ${newAgent.name}`);
+                        }
+                        
+                        // Закрываем модальное окно
+                        addAgentModal.style.display = 'none';
+                    } else {
+                        if (window.addLogEntry) {
+                            window.addLogEntry('❌ Не удалось добавить агента');
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Закрытие по клику вне модального окна
+        addAgentModal.addEventListener('click', (e) => {
+            if (e.target === addAgentModal) {
+                addAgentModal.style.display = 'none';
+            }
+        });
+    }
 }
 
 // Управление аккордеоном агентов
