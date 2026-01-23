@@ -207,6 +207,12 @@
             FOOD_CATEGORIES: !!FOOD_CATEGORIES
         });
     </script>
+    <script type="module">
+        // Загружаем версию игры
+        import { GAME_VERSION } from './version.js';
+        document.getElementById('versionNumber').textContent = GAME_VERSION;
+        window.GAME_VERSION = GAME_VERSION; // Делаем доступной глобально
+    </script>
     <script src="network.js"></script>
     <script src="world.js"></script>
     <script src="agents.js"></script>
