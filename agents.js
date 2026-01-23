@@ -596,12 +596,13 @@ class Agent {
                 if (herbItem) {
                     herbItem.amount--; // Уменьшаем количество травы
                     if (herbItem.amount <= 0) {
-                    if (herbSource === 'inventory') {
-                        const index = this.inventory.indexOf(herbItem); // Индекс травы в инвентаре
-                        if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
-                    } else {
-                        const index = this.foodStorage.indexOf(herbItem); // Индекс травы в запасах еды
-                        if (index > -1) this.foodStorage.splice(index, 1); // Удаляем траву из запасов еды
+                        if (herbSource === 'inventory') {
+                            const index = this.inventory.indexOf(herbItem); // Индекс травы в инвентаре
+                            if (index > -1) this.inventory.splice(index, 1); // Удаляем траву из инвентаря
+                        } else {
+                            const index = this.foodStorage.indexOf(herbItem); // Индекс травы в запасах еды
+                            if (index > -1) this.foodStorage.splice(index, 1); // Удаляем траву из запасов еды
+                        }
                     }
                 }
                 
