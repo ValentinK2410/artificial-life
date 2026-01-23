@@ -61,12 +61,16 @@ export function saveGame(playerName, worldId, gameState) {
     try {
         const saveKey = getSaveKey(playerName, worldId);
         
+        // Получаем типы агентов из текущей команды
+        const selectedAgentTypes = (gameState.agents || []).map(agent => agent.type);
+        
         // Подготавливаем данные для сохранения
         const saveData = {
             playerName,
             worldId,
             lastSaved: new Date().toISOString(),
             version: window.GAME_VERSION || '1.0.0',
+            selectedAgentTypes: selectedAgentTypes, // Сохраняем типы выбранных агентов
             worldState: {
                 // Состояние мира
                 day: gameState.world?.day || 1,

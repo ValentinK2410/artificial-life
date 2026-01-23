@@ -19,6 +19,40 @@
                 <label for="worldIdInput">ID мира (опционально):</label>
                 <input type="text" id="worldIdInput" placeholder="default" value="default">
                 
+                <!-- Выбор агентов -->
+                <div id="agentSelection" style="margin: 15px 0; padding: 15px; background-color: rgba(74, 158, 255, 0.1); border: 1px solid #4a9eff; border-radius: 5px;">
+                    <div style="color: #4a9eff; font-weight: bold; margin-bottom: 10px;">👥 Выберите агентов для вашей команды:</div>
+                    <div id="agentCheckboxes" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="man" checked>
+                            <span>👨 Мужчина (35 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="woman" checked>
+                            <span>👩 Женщина (32 года)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="boy" checked>
+                            <span>👦 Парень (18 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="girl" checked>
+                            <span>👧 Девушка (17 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="oldman" checked>
+                            <span>👴 Старик (68 лет)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #b0b0b0; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" class="agent-checkbox" value="oldwoman" checked>
+                            <span>👵 Старуха (65 лет)</span>
+                        </label>
+                    </div>
+                    <div id="agentSelectionError" style="color: #ff6b6b; font-size: 12px; margin-top: 5px; display: none;">
+                        Выберите хотя бы одного агента
+                    </div>
+                </div>
+                
                 <!-- Информация о сохранении -->
                 <div id="saveInfo" style="display: none; margin: 15px 0; padding: 15px; background-color: rgba(74, 158, 255, 0.1); border: 1px solid #4a9eff; border-radius: 5px;">
                     <div style="color: #4a9eff; font-weight: bold; margin-bottom: 10px;">💾 Найдено сохранение:</div>

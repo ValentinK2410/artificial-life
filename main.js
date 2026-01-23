@@ -2827,6 +2827,12 @@ function initializeNetwork() {
     const continueBtn = document.getElementById('continueBtn');
     const newGameBtn = document.getElementById('newGameBtn');
 
+    // Получение выбранных типов агентов
+    function getSelectedAgentTypes() {
+        const checkboxes = document.querySelectorAll('.agent-checkbox:checked');
+        return Array.from(checkboxes).map(cb => cb.value);
+    }
+    
     // Проверка сохранений при изменении имени или мира
     function checkForSave() {
         const playerName = playerNameInput.value.trim();
@@ -2866,13 +2872,17 @@ function initializeNetwork() {
                 `;
                 saveInfo.style.display = 'block';
                 connectBtn.style.display = 'none';
+                // Скрываем выбор агентов при наличии сохранения
+                document.getElementById('agentSelection').style.display = 'none';
             } else {
                 saveInfo.style.display = 'none';
                 connectBtn.style.display = 'block';
+                document.getElementById('agentSelection').style.display = 'block';
             }
         } else {
             saveInfo.style.display = 'none';
             connectBtn.style.display = 'block';
+            document.getElementById('agentSelection').style.display = 'block';
         }
     }
     
@@ -2881,6 +2891,17 @@ function initializeNetwork() {
     playerNameInput.addEventListener('change', checkForSave);
     worldIdInput.addEventListener('input', checkForSave);
     worldIdInput.addEventListener('change', checkForSave);
+    
+    // Обработчики для проверки выбранных агентов
+    const agentCheckboxes = document.querySelectorAll('.agent-checkbox');
+    agentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const errorDiv = document.getElementById('agentSelectionError');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
+        });
+    });
     
     // Обработчик кнопки "Продолжить"
     if (continueBtn) {
@@ -2898,6 +2919,9 @@ function initializeNetwork() {
             currentPlayerName = playerName;
             currentWorldId = worldId;
             
+            // Сохраняем выбранных агентов (для новой игры, если сохранение не загрузится)
+            window.selectedAgentTypes = getSelectedAgentTypes();
+            
             // Подключаемся как обычно, но загрузим сохранение после подключения
             connectBtn.click();
         });
@@ -2908,10 +2932,19 @@ function initializeNetwork() {
         newGameBtn.addEventListener('click', () => {
             const playerName = playerNameInput.value.trim();
             const worldId = worldIdInput.value.trim() || 'default';
+            const selectedTypes = getSelectedAgentTypes();
             
             if (!playerName) {
                 connectionStatus.textContent = 'Введите имя игрока';
                 connectionStatus.className = 'connection-status error';
+                return;
+            }
+            
+            if (selectedTypes.length === 0) {
+                const errorDiv = document.getElementById('agentSelectionError');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                }
                 return;
             }
             
@@ -2924,6 +2957,7 @@ function initializeNetwork() {
             shouldLoadSave = false;
             currentPlayerName = playerName;
             currentWorldId = worldId;
+            window.selectedAgentTypes = selectedTypes; // Сохраняем выбранных агентов
             
             // Подключаемся как обычно
             connectBtn.click();
@@ -2935,12 +2969,26 @@ function initializeNetwork() {
         const playerName = playerNameInput.value.trim();
         const worldId = worldIdInput.value.trim() || 'default';
         const adminPassword = adminPasswordInput ? adminPasswordInput.value.trim() : '';
+        const selectedTypes = getSelectedAgentTypes();
 
         if (!playerName) {
             connectionStatus.textContent = 'Введите имя игрока';
             connectionStatus.className = 'connection-status error';
             return;
         }
+        
+        if (selectedTypes.length === 0) {
+            const errorDiv = document.getElementById('agentSelectionError');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+            }
+            connectionStatus.textContent = 'Выберите хотя бы одного агента';
+            connectionStatus.className = 'connection-status error';
+            return;
+        }
+        
+        // Сохраняем выбранных агентов
+        window.selectedAgentTypes = selectedTypes;
 
         // Проверка админ-пароля
         if (adminPassword === window.adminPassword) {
@@ -3127,18 +3175,35 @@ function initializeGameWithServerData(data, loadSave = false) {
     
     // Создаем агентов с playerId (семья для текущего игрока)
     if (window.agents) {
+        // Получаем выбранные типы агентов (из сохранения или из UI)
+        let selectedAgentTypes = null;
+        
+        if (loadSave) {
+            // При загрузке сохранения используем типы из сохранения
+            const saveModule = saveGameModule || window.saveGameModule;
+            if (saveModule && currentPlayerName && currentWorldId) {
+                const saveData = saveModule.loadGame(currentPlayerName, currentWorldId);
+                if (saveData && saveData.selectedAgentTypes) {
+                    selectedAgentTypes = saveData.selectedAgentTypes;
+                }
+            }
+        } else {
+            // Для новой игры используем выбранные типы из UI
+            selectedAgentTypes = window.selectedAgentTypes || null;
+        }
+        
         if (playerId) {
             window.agents.playerId = playerId;
-            window.agents.initializeAgents(playerId);
+            window.agents.initializeAgents(playerId, selectedAgentTypes);
         } else {
             // Если playerId еще не получен, инициализируем агентов без него
             // Они будут обновлены когда playerId станет доступен
-            window.agents.initializeAgents(null);
+            window.agents.initializeAgents(null, selectedAgentTypes);
         }
         
         if (window.addLogEntry) {
             const playerAgents = window.agents.getPlayerAgents();
-            window.addLogEntry(`👨‍👩‍👧‍👦 Создана ваша семья (${playerAgents.length} человек)`);
+            window.addLogEntry(`👨‍👩‍👧‍👦 Создана ваша команда (${playerAgents.length} человек)`);
         }
     }
     
@@ -3378,6 +3443,7 @@ function saveCurrentGame() {
             buildings: window.world?.buildings || []
         },
         agents: window.agents?.getPlayerAgents() || [],
+        selectedAgentTypes: window.selectedAgentTypes || null, // Сохраняем выбранные типы агентов
         simulation: {
             isRunning: simulation?.isRunning || false,
             simulationSpeed: simulation?.simulationSpeed || 20,

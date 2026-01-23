@@ -3599,22 +3599,35 @@ class AgentsManager {
         this.initializeAgents();
     }
 
-    initializeAgents(playerId = null) {
+    initializeAgents(playerId = null, selectedAgentTypes = null) {
         // Если передан playerId, создаем семью для этого игрока
         if (playerId) {
             this.playerId = playerId; // Устанавливаем ID игрока
         }
         
-        // Инициализация 6 агентов с использованием дочерних классов
-        // Если есть playerId, все агенты принадлежат этому игроку
-        this.agents = [
-            new MiddleAgedMan('Мужчина', 35, 'man', this.playerId),        // Мужчина среднего возраста
-            new MiddleAgedWoman('Женщина', 32, 'woman', this.playerId),    // Женщина среднего возраста
-            new YoungMan('Парень', 18, 'boy', this.playerId),             // Молодой парень
-            new YoungWoman('Девушка', 17, 'girl', this.playerId),          // Молодая девушка
-            new OldMan('Старик', 68, 'oldman', this.playerId),             // Старик
-            new OldWoman('Старуха', 65, 'oldwoman', this.playerId)        // Старуха
-        ];
+        // Если не указаны типы агентов, используем все по умолчанию
+        if (!selectedAgentTypes || selectedAgentTypes.length === 0) {
+            selectedAgentTypes = ['man', 'woman', 'boy', 'girl', 'oldman', 'oldwoman'];
+        }
+        
+        // Маппинг типов агентов на классы и параметры
+        const agentConfigs = {
+            'man': { class: MiddleAgedMan, name: 'Мужчина', age: 35, type: 'man' },
+            'woman': { class: MiddleAgedWoman, name: 'Женщина', age: 32, type: 'woman' },
+            'boy': { class: YoungMan, name: 'Парень', age: 18, type: 'boy' },
+            'girl': { class: YoungWoman, name: 'Девушка', age: 17, type: 'girl' },
+            'oldman': { class: OldMan, name: 'Старик', age: 68, type: 'oldman' },
+            'oldwoman': { class: OldWoman, name: 'Старуха', age: 65, type: 'oldwoman' }
+        };
+        
+        // Создаем агентов на основе выбранных типов
+        this.agents = [];
+        selectedAgentTypes.forEach(agentType => {
+            const config = agentConfigs[agentType];
+            if (config) {
+                this.agents.push(new config.class(config.name, config.age, config.type, this.playerId));
+            }
+        });
     }
     
     // Получить агентов текущего игрока
