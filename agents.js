@@ -3575,8 +3575,8 @@ class Agent {
                 
                 // Инструменты и оружие
                 if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow'].includes(resourceType)) {
-                    // Проверяем, есть ли уже такой инструмент (не собираем дубликаты)
-                    const hasTool = this.inventory.some(item => item.type === resourceType); // Флаг наличия инструмента (true/false)
+                    // Проверяем, есть ли уже такой инструмент или оружие (не собираем дубликаты)
+                    const hasTool = this.inventory.some(item => item.type === resourceType); // Флаг наличия инструмента/оружия (true/false)
                     if (!hasTool) {
                         this.inventory.push({ type: resourceType, amount: 1 }); // Добавляем инструмент в инвентарь
                         const skillMap = {
@@ -3585,8 +3585,10 @@ class Agent {
                             'hammer': 'building',      // Молоток -> опыт строительства
                             'pickaxe': 'building',      // Кирка -> опыт строительства
                             'shovel': 'farming',        // Лопата -> опыт фермерства
-                            'fishing_rod': 'fishing'   // Удочка -> опыт рыбалки
-                        }; // Карта соответствия инструментов и навыков опыта
+                            'fishing_rod': 'fishing',   // Удочка -> опыт рыбалки
+                            'gun': 'gun_shooting',      // Ружье -> опыт стрельбы из ружья
+                            'bow': 'bow_shooting'       // Лук -> опыт стрельбы из лука
+                        }; // Карта соответствия инструментов/оружия и навыков опыта
                         if (skillMap[resourceType]) {
                             this.gainExperience(skillMap[resourceType], 1); // Получаем опыт соответствующего навыка
                         }
@@ -3594,7 +3596,7 @@ class Agent {
                             window.addLogEntry(`${this.name} подобрал ${this.getResourceName(resourceType)}`);
                         }
                     }
-                    // Если инструмент уже есть - не подбираем (оставляем для других)
+                    // Если инструмент/оружие уже есть - не подбираем (оставляем для других)
                 }
                 // Медицинские предметы
                 else if (resourceType === 'first_aid_kit') {
