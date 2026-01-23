@@ -1956,6 +1956,119 @@ class Simulation {
             weatherSelect.value = this.world.weather;
         }
     }
+    
+    findNearbyTargets(agent) {
+        // Находим ближайших хищников и животных в радиусе 200 пикселей
+        const targets = [];
+        const maxDistance = 200;
+        
+        // Ищем хищников
+        if (window.world && window.world.predators) {
+            window.world.predators.forEach(predator => {
+                const dx = predator.x - agent.position.x;
+                const dy = predator.y - agent.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= maxDistance) {
+                    targets.push({
+                        type: 'predator',
+                        obj: predator,
+                        distance: distance,
+                        name: window.world.getPredatorName(predator.type) || 'Хищник',
+                        health: predator.health || 100
+                    });
+                }
+            });
+        }
+        
+        // Ищем животных
+        if (window.world && window.world.animals) {
+            window.world.animals.forEach(animal => {
+                const dx = animal.x - agent.position.x;
+                const dy = animal.y - agent.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= maxDistance) {
+                    targets.push({
+                        type: 'animal',
+                        obj: animal,
+                        distance: distance,
+                        name: window.world.getAnimalName(animal.type) || 'Животное',
+                        health: animal.health || 100
+                    });
+                }
+            });
+        }
+        
+        return targets.sort((a, b) => a.distance - b.distance); // Сортируем по расстоянию
+    }
+    
+    showShootTargetModal(agent, targets) {
+        const modal = document.getElementById('shootTargetModal');
+        const targetsContainer = document.getElementById('targetsContainer');
+        const weaponsContainer = document.getElementById('weaponsContainer');
+        
+        if (!modal || !targetsContainer || !weaponsContainer) return;
+        
+        // Очищаем контейнеры
+        targetsContainer.innerHTML = '';
+        weaponsContainer.innerHTML = '';
+        
+        // Добавляем цели
+        targets.forEach((target, index) => {
+            const targetDiv = document.createElement('div');
+            targetDiv.style.cssText = 'padding: 10px; margin: 5px 0; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; cursor: pointer;';
+            targetDiv.innerHTML = `
+                <input type="radio" name="shootTarget" value="${index}" ${index === 0 ? 'checked' : ''} style="margin-right: 10px;">
+                <span>${target.name} (${Math.floor(target.distance)}px, HP: ${Math.floor(target.health)})</span>
+            `;
+            targetDiv.addEventListener('click', () => {
+                targetDiv.querySelector('input').checked = true;
+            });
+            targetsContainer.appendChild(targetDiv);
+        });
+        
+        // Добавляем оружие
+        const weapons = [];
+        if (agent.hasGun() && agent.hasAmmo()) {
+            const ammoItem = agent.inventory.find(item => item.type === 'ammo');
+            weapons.push({
+                type: 'gun',
+                name: 'Ружье',
+                ammo: ammoItem ? ammoItem.amount : 0
+            });
+        }
+        if (agent.hasBow() && agent.hasArrows()) {
+            const arrowItem = agent.inventory.find(item => item.type === 'arrows');
+            weapons.push({
+                type: 'bow',
+                name: 'Лук',
+                ammo: arrowItem ? arrowItem.amount : 0
+            });
+        }
+        
+        if (weapons.length === 0) {
+            weaponsContainer.innerHTML = '<p style="color: #ff6666;">Нет доступного оружия или боеприпасов</p>';
+            return;
+        }
+        
+        weapons.forEach((weapon, index) => {
+            const weaponDiv = document.createElement('div');
+            weaponDiv.style.cssText = 'padding: 10px; margin: 5px 0; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; cursor: pointer;';
+            weaponDiv.innerHTML = `
+                <input type="radio" name="shootWeapon" value="${weapon.type}" ${index === 0 ? 'checked' : ''} style="margin-right: 10px;">
+                <span>${weapon.name} (${weapon.ammo} ${weapon.type === 'gun' ? 'патронов' : 'стрел'})</span>
+            `;
+            weaponDiv.addEventListener('click', () => {
+                weaponDiv.querySelector('input').checked = true;
+            });
+            weaponsContainer.appendChild(weaponDiv);
+        });
+        
+        // Сохраняем данные для обработчика
+        modal._agent = agent;
+        modal._targets = targets;
+        
+        modal.style.display = 'flex';
+    }
 }
 
 // Глобальная переменная для симуляции
@@ -2125,119 +2238,6 @@ function initializeSimulationControls() {
                 addAgentModal.style.display = 'none';
             }
         });
-    }
-    
-    findNearbyTargets(agent) {
-        // Находим ближайших хищников и животных в радиусе 200 пикселей
-        const targets = [];
-        const maxDistance = 200;
-        
-        // Ищем хищников
-        if (window.world && window.world.predators) {
-            window.world.predators.forEach(predator => {
-                const dx = predator.x - agent.position.x;
-                const dy = predator.y - agent.position.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= maxDistance) {
-                    targets.push({
-                        type: 'predator',
-                        obj: predator,
-                        distance: distance,
-                        name: window.world.getPredatorName(predator.type) || 'Хищник',
-                        health: predator.health || 100
-                    });
-                }
-            });
-        }
-        
-        // Ищем животных
-        if (window.world && window.world.animals) {
-            window.world.animals.forEach(animal => {
-                const dx = animal.x - agent.position.x;
-                const dy = animal.y - agent.position.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= maxDistance) {
-                    targets.push({
-                        type: 'animal',
-                        obj: animal,
-                        distance: distance,
-                        name: window.world.getAnimalName(animal.type) || 'Животное',
-                        health: animal.health || 100
-                    });
-                }
-            });
-        }
-        
-        return targets.sort((a, b) => a.distance - b.distance); // Сортируем по расстоянию
-    }
-    
-    showShootTargetModal(agent, targets) {
-        const modal = document.getElementById('shootTargetModal');
-        const targetsContainer = document.getElementById('targetsContainer');
-        const weaponsContainer = document.getElementById('weaponsContainer');
-        
-        if (!modal || !targetsContainer || !weaponsContainer) return;
-        
-        // Очищаем контейнеры
-        targetsContainer.innerHTML = '';
-        weaponsContainer.innerHTML = '';
-        
-        // Добавляем цели
-        targets.forEach((target, index) => {
-            const targetDiv = document.createElement('div');
-            targetDiv.style.cssText = 'padding: 10px; margin: 5px 0; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; cursor: pointer;';
-            targetDiv.innerHTML = `
-                <input type="radio" name="shootTarget" value="${index}" ${index === 0 ? 'checked' : ''} style="margin-right: 10px;">
-                <span>${target.name} (${Math.floor(target.distance)}px, HP: ${Math.floor(target.health)})</span>
-            `;
-            targetDiv.addEventListener('click', () => {
-                targetDiv.querySelector('input').checked = true;
-            });
-            targetsContainer.appendChild(targetDiv);
-        });
-        
-        // Добавляем оружие
-        const weapons = [];
-        if (agent.hasGun() && agent.hasAmmo()) {
-            const ammoItem = agent.inventory.find(item => item.type === 'ammo');
-            weapons.push({
-                type: 'gun',
-                name: 'Ружье',
-                ammo: ammoItem ? ammoItem.amount : 0
-            });
-        }
-        if (agent.hasBow() && agent.hasArrows()) {
-            const arrowItem = agent.inventory.find(item => item.type === 'arrows');
-            weapons.push({
-                type: 'bow',
-                name: 'Лук',
-                ammo: arrowItem ? arrowItem.amount : 0
-            });
-        }
-        
-        if (weapons.length === 0) {
-            weaponsContainer.innerHTML = '<p style="color: #ff6666;">Нет доступного оружия или боеприпасов</p>';
-            return;
-        }
-        
-        weapons.forEach((weapon, index) => {
-            const weaponDiv = document.createElement('div');
-            weaponDiv.style.cssText = 'padding: 10px; margin: 5px 0; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; cursor: pointer;';
-            weaponDiv.innerHTML = `
-                <input type="radio" name="shootWeapon" value="${weapon.type}" ${index === 0 ? 'checked' : ''} style="margin-right: 10px;">
-                <span>${weapon.name} (${weapon.ammo} ${weapon.type === 'gun' ? 'патронов' : 'стрел'})</span>
-            `;
-            weaponDiv.addEventListener('click', () => {
-                weaponDiv.querySelector('input').checked = true;
-            });
-            weaponsContainer.appendChild(weaponDiv);
-        });
-        
-        // Сохраняем данные для обработчика
-        modal._agent = agent;
-        modal._targets = targets;
-        
-        modal.style.display = 'flex';
     }
 }
 
