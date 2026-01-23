@@ -1886,6 +1886,97 @@ class Agent {
         }
     }
 
+    findAndMoveToClothes() {
+        // Поиск и движение к одежде
+        if (!window.world) {
+            this.moveToRandomPoint();
+            return;
+        }
+        
+        const CLOTHES_TYPES = ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman']; // Типы одежды
+        const DETECTION_RADIUS = 150; // Радиус обнаружения одежды (пиксели)
+        
+        // Если уже достаточно одежды - прекращаем поиск
+        if (this.hasEnoughClothes()) {
+            this.targetClothes = null; // Очищаем целевую одежду
+            this.state = 'explore'; // Возвращаемся к исследованию
+            return;
+        }
+        
+        // Ищем одежду в мире
+        let nearestClothes = null; // Ближайшая одежда (объект {resource, distance} или null)
+        let minDistance = Infinity; // Минимальное расстояние до одежды (пиксели, изначально бесконечность)
+        
+        window.world.resources.forEach(resource => {
+            // Проверяем, является ли ресурс одеждой
+            const isClothes = CLOTHES_TYPES.includes(resource.type); // Флаг, является ли ресурс одеждой (true/false)
+            
+            if (isClothes) {
+                // Предпочитаем одежду соответствующего пола
+                const isPreferredGender = (this.gender === 'male' && (resource.type.includes('man') || resource.type.includes('_man'))) ||
+                                         (this.gender === 'female' && (resource.type.includes('woman') || resource.type.includes('_woman'))); // Флаг предпочтительности одежды по полу (true/false)
+                
+                const dx = resource.x - this.position.x; // Разница по оси X до одежды (пиксели)
+                const dy = resource.y - this.position.y; // Разница по оси Y до одежды (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до одежды (пиксели)
+                
+                // Если одежда в радиусе обнаружения и ближе предыдущей (или предпочтительнее по полу)
+                if (distance <= DETECTION_RADIUS) {
+                    if (!nearestClothes || (isPreferredGender && !nearestClothes.isPreferredGender) || distance < minDistance) {
+                        minDistance = distance; // Обновляем минимальное расстояние
+                        nearestClothes = { resource: resource, distance: distance, isPreferredGender: isPreferredGender }; // Сохраняем ближайшую одежду
+                    }
+                }
+            }
+        });
+        
+        // Если нашли одежду - идем к ней
+        if (nearestClothes) {
+            this.targetClothes = nearestClothes; // Сохраняем целевую одежду
+            
+            // Вычисляем угол поворота к одежде
+            const dx = nearestClothes.resource.x - this.position.x; // Разница по оси X до одежды (пиксели)
+            const dy = nearestClothes.resource.y - this.position.y; // Разница по оси Y до одежды (пиксели)
+            this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к одежде (градусы, -180 до 180)
+            
+            // Двигаемся к одежде
+            this.moveTo(nearestClothes.resource.x, nearestClothes.resource.y);
+            
+            // Если очень близко к одежде - она будет собрана в interactWithWorld()
+            if (nearestClothes.distance < 5) {
+                // Одежда будет собрана автоматически при взаимодействии с миром
+            }
+        } else {
+            // Одежды поблизости нет - ищем в памяти или двигаемся случайно
+            this.targetClothes = null; // Очищаем целевую одежду
+            
+            // Ищем одежду в памяти
+            const clothesInMemory = this.memory.find(item => CLOTHES_TYPES.includes(item.type)); // Найденная в памяти локация одежды (объект {type, x, y} или undefined)
+            
+            if (clothesInMemory) {
+                // Двигаемся к одежде из памяти
+                const dx = clothesInMemory.x - this.position.x; // Разница по оси X до одежды (пиксели)
+                const dy = clothesInMemory.y - this.position.y; // Разница по оси Y до одежды (пиксели)
+                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до одежды (пиксели)
+                
+                // Вычисляем угол поворота к одежде
+                this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к одежде (градусы)
+                
+                this.moveTo(clothesInMemory.x, clothesInMemory.y); // Двигаемся к одежде из памяти
+                
+                // Если достигли места из памяти, но одежды там нет - удаляем из памяти
+                if (distance < 10) {
+                    const index = this.memory.indexOf(clothesInMemory); // Индекс записи в памяти
+                    if (index > -1) this.memory.splice(index, 1); // Удаляем из памяти
+                }
+            } else {
+                // Нет одежды в памяти - двигаемся случайно и сканируем
+                this.moveToRandomPoint(); // Двигаемся случайно
+                this.scanForResources(); // Сканируем ресурсы вокруг
+            }
+        }
+    }
+    
     gainExperience(skill, amount = 1) {
         // Увеличение опыта в определенном навыке
         if (this.experience.hasOwnProperty(skill)) { // Проверяем, существует ли навык в объекте опыта
