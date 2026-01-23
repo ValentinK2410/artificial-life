@@ -418,6 +418,14 @@ class NetworkManager {
     }
 
     // Удаление ресурса
+    removePredator(predatorId) {
+        if (this.socket && this.isConnected) {
+            this.socket.emit('removePredator', {
+                predatorId: predatorId
+            });
+        }
+    }
+    
     removeResource(resourceId) {
         if (this.socket && this.isConnected) {
             this.socket.emit('removeResource', {
