@@ -1942,6 +1942,131 @@ class Agent {
         return foodNames[foodType] || foodType;
     }
 
+    // Сброс ресурса на землю (для обмена с другими агентами)
+    dropResource(resourceType, amount = 1) {
+        if (!window.world) return false; // Возвращаем false если мир не доступен
+        
+        // Ищем ресурс в инвентаре или запасах
+        let resourceItem = null; // Найденный ресурс (объект {type, amount} или null)
+        let resourceIndex = -1; // Индекс ресурса в массиве (-1 если не найден)
+        let isFromInventory = true; // Флаг источника ресурса (true = инвентарь, false = запасы)
+        
+        // Сначала проверяем инвентарь
+        resourceIndex = this.inventory.findIndex(item => item.type === resourceType && item.amount >= amount); // Индекс ресурса в инвентаре
+        if (resourceIndex > -1) {
+            resourceItem = this.inventory[resourceIndex]; // Найденный ресурс в инвентаре
+        } else {
+            // Проверяем запасы еды
+            resourceIndex = this.foodStorage.findIndex(item => item.type === resourceType && item.amount >= amount); // Индекс ресурса в запасах еды
+            if (resourceIndex > -1) {
+                resourceItem = this.foodStorage[resourceIndex]; // Найденный ресурс в запасах еды
+                isFromInventory = false; // Ресурс из запасов
+            }
+        }
+        
+        if (!resourceItem) {
+            // Ресурс не найден
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ ${this.name} не имеет ${this.getResourceName(resourceType)} для сброса`);
+            }
+            return false; // Возвращаем false - ресурс не найден
+        }
+        
+        // Уменьшаем количество ресурса
+        resourceItem.amount -= amount; // Уменьшаем количество ресурса
+        
+        // Если ресурс закончился - удаляем из массива
+        if (resourceItem.amount <= 0) {
+            if (isFromInventory) {
+                this.inventory.splice(resourceIndex, 1); // Удаляем из инвентаря
+            } else {
+                this.foodStorage.splice(resourceIndex, 1); // Удаляем из запасов еды
+            }
+        }
+        
+        // Добавляем ресурс на землю в текущей позиции агента
+        const droppedResource = {
+            type: resourceType, // Тип ресурса
+            x: this.position.x, // Позиция X (текущая позиция агента)
+            y: this.position.y, // Позиция Y (текущая позиция агента)
+            amount: amount, // Количество ресурса
+            id: 'dropped_' + Date.now() + '_' + Math.random(), // Уникальный ID для синхронизации
+            droppedBy: this.id, // ID агента, который сбросил ресурс (для отслеживания)
+            berryOffsets: null // Для фиксации позиций ягод (если это ягоды)
+        };
+        
+        // Если это ягоды - генерируем фиксированные смещения
+        if (resourceType === 'berries' && !droppedResource.berryOffsets) {
+            droppedResource.berryOffsets = [];
+            const berryCount = Math.min(5, amount); // Количество ягод (максимум 5)
+            for (let j = 0; j < berryCount; j++) {
+                droppedResource.berryOffsets.push({
+                    x: (Math.random() - 0.5) * 8,
+                    y: (Math.random() - 0.5) * 8
+                });
+            }
+        }
+        
+        // Добавляем ресурс в мир
+        window.world.resources.push(droppedResource); // Добавляем ресурс в массив ресурсов мира
+        
+        // Отправляем уведомление на сервер (если подключены)
+        if (window.networkManager && window.networkManager.isConnected) {
+            window.networkManager.addResource(resourceType, amount, this.position.x, this.position.y); // Отправляем уведомление на сервер о добавлении ресурса
+        }
+        
+        // Логирование
+        if (window.addLogEntry) {
+            window.addLogEntry(`📦 ${this.name} оставил ${amount} ${this.getResourceName(resourceType)} на земле`);
+        }
+        
+        return true; // Возвращаем true - ресурс успешно сброшен
+    }
+    
+    // Получить название ресурса для отображения
+    getResourceName(resourceType) {
+        const resourceNames = {
+            'wood': 'дров',
+            'money': 'монет',
+            'stone': 'камней',
+            'berries': 'ягод',
+            'meat': 'мяса',
+            'bird': 'птицы',
+            'fish': 'рыбы',
+            'cooked_food': 'готовой еды',
+            'honey': 'меда',
+            'milk': 'молока',
+            'water': 'воды',
+            'bread': 'хлеба',
+            'kebab': 'шашлыка',
+            'potato': 'картофеля',
+            'salad': 'салата',
+            'mushrooms': 'грибов',
+            'tea': 'чая',
+            'banana': 'бананов',
+            'orange': 'апельсинов',
+            'apple': 'яблок',
+            'lemon': 'лимонов',
+            'rosehip': 'шиповника',
+            'cabbage': 'капусты',
+            'spices': 'специй',
+            'mint': 'мяты',
+            'st_johns_wort': 'зверобоя',
+            'saw': 'пилу',
+            'axe': 'топор',
+            'hammer': 'молоток',
+            'pickaxe': 'кирку',
+            'shovel': 'лопату',
+            'fishing_rod': 'удочку',
+            'first_aid_kit': 'аптечку',
+            'summer_clothes_man': 'летнюю одежду (мужскую)',
+            'summer_clothes_woman': 'летнюю одежду (женскую)',
+            'winter_clothes_man': 'зимнюю одежду (мужскую)',
+            'winter_clothes_woman': 'зимнюю одежду (женскую)'
+        };
+        return resourceNames[resourceType] || resourceType; // Возвращаем название ресурса или сам тип, если название не найдено
+    }
+    
     interactWithWorld(world) {
         // Взаимодействие с миром - проверка ресурсов под ногами
         const resource = world.getResourceAt(this.position.x, this.position.y); // Ресурс на текущей позиции агента (объект {type, x, y, amount, id} или null)

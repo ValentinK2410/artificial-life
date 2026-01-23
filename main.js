@@ -373,6 +373,9 @@ class Simulation {
                         <button class="command-btn" onclick="window.simulation.giveCommand('farm')">
                             🌾 Фермерство
                         </button>
+                        <button class="command-btn" onclick="window.simulation.showDropResourceMenu()" style="background-color: #9b59b6; margin-top: 10px;">
+                            📦 Оставить ресурс
+                        </button>
                     </div>
                 </div>
             </div>
@@ -863,6 +866,169 @@ class Simulation {
         }
         
         this.hideAgentControlPanel();
+    }
+    
+    // Показать меню сброса ресурсов
+    showDropResourceMenu() {
+        if (!this.selectedAgent) return;
+        
+        const agent = this.selectedAgent;
+        const allResources = [];
+        
+        // Собираем все ресурсы из инвентаря
+        agent.inventory.forEach(item => {
+            if (!allResources.find(r => r.type === item.type)) {
+                allResources.push({ type: item.type, amount: item.amount, source: 'inventory' });
+            } else {
+                const existing = allResources.find(r => r.type === item.type);
+                existing.amount += item.amount;
+            }
+        });
+        
+        // Собираем все ресурсы из запасов еды
+        agent.foodStorage.forEach(item => {
+            if (!allResources.find(r => r.type === item.type)) {
+                allResources.push({ type: item.type, amount: item.amount, source: 'foodStorage' });
+            } else {
+                const existing = allResources.find(r => r.type === item.type);
+                existing.amount += item.amount;
+            }
+        });
+        
+        if (allResources.length === 0) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У ${agent.name} нет ресурсов для сброса`);
+            }
+            return;
+        }
+        
+        // Создаем модальное окно для выбора ресурса
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background-color: #252525;
+            border: 2px solid #4a9eff;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #e0e0e0;
+        `;
+        
+        const title = document.createElement('h3');
+        title.textContent = `📦 Оставить ресурс (${agent.name})`;
+        title.style.cssText = 'color: #4a9eff; margin: 0 0 15px 0;';
+        content.appendChild(title);
+        
+        const resourceList = document.createElement('div');
+        resourceList.style.cssText = 'display: flex; flex-direction: column; gap: 10px;';
+        
+        allResources.forEach(resource => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = `
+                background-color: #1e1e1e;
+                border: 1px solid #3a3a3a;
+                border-radius: 5px;
+                padding: 10px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            `;
+            
+            itemDiv.onmouseover = () => {
+                itemDiv.style.backgroundColor = '#2a2a2a';
+            };
+            itemDiv.onmouseout = () => {
+                itemDiv.style.backgroundColor = '#1e1e1e';
+            };
+            
+            const resourceName = agent.getResourceName ? agent.getResourceName(resource.type) : resource.type;
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${resourceName} (×${resource.amount})`;
+            nameSpan.style.cssText = 'font-size: 14px;';
+            
+            const buttonGroup = document.createElement('div');
+            buttonGroup.style.cssText = 'display: flex; gap: 5px;';
+            
+            // Кнопки для сброса разного количества
+            const amounts = [1, Math.min(5, resource.amount), Math.min(10, resource.amount)];
+            amounts.forEach(amount => {
+                if (amount > resource.amount) return;
+                
+                const btn = document.createElement('button');
+                btn.textContent = `×${amount}`;
+                btn.style.cssText = `
+                    background-color: #9b59b6;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 5px 10px;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 12px;
+                `;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (agent.dropResource(resource.type, amount)) {
+                        document.body.removeChild(modal);
+                        this.updateSidebar();
+                        if (window.world) {
+                            window.world.draw();
+                        }
+                    }
+                };
+                buttonGroup.appendChild(btn);
+            });
+            
+            itemDiv.appendChild(nameSpan);
+            itemDiv.appendChild(buttonGroup);
+            resourceList.appendChild(itemDiv);
+        });
+        
+        content.appendChild(resourceList);
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Закрыть';
+        closeBtn.style.cssText = `
+            margin-top: 15px;
+            width: 100%;
+            background-color: #6c757d;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        `;
+        closeBtn.onclick = () => {
+            document.body.removeChild(modal);
+        };
+        content.appendChild(closeBtn);
+        
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // Закрытие по клику вне модального окна
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
     }
     
     // Уложить агента спать
