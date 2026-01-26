@@ -218,21 +218,46 @@ class Agent {
             this.stamina += SLEEP_CONFIG.STAMINA_RESTORE_RATE;
             if (this.stamina > 100) this.stamina = 100;
             
-            // Автоматическое пробуждение, если энергия восстановлена и прошло достаточно времени
+            // Автоматическое пробуждение, если энергия или здоровье восстановлены и прошло достаточно времени
             const currentTime = Date.now(); // Текущее время в миллисекундах
             const sleepDuration = currentTime - (this.sleepStartTime || currentTime); // Длительность сна в миллисекундах
             const minSleepDurationMs = SLEEP_CONFIG.MIN_SLEEP_DURATION * 16; // Минимальная длительность сна в миллисекундах (примерно 16мс на кадр)
             
-            if (this.energy >= 90 && sleepDuration >= minSleepDurationMs) {
+            // Запоминаем начальное здоровье при засыпании (если не запомнили)
+            if (this.healthBeforeSleep === undefined) {
+                this.healthBeforeSleep = this.health - SLEEP_CONFIG.HEALTH_RESTORE_RATE; // Здоровье до начала восстановления
+            }
+            
+            // Проверяем условия пробуждения
+            const energyRestored = this.energy >= 90; // Энергия восстановлена
+            const healthRestored = this.health >= this.maxHealth; // Здоровье полностью восстановлено
+            const healthImproved = this.health >= Math.min(this.maxHealth, (this.healthBeforeSleep || 0) + 20); // Здоровье улучшилось на 20+
+            const minSleepPassed = sleepDuration >= minSleepDurationMs; // Прошло минимальное время сна
+            
+            if (minSleepPassed && (energyRestored || healthRestored || healthImproved)) {
                 // Пробуждаемся автоматически
                 this.state = 'explore';
                 this.sleepStartTime = 0;
                 if (this.lastSleepTime) {
                     this.lastSleepTime = 0;
                 }
-                if (window.addLogEntry) {
-                    window.addLogEntry(`☀️ ${this.name} проснулся отдохнувшим`);
+                
+                // Определяем причину пробуждения для лога
+                let wakeReason = '';
+                if (healthRestored) {
+                    wakeReason = 'полностью здоров';
+                } else if (healthImproved) {
+                    wakeReason = `здоровье улучшилось (${Math.floor(this.healthBeforeSleep || 0)}% → ${Math.floor(this.health)}%)`;
+                } else if (energyRestored) {
+                    wakeReason = 'отдохнувшим';
                 }
+                
+                if (window.addLogEntry) {
+                    window.addLogEntry(`☀️ ${this.name} проснулся ${wakeReason}`);
+                }
+                
+                // Сбрасываем запомненное здоровье
+                this.healthBeforeSleep = undefined;
             }
         } else if (this.state === 'rest') {
             // Восстанавливаем энергию при отдыхе
