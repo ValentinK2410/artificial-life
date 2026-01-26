@@ -1978,6 +1978,72 @@ class World {
         const health = agent.health !== undefined ? agent.health : 100;
         const time = Date.now() / 1000;
         
+        // Отрисовка полосы направления движения (если включено в настройках)
+        if (window.showAgentDirection && agent.health > 0 && state !== 'sleep' && state !== 'dead') {
+            // Вычисляем направление движения
+            let directionX = 0;
+            let directionY = 0;
+            
+            // Если есть целевая позиция - направление к ней
+            if (agent.targetPosition) {
+                directionX = agent.targetPosition.x - x;
+                directionY = agent.targetPosition.y - y;
+            } else if (agent.lastDirection) {
+                // Используем последнее направление движения
+                directionX = agent.lastDirection.x || 0;
+                directionY = agent.lastDirection.y || 0;
+            } else if (agent.velocity) {
+                // Используем скорость как направление
+                directionX = agent.velocity.x || 0;
+                directionY = agent.velocity.y || 0;
+            }
+            
+            // Нормализуем и рисуем полосу направления
+            const length = Math.sqrt(directionX * directionX + directionY * directionY);
+            if (length > 0.1) {
+                const normalizedX = directionX / length;
+                const normalizedY = directionY / length;
+                const lineLength = 40; // Длина полосы направления
+                
+                // Рисуем полупрозрачную полосу направления
+                const gradient = this.ctx.createLinearGradient(
+                    x, y,
+                    x + normalizedX * lineLength,
+                    y + normalizedY * lineLength
+                );
+                gradient.addColorStop(0, 'rgba(74, 158, 255, 0.6)');
+                gradient.addColorStop(1, 'rgba(74, 158, 255, 0)');
+                
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 4;
+                this.ctx.lineCap = 'round';
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x + normalizedX * lineLength, y + normalizedY * lineLength);
+                this.ctx.stroke();
+                
+                // Рисуем стрелку на конце
+                const arrowSize = 6;
+                const arrowX = x + normalizedX * lineLength;
+                const arrowY = y + normalizedY * lineLength;
+                const angle = Math.atan2(normalizedY, normalizedX);
+                
+                this.ctx.fillStyle = 'rgba(74, 158, 255, 0.4)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(arrowX, arrowY);
+                this.ctx.lineTo(
+                    arrowX - arrowSize * Math.cos(angle - Math.PI / 6),
+                    arrowY - arrowSize * Math.sin(angle - Math.PI / 6)
+                );
+                this.ctx.lineTo(
+                    arrowX - arrowSize * Math.cos(angle + Math.PI / 6),
+                    arrowY - arrowSize * Math.sin(angle + Math.PI / 6)
+                );
+                this.ctx.closePath();
+                this.ctx.fill();
+            }
+        }
+        
         // Проверяем, выбран ли этот агент (сравниваем по ID для надежности)
         const isSelected = window.simulation && (
             window.simulation.selectedAgent === agent || 

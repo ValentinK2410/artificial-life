@@ -2221,6 +2221,11 @@ class Simulation {
 let simulation = null;
 
 // Инициализация при загрузке страницы
+// Глобальные настройки отображения
+window.showAgentDirection = false; // Показывать направление движения агентов
+window.showHealthBars = true; // Показывать полоски здоровья
+window.showAgentNames = true; // Показывать имена агентов
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeTabs();
     initializeSimulationControls();
@@ -2229,7 +2234,44 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeShootTargetModal();
     initializeCanvas();
     initializeSimulation();
+    initializeDisplaySettings();
 });
+
+// Инициализация настроек отображения
+function initializeDisplaySettings() {
+    // Чекбокс направления движения
+    const directionCheckbox = document.getElementById('showDirectionCheckbox');
+    if (directionCheckbox) {
+        directionCheckbox.checked = window.showAgentDirection;
+        directionCheckbox.addEventListener('change', (e) => {
+            window.showAgentDirection = e.target.checked;
+            if (window.world) window.world.draw();
+            console.log('Показ направления:', window.showAgentDirection);
+        });
+    }
+    
+    // Чекбокс полосок здоровья
+    const healthBarsCheckbox = document.getElementById('showHealthBarsCheckbox');
+    if (healthBarsCheckbox) {
+        healthBarsCheckbox.checked = window.showHealthBars;
+        healthBarsCheckbox.addEventListener('change', (e) => {
+            window.showHealthBars = e.target.checked;
+            if (window.world) window.world.draw();
+            console.log('Показ полосок здоровья:', window.showHealthBars);
+        });
+    }
+    
+    // Чекбокс имен агентов
+    const namesCheckbox = document.getElementById('showAgentNamesCheckbox');
+    if (namesCheckbox) {
+        namesCheckbox.checked = window.showAgentNames;
+        namesCheckbox.addEventListener('change', (e) => {
+            window.showAgentNames = e.target.checked;
+            if (window.world) window.world.draw();
+            console.log('Показ имен агентов:', window.showAgentNames);
+        });
+    }
+}
 
 // Управление вкладками
 function initializeTabs() {

@@ -2922,6 +2922,9 @@ class Agent {
             const currentSpeed = (this.state === 'defend' || this.isRunning) ? (this.speed || 2) * 2.5 : (this.speed || 2);
             this.isRunning = (this.state === 'defend' || this.isRunning);
             
+            // Сохраняем направление движения для отображения
+            this.lastDirection = { x: dx, y: dy };
+            
             // Двигаемся в направлении цели
             const moveDistance = Math.min(distance, currentSpeed); // Расстояние движения за кадр (не больше скорости агента)
             if (moveDistance > 0 && distance > 0) {
