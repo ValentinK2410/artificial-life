@@ -1166,6 +1166,9 @@ class World {
             this.drawPathPreview();
         }
         
+        // Отрисовка зданий
+        this.drawBuildings();
+        
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
@@ -2077,6 +2080,183 @@ class World {
         this.ctx.font = '10px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(agent.name || 'Игрок', 0, -30);
+        
+        this.ctx.restore();
+    }
+    
+    // ========== ОТРИСОВКА ЗДАНИЙ ==========
+    
+    drawBuildings() {
+        if (!this.buildings || this.buildings.length === 0) return;
+        
+        for (const building of this.buildings) {
+            switch (building.type) {
+                case 'house':
+                    this.drawHouse(building);
+                    break;
+                case 'pen':
+                    this.drawPen(building);
+                    break;
+                case 'barn':
+                    this.drawBarn(building);
+                    break;
+                default:
+                    // Неизвестный тип здания - рисуем как простой прямоугольник
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(building.x - 20, building.y - 20, 40, 40);
+            }
+        }
+    }
+    
+    drawHouse(building) {
+        const x = building.x;
+        const y = building.y;
+        const size = 50; // Размер дома
+        
+        this.ctx.save();
+        
+        // Попробуем загрузить изображение дома
+        if (!this.houseImage) {
+            this.houseImage = new Image();
+            this.houseImage.src = 'assets/wooden_house.png';
+            this.houseImage.onload = () => {
+                this.houseImageLoaded = true;
+            };
+        }
+        
+        if (this.houseImageLoaded && this.houseImage.complete) {
+            // Рисуем изображение дома
+            this.ctx.drawImage(this.houseImage, x - size/2, y - size/2, size, size);
+        } else {
+            // Программная отрисовка дома (пока изображение не загружено)
+            
+            // Основание дома (коричневые бревна)
+            this.ctx.fillStyle = '#8B4513';
+            this.ctx.fillRect(x - size/2, y - size/3, size, size * 0.6);
+            
+            // Горизонтальные линии бревен
+            this.ctx.strokeStyle = '#5D3A1A';
+            this.ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                const lineY = y - size/3 + i * (size * 0.15);
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - size/2, lineY);
+                this.ctx.lineTo(x + size/2, lineY);
+                this.ctx.stroke();
+            }
+            
+            // Крыша (треугольник)
+            this.ctx.fillStyle = '#654321';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - size/2 - 5, y - size/3);
+            this.ctx.lineTo(x, y - size/2 - 10);
+            this.ctx.lineTo(x + size/2 + 5, y - size/3);
+            this.ctx.closePath();
+            this.ctx.fill();
+            
+            // Контур крыши
+            this.ctx.strokeStyle = '#3D2817';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            // Дверь
+            this.ctx.fillStyle = '#4A3728';
+            this.ctx.fillRect(x - 8, y, 16, size * 0.25);
+            
+            // Окно
+            this.ctx.fillStyle = '#87CEEB';
+            this.ctx.fillRect(x + 12, y - size/6, 10, 10);
+            this.ctx.strokeStyle = '#5D3A1A';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(x + 12, y - size/6, 10, 10);
+            
+            // Перекрестие окна
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + 17, y - size/6);
+            this.ctx.lineTo(x + 17, y - size/6 + 10);
+            this.ctx.moveTo(x + 12, y - size/6 + 5);
+            this.ctx.lineTo(x + 22, y - size/6 + 5);
+            this.ctx.stroke();
+        }
+        
+        this.ctx.restore();
+    }
+    
+    drawPen(building) {
+        const x = building.x;
+        const y = building.y;
+        const size = 60;
+        
+        this.ctx.save();
+        
+        // Забор загона
+        this.ctx.strokeStyle = '#8B4513';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(x - size/2, y - size/2, size, size);
+        
+        // Вертикальные столбики забора
+        this.ctx.fillStyle = '#654321';
+        for (let i = 0; i <= 4; i++) {
+            const postX = x - size/2 + i * (size/4);
+            this.ctx.fillRect(postX - 2, y - size/2 - 5, 4, size + 10);
+        }
+        
+        // Горизонтальные перекладины
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(x - size/2, y - size/3, size, 3);
+        this.ctx.fillRect(x - size/2, y + size/6, size, 3);
+        
+        // Земля внутри загона
+        this.ctx.fillStyle = 'rgba(139, 90, 43, 0.3)';
+        this.ctx.fillRect(x - size/2 + 3, y - size/2 + 3, size - 6, size - 6);
+        
+        this.ctx.restore();
+    }
+    
+    drawBarn(building) {
+        const x = building.x;
+        const y = building.y;
+        const width = 70;
+        const height = 50;
+        
+        this.ctx.save();
+        
+        // Основание сарая
+        this.ctx.fillStyle = '#A0522D';
+        this.ctx.fillRect(x - width/2, y - height/3, width, height * 0.7);
+        
+        // Горизонтальные доски
+        this.ctx.strokeStyle = '#6B3A1A';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            const lineY = y - height/3 + i * (height * 0.14);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - width/2, lineY);
+            this.ctx.lineTo(x + width/2, lineY);
+            this.ctx.stroke();
+        }
+        
+        // Крыша сарая (трапеция)
+        this.ctx.fillStyle = '#8B0000';
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - width/2 - 5, y - height/3);
+        this.ctx.lineTo(x - width/4, y - height/2 - 5);
+        this.ctx.lineTo(x + width/4, y - height/2 - 5);
+        this.ctx.lineTo(x + width/2 + 5, y - height/3);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Большие ворота
+        this.ctx.fillStyle = '#5D3A1A';
+        this.ctx.fillRect(x - 15, y - height/6, 30, height * 0.5);
+        
+        // Линия разделения ворот
+        this.ctx.strokeStyle = '#3D2817';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y - height/6);
+        this.ctx.lineTo(x, y + height * 0.3);
+        this.ctx.stroke();
         
         this.ctx.restore();
     }

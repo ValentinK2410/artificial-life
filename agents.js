@@ -66,6 +66,11 @@ class Agent {
         this.buildingProgress = 0; // Прогресс текущего строительства (0-100)
         this.currentBuilding = null; // Текущее строящееся здание (объект {type, x, y} или null)
         this.ownedBuildings = []; // Построенные здания агента (массив объектов {type, x, y, id})
+        this.buildingSite = null; // Место для строительства дома {x, y} - выбирается один раз
+        this.logsAtSite = 0; // Количество бревен, принесенных на место строительства
+        
+        // Параметры для поиска воды
+        this.waterSearchRadius = 50; // Радиус поиска воды (пиксели, расширяется при неудаче)
         
         // Параметры для поиска животных
         this.targetAnimal = null; // Целевое животное для ловли (объект или null)
@@ -102,7 +107,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm', 'findWater'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -740,6 +745,191 @@ class Agent {
         this.searchResourceType = null;
     }
     
+    // ========== СИСТЕМА ПОИСКА ВОДЫ ==========
+    
+    // Проверка наличия воды в запасах
+    hasWaterInStorage() {
+        // Проверяем в foodStorage
+        if (this.foodStorage && this.foodStorage.length > 0) {
+            const waterItem = this.foodStorage.find(f => f.type === 'water' && f.amount > 0);
+            if (waterItem) return true;
+        }
+        // Проверяем в inventory
+        if (this.inventory && this.inventory.length > 0) {
+            const waterItem = this.inventory.find(i => i.type === 'water' && i.amount > 0);
+            if (waterItem) return true;
+        }
+        return false;
+    }
+    
+    // Поиск источника воды (пруда) с расширяющимся радиусом
+    findWaterSource() {
+        if (!window.world || !window.world.terrain || !window.world.terrain.pond) {
+            return null;
+        }
+        
+        const pond = window.world.terrain.pond;
+        const dx = pond.centerX - this.position.x;
+        const dy = pond.centerY - this.position.y;
+        const distanceToPond = Math.sqrt(dx * dx + dy * dy);
+        
+        // Проверяем, находится ли пруд в текущем радиусе поиска
+        if (distanceToPond <= this.waterSearchRadius) {
+            // Нашли пруд - сбрасываем радиус
+            this.waterSearchRadius = 50;
+            return {
+                x: pond.centerX,
+                y: pond.centerY,
+                radiusX: pond.radiusX,
+                radiusY: pond.radiusY,
+                distance: distanceToPond
+            };
+        }
+        
+        // Не нашли в текущем радиусе - расширяем
+        this.waterSearchRadius += 50;
+        
+        // Максимальный радиус - диагональ карты
+        const maxRadius = Math.sqrt(
+            Math.pow(window.world?.canvas?.width || 2000, 2) + 
+            Math.pow(window.world?.canvas?.height || 2000, 2)
+        );
+        
+        if (this.waterSearchRadius > maxRadius) {
+            // Достигли максимума - сбрасываем
+            this.waterSearchRadius = 50;
+            return null;
+        }
+        
+        // Продолжаем поиск с увеличенным радиусом
+        return this.findWaterSource();
+    }
+    
+    // Питье воды из пруда
+    drinkFromPond() {
+        if (!window.world || !window.world.terrain || !window.world.terrain.pond) {
+            this.state = 'explore';
+            return;
+        }
+        
+        const pond = window.world.terrain.pond;
+        const dx = pond.centerX - this.position.x;
+        const dy = pond.centerY - this.position.y;
+        const distanceToPond = Math.sqrt(dx * dx + dy * dy);
+        
+        // Проверяем, достаточно ли близко к пруду
+        const drinkDistance = Math.max(pond.radiusX, pond.radiusY) + 20;
+        
+        if (distanceToPond > drinkDistance) {
+            // Далеко от пруда - идем к нему
+            this.moveTo(pond.centerX, pond.centerY);
+            return;
+        }
+        
+        // Рядом с прудом - пьем воду
+        const thirstReduction = 45; // Сколько жажды утоляет питье из пруда
+        this.thirst = Math.max(0, this.thirst - thirstReduction);
+        
+        // Небольшое восстановление энергии
+        this.energy = Math.min(this.maxEnergy, this.energy + 5);
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`💧 ${this.name} пьет воду из пруда (жажда: ${Math.floor(this.thirst)}%)`);
+        }
+        
+        // Сбрасываем радиус поиска воды
+        this.waterSearchRadius = 50;
+        
+        // Возвращаемся к обычным делам
+        this.state = 'explore';
+    }
+    
+    // Основной метод поиска и питья воды
+    findAndDrinkWater() {
+        // Сначала проверяем запасы воды
+        if (this.hasWaterInStorage()) {
+            // Пьем из запасов
+            let waterItem = this.foodStorage?.find(f => f.type === 'water' && f.amount > 0);
+            let source = 'foodStorage';
+            
+            if (!waterItem) {
+                waterItem = this.inventory?.find(i => i.type === 'water' && i.amount > 0);
+                source = 'inventory';
+            }
+            
+            if (waterItem) {
+                waterItem.amount--;
+                this.thirst = Math.max(0, this.thirst - 40);
+                
+                if (waterItem.amount <= 0) {
+                    if (source === 'foodStorage') {
+                        const index = this.foodStorage.indexOf(waterItem);
+                        if (index > -1) this.foodStorage.splice(index, 1);
+                    } else {
+                        const index = this.inventory.indexOf(waterItem);
+                        if (index > -1) this.inventory.splice(index, 1);
+                    }
+                }
+                
+                if (window.addLogEntry && Math.random() < 0.3) {
+                    window.addLogEntry(`💧 ${this.name} пьет воду из запасов (жажда: ${Math.floor(this.thirst)}%)`);
+                }
+                
+                this.state = 'explore';
+                return;
+            }
+        }
+        
+        // Нет воды в запасах - ищем пруд
+        const waterSource = this.findWaterSource();
+        
+        if (waterSource) {
+            // Нашли пруд - идем к нему и пьем
+            this.drinkFromPond();
+        } else {
+            // Не нашли воду - продолжаем искать (двигаемся в случайном направлении)
+            this.moveToRandomPoint();
+        }
+    }
+    
+    // ========== СИСТЕМА ВЫБОРА МЕСТА ДЛЯ СТРОИТЕЛЬСТВА ==========
+    
+    // Выбор места для строительства дома
+    chooseBuildingSite() {
+        // Выбираем место недалеко от пруда (источника воды), но не в воде
+        // и не слишком близко к краю карты
+        
+        let siteX, siteY;
+        
+        if (window.world && window.world.terrain && window.world.terrain.pond) {
+            const pond = window.world.terrain.pond;
+            
+            // Выбираем место на расстоянии 100-200 пикселей от пруда
+            const angle = Math.random() * Math.PI * 2; // Случайный угол
+            const distance = 100 + Math.random() * 100; // 100-200 пикселей от центра пруда
+            
+            siteX = pond.centerX + Math.cos(angle) * (Math.max(pond.radiusX, pond.radiusY) + distance);
+            siteY = pond.centerY + Math.sin(angle) * (Math.max(pond.radiusX, pond.radiusY) + distance);
+        } else {
+            // Если нет пруда - строим рядом с текущей позицией
+            siteX = this.position.x + 50 + Math.random() * 50;
+            siteY = this.position.y + 50 + Math.random() * 50;
+        }
+        
+        // Ограничиваем границами карты
+        if (window.world && window.world.canvas) {
+            const margin = 100;
+            siteX = Math.max(margin, Math.min(window.world.canvas.width - margin, siteX));
+            siteY = Math.max(margin, Math.min(window.world.canvas.height - margin, siteY));
+        }
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`📍 ${this.name} выбрал место для строительства: (${Math.floor(siteX)}, ${Math.floor(siteY)})`);
+        }
+        
+        return { x: siteX, y: siteY };
+    }
+    
     heal() {
         // Лечение больного агента
         if (!this.sickAgent || this.sickAgent.health <= 0) {
@@ -1265,8 +1455,52 @@ class Agent {
             return;
         }
         
-        // ========== УРОВЕНЬ 1: ЗАПАСЫ НА 2 ДНЯ ==========
-        // Проверяем запасы и ищем недостающие ресурсы с расширяющимся радиусом
+        // ========== УРОВЕНЬ 1: БЕЗОПАСНОСТЬ И ЗАПАСЫ ==========
+        
+        // 1.1 Проверка жажды (высший приоритет в этом уровне)
+        if (this.thirst > 70) {
+            // Сначала проверяем запасы воды
+            if (!this.hasWaterInStorage()) {
+                this.state = 'findWater';
+                if (window.addLogEntry && oldState !== 'findWater' && Math.random() < 0.3) {
+                    window.addLogEntry(`💧 ${this.name} хочет пить (жажда: ${Math.floor(this.thirst)}%)`);
+                }
+                this.act();
+                return;
+            }
+        }
+        
+        // 1.2 Проверка наличия дома (часть безопасности - строим в первую очередь)
+        const hasHouse = this.ownedBuildings.some(b => b.type === 'house');
+        if (!hasHouse) {
+            const woodCount = this.getWoodCount();
+            const HOUSE_WOOD_REQUIRED = 30; // Требуется 30 бревен для дома
+            
+            if (woodCount >= HOUSE_WOOD_REQUIRED) {
+                // Достаточно дров - строим дом
+                this.state = 'buildHouse';
+                if (window.addLogEntry && oldState !== 'buildHouse') {
+                    window.addLogEntry(`🏠 ${this.name} начинает строить дом (дров: ${woodCount})`);
+                }
+                this.act();
+                return;
+            } else {
+                // Не хватает дров - собираем их приоритетно
+                // Но параллельно можно собирать еду для выживания
+                const nearestTree = this.findNearestTree();
+                if (nearestTree) {
+                    this.state = 'chop_wood';
+                    this.targetTree = nearestTree;
+                    if (window.addLogEntry && oldState !== 'chop_wood' && Math.random() < 0.2) {
+                        window.addLogEntry(`🪵 ${this.name} рубит дерево для дома (дров: ${woodCount}/${HOUSE_WOOD_REQUIRED})`);
+                    }
+                    this.act();
+                    return;
+                }
+            }
+        }
+        
+        // 1.3 Проверяем запасы и ищем недостающие ресурсы с расширяющимся радиусом
         const supplies = this.checkSupplies();
         
         if (!supplies.allOk) {
@@ -1409,24 +1643,20 @@ class Agent {
             return;
         }
         
-        // Строительство (если есть навык и ресурсы)
-        if (this.experience.building >= 10) {
-            // Проверяем, есть ли уже жилище
-            const hasHouse = this.ownedBuildings.some(b => b.type === 'house');
+        // Строительство загона и сарая (дом строится в Уровне 1 как часть безопасности)
+        if (this.experience.building >= 5) {
+            const hasHouseBuilt = this.ownedBuildings.some(b => b.type === 'house');
             const hasPen = this.ownedBuildings.some(b => b.type === 'pen');
             const hasBarn = this.ownedBuildings.some(b => b.type === 'barn');
             
             const woodCount = this.getWoodCount();
             
-            if (!hasHouse && woodCount >= 20 && Math.random() < 0.1) {
-                this.state = 'buildHouse';
-                this.act();
-                return;
-            } else if (hasHouse && !hasPen && woodCount >= 15 && Math.random() < 0.1) {
+            // Загон и сарай строятся только после дома
+            if (hasHouseBuilt && !hasPen && woodCount >= 15 && Math.random() < 0.1) {
                 this.state = 'buildPen';
                 this.act();
                 return;
-            } else if (hasPen && !hasBarn && woodCount >= 25 && Math.random() < 0.1) {
+            } else if (hasHouseBuilt && hasPen && !hasBarn && woodCount >= 25 && Math.random() < 0.1) {
                 this.state = 'buildBarn';
                 this.act();
                 return;
@@ -1493,7 +1723,8 @@ class Agent {
                 'buildPen': 'строит загон',
                 'buildBarn': 'строит сарай',
                 'findAnimals': 'ищет животных',
-                'developFarm': 'развивает ферму'
+                'developFarm': 'развивает ферму',
+                'findWater': 'ищет воду'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
@@ -2024,6 +2255,10 @@ class Agent {
             case 'developFarm':
                 // Развитие фермерства
                 this.developFarm();
+                break;
+            case 'findWater':
+                // Поиск воды и питье
+                this.findAndDrinkWater();
                 break;
         }
     }
@@ -2867,10 +3102,10 @@ class Agent {
         if (!window.world) return;
         
         const HOUSE_REQUIREMENTS = {
-            wood: 20,
-            stone: 10,
-            buildingSkill: 10,
-            buildTime: 500 // кадров
+            wood: 30,              // Увеличено с 20 до 30 бревен
+            stone: 5,              // Уменьшено с 10 до 5 камней
+            buildingSkill: 5,      // Снижен порог навыка с 10 до 5
+            buildTime: 600         // Увеличено время строительства с 500 до 600 кадров
         };
         
         // Проверяем навык
@@ -2893,18 +3128,33 @@ class Agent {
             return;
         }
         
+        // Выбираем место для строительства (если еще не выбрано)
+        if (!this.buildingSite) {
+            this.buildingSite = this.chooseBuildingSite();
+        }
+        
         // Инициализируем строительство
         if (!this.currentBuilding || this.currentBuilding.type !== 'house') {
             this.currentBuilding = {
                 type: 'house',
-                x: this.position.x + 30,
-                y: this.position.y + 30,
+                x: this.buildingSite ? this.buildingSite.x : this.position.x + 30,
+                y: this.buildingSite ? this.buildingSite.y : this.position.y + 30,
                 progress: 0
             };
             this.buildingProgress = 0;
             if (window.addLogEntry) {
-                window.addLogEntry(`🏠 ${this.name} начинает строить жилище`);
+                window.addLogEntry(`🏠 ${this.name} начинает строить жилище в точке (${Math.floor(this.currentBuilding.x)}, ${Math.floor(this.currentBuilding.y)})`);
             }
+        }
+        
+        // Идем к месту строительства, если далеко
+        const distToSite = Math.sqrt(
+            Math.pow(this.currentBuilding.x - this.position.x, 2) +
+            Math.pow(this.currentBuilding.y - this.position.y, 2)
+        );
+        if (distToSite > 50) {
+            this.moveTo(this.currentBuilding.x, this.currentBuilding.y);
+            return;
         }
         
         // Процесс строительства
