@@ -50,6 +50,27 @@ class Agent {
         this.animalFoodStorage = []; // Запасы еды для домашних животных (массив объектов {type, amount})
         this.pets = []; // Массив ID домашних животных, принадлежащих агенту
         
+        // Новые хранилища для системы приоритетов выживания
+        this.medicalStorage = []; // Аптечки, бинты, лекарства (массив объектов {type, amount})
+        this.weaponStorage = []; // Оружие: ружье, лук, нож (массив объектов {type, amount})
+        this.ammoStorage = []; // Патроны, стрелы (массив объектов {type, amount})
+        this.woodStorage = []; // Дрова для костра и строительства (массив объектов {type, amount})
+        this.money = 0; // Деньги агента (число)
+        
+        // Параметры для системы поиска с расширяющимся радиусом
+        this.searchRadius = 50; // Текущий радиус поиска ресурсов (пиксели, начинается с 50)
+        this.searchResourceType = null; // Тип искомого ресурса (строка или null)
+        this.interruptedTask = null; // Прерванная задача для возврата после восстановления (строка состояния или null)
+        
+        // Параметры для строительства
+        this.buildingProgress = 0; // Прогресс текущего строительства (0-100)
+        this.currentBuilding = null; // Текущее строящееся здание (объект {type, x, y} или null)
+        this.ownedBuildings = []; // Построенные здания агента (массив объектов {type, x, y, id})
+        
+        // Параметры для поиска животных
+        this.targetAnimal = null; // Целевое животное для ловли (объект или null)
+        this.caughtAnimals = []; // Пойманные животные для загона (массив объектов)
+        
         // Система опыта (разные виды опыта для разных навыков)
         this.experience = {
             saw: 0,           // Опыт работы с пилой (0-100)
@@ -81,7 +102,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -154,6 +175,22 @@ class Agent {
             SEARCH_FOOD_THRESHOLD: 60,  // Порог, при котором агент начинает искать еду
             STORE_FOOD_THRESHOLD: 40,   // Порог, при котором агент начинает запасать еду
             WARNING_THRESHOLD: 90       // Порог для предупреждения о критическом голоде
+        };
+        
+        // Настройки запасов на 2 дня (расчет по скорости потребления голода)
+        // Формула: MIN_FOOD_SUPPLY = (HUNGER_INCREASE_RATE * FRAMES_PER_DAY * DAYS_TARGET) / FOOD_HUNGER_RESTORE
+        const SUPPLIES_CONFIG = window.GAME_CONFIG?.AGENTS?.SUPPLIES || {
+            HUNGER_INCREASE_RATE: 0.005,    // Скорость роста голода за кадр (должна совпадать с HUNGER_CONFIG)
+            FRAMES_PER_DAY: 3600,           // ~1 минута реального времени = 1 игровой день (60 FPS * 60 сек)
+            DAYS_SUPPLY_TARGET: 2,          // Целевой запас на 2 дня
+            FOOD_HUNGER_RESTORE: 25,        // Сколько голода восстанавливает 1 единица еды
+            MIN_FOOD_SUPPLY: 15,            // Минимум еды на 2 дня (~15 единиц)
+            MIN_MEDICAL_SUPPLY: 2,          // Минимум аптечек (2 штуки)
+            MIN_WOOD_SUPPLY: 6,             // Минимум дров (6 штук = 2 костра)
+            MIN_AMMO_SUPPLY: 10,            // Минимум патронов/стрел (10 штук)
+            MIN_WEAPON_SUPPLY: 1,           // Минимум оружия (1 штука)
+            CRITICAL_HEALTH: 30,            // Критический уровень здоровья для прерывания задач
+            CRITICAL_ENERGY: 20             // Критический уровень энергии для прерывания задач
         };
         
         // Увеличиваем голод
@@ -518,6 +555,189 @@ class Agent {
         
         // Достаточно иметь либо аптечку, либо лечебные травы
         return hasFirstAidKit || hasHerbsInInventory || hasHerbsInStorage;
+    }
+    
+    // Проверка всех запасов для системы приоритетов выживания
+    checkSupplies() {
+        // Получаем настройки запасов
+        const SUPPLIES_CONFIG = window.GAME_CONFIG?.AGENTS?.SUPPLIES || {
+            MIN_FOOD_SUPPLY: 15,
+            MIN_MEDICAL_SUPPLY: 2,
+            MIN_WOOD_SUPPLY: 6,
+            MIN_AMMO_SUPPLY: 10,
+            MIN_WEAPON_SUPPLY: 1
+        };
+        
+        // Подсчет еды (из foodStorage)
+        const foodCount = this.foodStorage ? this.foodStorage.reduce((sum, f) => sum + (f.amount || 0), 0) : 0;
+        
+        // Подсчет медикаментов (из medicalStorage + аптечки из inventory)
+        const medicalFromStorage = this.medicalStorage ? this.medicalStorage.reduce((sum, m) => sum + (m.amount || 0), 0) : 0;
+        const medicalFromInventory = this.inventory ? this.inventory.filter(i => i.type === 'first_aid_kit').reduce((sum, m) => sum + (m.amount || 0), 0) : 0;
+        const medicalCount = medicalFromStorage + medicalFromInventory;
+        
+        // Подсчет дров (из woodStorage + дрова из inventory)
+        const woodFromStorage = this.woodStorage ? this.woodStorage.reduce((sum, w) => sum + (w.amount || 0), 0) : 0;
+        const woodFromInventory = this.inventory ? this.inventory.filter(i => i.type === 'wood').reduce((sum, w) => sum + (w.amount || 0), 0) : 0;
+        const woodCount = woodFromStorage + woodFromInventory;
+        
+        // Подсчет патронов/стрел (из ammoStorage + из inventory)
+        const ammoFromStorage = this.ammoStorage ? this.ammoStorage.reduce((sum, a) => sum + (a.amount || 0), 0) : 0;
+        const ammoFromInventory = this.inventory ? this.inventory.filter(i => ['ammo', 'arrows'].includes(i.type)).reduce((sum, a) => sum + (a.amount || 0), 0) : 0;
+        const ammoCount = ammoFromStorage + ammoFromInventory;
+        
+        // Подсчет оружия (из weaponStorage + из inventory)
+        const weaponFromStorage = this.weaponStorage ? this.weaponStorage.length : 0;
+        const weaponFromInventory = this.inventory ? this.inventory.filter(i => ['gun', 'bow', 'knife', 'axe'].includes(i.type)).length : 0;
+        const weaponCount = weaponFromStorage + weaponFromInventory;
+        
+        // Возвращаем объект с информацией о всех запасах
+        return {
+            food: { 
+                current: foodCount, 
+                needed: SUPPLIES_CONFIG.MIN_FOOD_SUPPLY, 
+                ok: foodCount >= SUPPLIES_CONFIG.MIN_FOOD_SUPPLY,
+                priority: 1 // Еда - высший приоритет
+            },
+            medical: { 
+                current: medicalCount, 
+                needed: SUPPLIES_CONFIG.MIN_MEDICAL_SUPPLY, 
+                ok: medicalCount >= SUPPLIES_CONFIG.MIN_MEDICAL_SUPPLY,
+                priority: 2 // Медикаменты - второй приоритет
+            },
+            wood: { 
+                current: woodCount, 
+                needed: SUPPLIES_CONFIG.MIN_WOOD_SUPPLY, 
+                ok: woodCount >= SUPPLIES_CONFIG.MIN_WOOD_SUPPLY,
+                priority: 3 // Дрова - третий приоритет
+            },
+            ammo: { 
+                current: ammoCount, 
+                needed: SUPPLIES_CONFIG.MIN_AMMO_SUPPLY, 
+                ok: ammoCount >= SUPPLIES_CONFIG.MIN_AMMO_SUPPLY,
+                priority: 4 // Патроны - четвертый приоритет
+            },
+            weapon: { 
+                current: weaponCount, 
+                needed: SUPPLIES_CONFIG.MIN_WEAPON_SUPPLY, 
+                ok: weaponCount >= SUPPLIES_CONFIG.MIN_WEAPON_SUPPLY,
+                priority: 5 // Оружие - пятый приоритет
+            },
+            // Общий статус: все запасы в норме?
+            allOk: foodCount >= SUPPLIES_CONFIG.MIN_FOOD_SUPPLY && 
+                   medicalCount >= SUPPLIES_CONFIG.MIN_MEDICAL_SUPPLY && 
+                   woodCount >= SUPPLIES_CONFIG.MIN_WOOD_SUPPLY &&
+                   ammoCount >= SUPPLIES_CONFIG.MIN_AMMO_SUPPLY &&
+                   weaponCount >= SUPPLIES_CONFIG.MIN_WEAPON_SUPPLY
+        };
+    }
+    
+    // Получить тип ресурса, который нужно искать в первую очередь
+    getMostNeededSupply() {
+        const supplies = this.checkSupplies();
+        
+        // Проверяем по приоритету
+        if (!supplies.food.ok) return { type: 'food', resourceTypes: ['berries', 'mushrooms', 'fish', 'meat', 'apple', 'potato'] };
+        if (!supplies.medical.ok) return { type: 'medical', resourceTypes: ['first_aid_kit', 'rosehip', 'st_johns_wort', 'mint', 'honey'] };
+        if (!supplies.wood.ok) return { type: 'wood', resourceTypes: ['wood'] };
+        if (!supplies.ammo.ok) return { type: 'ammo', resourceTypes: ['ammo', 'arrows'] };
+        if (!supplies.weapon.ok) return { type: 'weapon', resourceTypes: ['gun', 'bow', 'knife', 'axe'] };
+        
+        return null; // Все запасы в норме
+    }
+    
+    // Поиск ресурса с расширяющимся радиусом (50px -> 100px -> 150px -> ...)
+    searchWithExpandingRadius(resourceTypes) {
+        if (!window.world || !window.world.resources) return null;
+        
+        // Если тип ресурса изменился - сбрасываем радиус
+        const resourceKey = Array.isArray(resourceTypes) ? resourceTypes.join(',') : resourceTypes;
+        if (this.searchResourceType !== resourceKey) {
+            this.searchResourceType = resourceKey;
+            this.searchRadius = 50; // Начинаем с 50 пикселей
+        }
+        
+        // Ищем ресурс в текущем радиусе
+        const found = this.findResourceInRadius(resourceTypes, this.searchRadius);
+        
+        if (found) {
+            // Нашли ресурс - сбрасываем радиус для следующего поиска
+            this.searchRadius = 50;
+            return found;
+        }
+        
+        // Не нашли - расширяем радиус на 50 пикселей
+        this.searchRadius += 50;
+        
+        // Максимальный радиус - диагональ карты
+        const maxRadius = Math.sqrt(
+            Math.pow(window.world?.canvas?.width || 1000, 2) + 
+            Math.pow(window.world?.canvas?.height || 1000, 2)
+        );
+        
+        if (this.searchRadius > maxRadius) {
+            // Достигли максимального радиуса - сбрасываем и возвращаем null
+            this.searchRadius = 50;
+            return null;
+        }
+        
+        // Продолжаем поиск с увеличенным радиусом (рекурсивно, но с ограничением)
+        // Чтобы не зависнуть, ограничиваем количество итераций за один вызов
+        return null;
+    }
+    
+    // Поиск ресурса в заданном радиусе
+    findResourceInRadius(resourceTypes, radius) {
+        if (!window.world || !window.world.resources) return null;
+        
+        const types = Array.isArray(resourceTypes) ? resourceTypes : [resourceTypes];
+        let nearestResource = null;
+        let nearestDistance = Infinity;
+        
+        // Ищем среди ресурсов мира
+        for (const resource of window.world.resources) {
+            if (!types.includes(resource.type)) continue;
+            
+            const dx = resource.x - this.position.x;
+            const dy = resource.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance <= radius && distance < nearestDistance) {
+                nearestResource = resource;
+                nearestDistance = distance;
+            }
+        }
+        
+        // Также проверяем деревья для дров
+        if (types.includes('wood') && window.world.trees) {
+            for (const tree of window.world.trees) {
+                if (tree.state === 'dead' || tree.state === 'stump') continue;
+                
+                const dx = tree.x - this.position.x;
+                const dy = tree.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance <= radius && distance < nearestDistance) {
+                    nearestResource = { ...tree, type: 'tree_for_wood', isTree: true };
+                    nearestDistance = distance;
+                }
+            }
+        }
+        
+        if (nearestResource) {
+            return {
+                resource: nearestResource,
+                distance: nearestDistance
+            };
+        }
+        
+        return null;
+    }
+    
+    // Сброс радиуса поиска (вызывается при смене задачи)
+    resetSearchRadius() {
+        this.searchRadius = 50;
+        this.searchResourceType = null;
     }
     
     heal() {
@@ -959,14 +1179,15 @@ class Agent {
     }
 
     decide() {
-        // Простой конечный автомат для принятия решений
+        // Новая система приоритетов с целенаправленным поведением
+        // УРОВЕНЬ 0: Критическое состояние -> УРОВЕНЬ 1: Запасы на 2 дня -> УРОВЕНЬ 2: Социальные -> УРОВЕНЬ 3: Развитие
+        
         const oldState = this.state; // Сохраняем старое состояние (для логирования изменений)
         
         // КРИТИЧЕСКИ ВАЖНО: Если игрок управляет агентом - НЕ принимаем решения ИИ
         if (this.isPlayerControlled && this.targetPosition) {
-            // Игрок управляет - остаемся в состоянии движения к цели
             this.state = 'moveToPoint';
-            return; // Выходим, не меняя состояние
+            return;
         }
         
         // Если агент спит - не принимаем решений (будет пробужден автоматически в update())
@@ -974,151 +1195,276 @@ class Agent {
             return;
         }
         
-        // Настройки сна для автоматического засыпания
-        const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
-            AUTO_SLEEP_ENERGY_THRESHOLD: 20, // Порог энергии для автоматического засыпания (0-100)
-            AUTO_SLEEP_NIGHT: true           // Автоматическое засыпание ночью (true/false)
+        // Получаем настройки
+        const SUPPLIES_CONFIG = window.GAME_CONFIG?.AGENTS?.SUPPLIES || {
+            CRITICAL_HEALTH: 30,
+            CRITICAL_ENERGY: 20
         };
         
-        // Автоматическое засыпание при низкой энергии или ночью
-        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night'); // Флаг ночного времени (true/false)
-        if ((this.energy < SLEEP_CONFIG.AUTO_SLEEP_ENERGY_THRESHOLD || 
-             (SLEEP_CONFIG.AUTO_SLEEP_NIGHT && isNight)) && 
+        const SLEEP_CONFIG = window.GAME_CONFIG?.AGENTS?.SLEEP || {
+            AUTO_SLEEP_ENERGY_THRESHOLD: 20,
+            AUTO_SLEEP_NIGHT: true
+        };
+        
+        // ========== УРОВЕНЬ 0: КРИТИЧЕСКОЕ СОСТОЯНИЕ ==========
+        // Если здоровье или энергия критически низкие - прерываем все и восстанавливаемся
+        if (this.health < SUPPLIES_CONFIG.CRITICAL_HEALTH || this.energy < SUPPLIES_CONFIG.CRITICAL_ENERGY) {
+            // Сохраняем прерванную задачу для возврата
+            if (this.state !== 'recoverSelf' && this.state !== 'sleep' && this.state !== 'rest' && this.state !== 'findFood') {
+                this.interruptedTask = this.state;
+            }
+            
+            // Определяем что критичнее
+            if (this.energy < SUPPLIES_CONFIG.CRITICAL_ENERGY) {
+                // Критически мало энергии - засыпаем или отдыхаем
+                const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night');
+                if (this.energy < 10 || isNight) {
+                    this.state = 'sleep';
+                    this.sleepStartTime = Date.now();
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`😴 ${this.name} срочно засыпает (энергия: ${Math.floor(this.energy)}%)`);
+                    }
+                } else {
+                    this.state = 'rest';
+                }
+            } else if (this.health < SUPPLIES_CONFIG.CRITICAL_HEALTH) {
+                // Критически мало здоровья - ищем еду или лечение
+                if (this.hasMedicalSupplies()) {
+                    this.state = 'recoverSelf';
+                } else if (this.foodStorage.length > 0) {
+                    this.state = 'recoverSelf';
+                } else {
+                    this.state = 'findFood';
+                }
+            }
+            
+            if (window.addLogEntry && oldState !== this.state) {
+                window.addLogEntry(`⚠️ ${this.name} прерывает задачу - критическое состояние!`);
+            }
+            this.act();
+            return;
+        }
+        
+        // Автоматическое засыпание ночью
+        const isNight = window.world && (window.world.timeOfDay === 'night' || window.world.weather === 'night');
+        if ((this.energy < SLEEP_CONFIG.AUTO_SLEEP_ENERGY_THRESHOLD || (SLEEP_CONFIG.AUTO_SLEEP_NIGHT && isNight)) && 
             this.state !== 'sleep') {
             this.state = 'sleep';
             this.sleepStartTime = Date.now();
-            if (!this.lastSleepTime) {
-                this.lastSleepTime = Date.now();
-            }
             if (window.addLogEntry) {
                 window.addLogEntry(`😴 ${this.name} засыпает ${isNight ? 'на ночь' : 'от усталости'}`);
             }
             return;
         }
         
-        // Проверяем наличие хищников поблизости
+        // Проверяем наличие хищников поблизости (всегда высший приоритет после критического состояния)
         this.checkForPredators();
-        
-        // Проверяем наличие больных агентов поблизости (ВАЖНО: вызываем ПЕРЕД проверкой на лечение)
-        this.checkForSickAgents();
-        
-        // Проверяем друзей - если есть друзья, стараемся находиться рядом с ними
-        this.checkForFriends();
-        
-        // Проверяем агентов, которым нужна помощь (плохое настроение, низкая мотивация)
-        this.checkForAgentsNeedingHelp();
-        
-        // Приоритет: оборона > лечение больных > помощь друзьям > утешение > развлечение > температура (одежда важнее еды) > голод > кормление животных > энергия > игра
         if (this.nearbyPredator && this.nearbyPredator.distance < 100) {
-            // Хищник близко - убегаем или атакуем в зависимости от навыка охоты
-            const huntingSkill = this.experience.hunting || 0;
-            if (huntingSkill >= 10) {
-                // Есть навык охоты (>= 10) - атакуем
-                this.state = 'defend'; // Используем состояние defend для атаки
-            } else {
-                // Нет навыка - убегаем
-                this.state = 'defend';
-            }
-        } else if (this.sickAgent && this.hasMedicalSupplies()) {
-            // Есть больной агент и есть медицинские принадлежности - лечим (опыт не обязателен, но желателен)
-            // Если опыта мало, лечение будет менее эффективным, но все равно возможно
-            if (this.experience.healing < 5) {
-                // Нет достаточного опыта - все равно пытаемся лечить, но с предупреждением
-                if (window.addLogEntry && Math.random() < 0.2) {
-                    window.addLogEntry(`⚠️ ${this.name} пытается лечить ${this.sickAgent.name} без достаточного опыта (опыт: ${Math.floor(this.experience.healing)})`);
-                }
-            }
-            this.state = 'heal';
-            // Добавляем логирование для отладки
-            if (window.addLogEntry && Math.random() < 0.1) {
-                window.addLogEntry(`💊 ${this.name} начинает лечить ${this.sickAgent.name} (здоровье: ${Math.floor(this.sickAgent.health)}%)`);
-            }
-        } else if (this.consolingTarget && this.experience.consoling >= 5) {
-            // Есть агент, которому нужна помощь, и есть навык утешения - утешаем
-            this.state = 'console';
-        } else if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
-            // Есть друг - находимся рядом с ним (если не развлекаем)
-            this.state = 'stayWithFriend';
-        } else if (this.temperature < 32) {
-            // Критически холодно - ищем одежду (важнее) или тепло
-            if (!this.hasEnoughClothes()) {
-                // Нет одежды - ищем одежду (приоритет)
-                this.state = 'findClothes';
-            } else {
-                // Есть одежда - ищем тепло или еду
-                this.state = 'findHeat';
-            }
-        } else if (this.temperature < 35) {
-            // Холодно - ищем одежду или разводим костер
-            if (!this.hasEnoughClothes()) {
-                // Нет одежды - ищем одежду (приоритет)
-                this.state = 'findClothes';
-            } else if (this.experience.fire_building > 0 && this.hasWoodForFire()) {
-                // Есть одежда, навык и дрова - разводим костер
-                this.state = 'buildFire';
-            } else {
-                // Есть одежда, но нет навыка или дров - ищем еду для энергии
-                const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70;
-                if (this.hunger > SEARCH_FOOD_THRESHOLD) {
-                    this.state = 'findFood';
-                } else {
-                    this.state = 'findHeat';
-                }
-            }
-        } else {
-            const SEARCH_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.SEARCH_FOOD_THRESHOLD || 70; // Порог голода для начала поиска еды (0-100)
-            const STORE_FOOD_THRESHOLD = window.GAME_CONFIG?.AGENTS?.HUNGER?.STORE_FOOD_THRESHOLD || 50; // Порог голода для начала запасания еды (0-100)
+            this.state = 'defend';
+            this.act();
+            return;
+        }
+        
+        // ========== УРОВЕНЬ 1: ЗАПАСЫ НА 2 ДНЯ ==========
+        // Проверяем запасы и ищем недостающие ресурсы с расширяющимся радиусом
+        const supplies = this.checkSupplies();
+        
+        if (!supplies.allOk) {
+            // Не хватает запасов - ищем недостающий ресурс
+            const neededSupply = this.getMostNeededSupply();
             
-            // Если голоден и нет припасов - ищем еду
-            if (this.hunger > SEARCH_FOOD_THRESHOLD && this.foodStorage.length === 0) {
-                this.state = 'findFood';
-            } else if (this.hunger > SEARCH_FOOD_THRESHOLD) {
-                // Голоден, но есть припасы - используем их
-                this.state = 'findFood';
-            } else if (this.hasHungryPets()) {
-                // Есть голодные домашние животные
-                this.state = 'feedAnimal';
-            } else if (this.hunger < STORE_FOOD_THRESHOLD && this.foodStorage.length < 5) {
-                // Запасаем еду
-                this.state = 'storeFood';
-            } else if (this.experience.gather_wood >= 5 && !this.hasWoodForFire()) {
-                // Есть навык рубки дров и нет дров - рубим дерево
-                // Проверяем мотивацию (удовлетворенность от рубки дров)
-                const motivation = this.getActionMotivation('chop_wood'); // Мотивация для рубки дров (0-100)
-                if (motivation >= 40 || (this.satisfaction || 50) < 30) { // Рубим если есть мотивация или низкая общая удовлетворенность
-                    const nearestTree = this.findNearestTree(); // Ближайшее дерево для рубки
-                    if (nearestTree) {
-                        this.state = 'chop_wood';
-                        this.targetTree = nearestTree; // Сохраняем целевое дерево
-                    } else {
-                        this.state = 'explore';
+            if (neededSupply) {
+                // Ищем ресурс с расширяющимся радиусом
+                const foundResource = this.searchWithExpandingRadius(neededSupply.resourceTypes);
+                
+                if (foundResource) {
+                    // Нашли ресурс - идем к нему
+                    this.targetSupplyResource = foundResource;
+                    this.state = 'gatherSupplies';
+                    
+                    if (window.addLogEntry && oldState !== 'gatherSupplies' && Math.random() < 0.3) {
+                        window.addLogEntry(`🎯 ${this.name} ищет ${this.getSupplyTypeName(neededSupply.type)} (радиус: ${this.searchRadius}px)`);
                     }
                 } else {
-                    this.state = 'explore'; // Нет мотивации - исследуем
+                    // Не нашли в текущем радиусе - продолжаем расширять поиск
+                    // Если радиус уже максимальный - переходим к другим задачам
+                    if (this.searchRadius >= 500) {
+                        // Сбрасываем радиус и пробуем другие действия
+                        this.resetSearchRadius();
+                        
+                        // Пробуем добыть ресурс другим способом
+                        if (neededSupply.type === 'wood') {
+                            const nearestTree = this.findNearestTree();
+                            if (nearestTree) {
+                                this.state = 'chop_wood';
+                                this.targetTree = nearestTree;
+                            } else {
+                                this.state = 'explore';
+                            }
+                        } else if (neededSupply.type === 'food') {
+                            // Пробуем рыбачить или охотиться
+                            if (this.experience.fishing >= 5) {
+                                this.state = 'fish';
+                            } else if (this.experience.hunting >= 10) {
+                                this.state = 'hunt';
+                            } else {
+                                this.state = 'explore';
+                            }
+                        } else {
+                            this.state = 'explore';
+                        }
+                    } else {
+                        // Продолжаем искать - двигаемся в случайном направлении для расширения области поиска
+                        this.state = 'gatherSupplies';
+                    }
                 }
-            } else if (this.energy < 30) {
-                this.state = 'rest';
-            } else if (this.pets.length > 0 && Math.random() < 0.1) {
-                // Иногда играем с домашними животными
-                this.state = 'playWithPet';
-            } else {
-                // Выбираем действие на основе мотивации (удовлетворенности от действий)
-                const cookMotivation = this.getActionMotivation('cook'); // Мотивация для готовки
-                const fishMotivation = this.getActionMotivation('fish'); // Мотивация для рыбалки
-                const huntMotivation = this.getActionMotivation('hunt'); // Мотивация для охоты
-                
-                // Если есть высокая мотивация для какого-то действия и есть навык - выполняем его
-                if (cookMotivation >= 60 && this.experience.cooking >= 5 && this.foodStorage.length > 0) {
-                    this.state = 'cook';
-                } else if (fishMotivation >= 60 && this.experience.fishing >= 5) {
-                    this.state = 'fish';
-                } else if (huntMotivation >= 60 && this.experience.hunting >= 10) {
-                    this.state = 'hunt';
-                } else {
-                    this.state = 'explore';
-                }
+                this.act();
+                return;
             }
         }
+        
+        // ========== УРОВЕНЬ 2: СОЦИАЛЬНЫЕ ЗАДАЧИ ==========
+        // Запасов достаточно - можем помогать другим
+        
+        // Проверяем наличие больных агентов
+        this.checkForSickAgents();
+        if (this.sickAgent && this.hasMedicalSupplies()) {
+            this.state = 'heal';
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`💊 ${this.name} начинает лечить ${this.sickAgent.name}`);
+            }
+            this.act();
+            return;
+        }
+        
+        // Проверяем друзей
+        this.checkForFriends();
+        if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
+            this.state = 'stayWithFriend';
+            this.act();
+            return;
+        }
+        
+        // Проверяем агентов, которым нужна помощь
+        this.checkForAgentsNeedingHelp();
+        if (this.consolingTarget && this.experience.consoling >= 5) {
+            this.state = 'console';
+            this.act();
+            return;
+        }
+        
+        // Развлечение других (если есть навыки)
+        if (Math.random() < 0.05) {
+            if (this.experience.singing >= 5) {
+                this.state = 'sing';
+                this.act();
+                return;
+            } else if (this.experience.storytelling >= 5) {
+                this.state = 'tellStory';
+                this.act();
+                return;
+            } else if (this.experience.comedy >= 5) {
+                this.state = 'makeLaugh';
+                this.act();
+                return;
+            }
+        }
+        
+        // Кормление домашних животных
+        if (this.hasHungryPets()) {
+            this.state = 'feedAnimal';
+            this.act();
+            return;
+        }
+        
+        // Игра с питомцами
+        if (this.pets.length > 0 && Math.random() < 0.1) {
+            this.state = 'playWithPet';
+            this.act();
+            return;
+        }
+        
+        // ========== УРОВЕНЬ 3: РАЗВИТИЕ ==========
+        // Все базовые потребности удовлетворены - развиваемся
+        
+        // Температурный комфорт
+        if (this.temperature < 32) {
+            if (!this.hasEnoughClothes()) {
+                this.state = 'findClothes';
+            } else {
+                this.state = 'findHeat';
+            }
+            this.act();
+            return;
+        } else if (this.temperature < 35 && this.experience.fire_building > 0 && this.hasWoodForFire()) {
+            this.state = 'buildFire';
+            this.act();
+            return;
+        }
+        
+        // Фермерство (если есть навык)
+        if (this.experience.farming >= 5 && Math.random() < 0.2) {
+            this.state = 'developFarm';
+            this.act();
+            return;
+        }
+        
+        // Строительство (если есть навык и ресурсы)
+        if (this.experience.building >= 10) {
+            // Проверяем, есть ли уже жилище
+            const hasHouse = this.ownedBuildings.some(b => b.type === 'house');
+            const hasPen = this.ownedBuildings.some(b => b.type === 'pen');
+            const hasBarn = this.ownedBuildings.some(b => b.type === 'barn');
+            
+            const woodCount = this.getWoodCount();
+            
+            if (!hasHouse && woodCount >= 20 && Math.random() < 0.1) {
+                this.state = 'buildHouse';
+                this.act();
+                return;
+            } else if (hasHouse && !hasPen && woodCount >= 15 && Math.random() < 0.1) {
+                this.state = 'buildPen';
+                this.act();
+                return;
+            } else if (hasPen && !hasBarn && woodCount >= 25 && Math.random() < 0.1) {
+                this.state = 'buildBarn';
+                this.act();
+                return;
+            }
+        }
+        
+        // Поиск животных для загона (если есть загон)
+        const hasPen = this.ownedBuildings.some(b => b.type === 'pen');
+        if (hasPen && this.caughtAnimals.length < 3 && Math.random() < 0.1) {
+            this.state = 'findAnimals';
+            this.act();
+            return;
+        }
+        
+        // Готовка (если есть навык и ингредиенты)
+        if (this.experience.cooking >= 5 && this.foodStorage.length > 0 && Math.random() < 0.15) {
+            this.state = 'cook';
+            this.act();
+            return;
+        }
+        
+        // Рыбалка (если есть навык)
+        if (this.experience.fishing >= 5 && Math.random() < 0.1) {
+            this.state = 'fish';
+            this.act();
+            return;
+        }
+        
+        // Охота (если есть навык)
+        if (this.experience.hunting >= 10 && Math.random() < 0.1) {
+            this.state = 'hunt';
+            this.act();
+            return;
+        }
+        
+        // Если ничего не нужно делать - исследуем мир
+        // Но не случайно блуждаем, а целенаправленно ищем новые ресурсы
+        this.state = 'explore';
         
         // Логирование смены состояния (только при изменении)
         if (oldState !== this.state && window.addLogEntry) {
@@ -1140,12 +1486,38 @@ class Agent {
                 'sing': 'поет песни',
                 'tellStory': 'рассказывает стихи',
                 'makeLaugh': 'смешит других',
-                'console': 'утешает'
+                'console': 'утешает',
+                'gatherSupplies': 'собирает запасы',
+                'recoverSelf': 'восстанавливается',
+                'buildHouse': 'строит жилище',
+                'buildPen': 'строит загон',
+                'buildBarn': 'строит сарай',
+                'findAnimals': 'ищет животных',
+                'developFarm': 'развивает ферму'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
         
         this.act();
+    }
+    
+    // Вспомогательный метод для получения названия типа запаса
+    getSupplyTypeName(type) {
+        const names = {
+            'food': 'еду',
+            'medical': 'медикаменты',
+            'wood': 'дрова',
+            'ammo': 'патроны',
+            'weapon': 'оружие'
+        };
+        return names[type] || type;
+    }
+    
+    // Подсчет дров
+    getWoodCount() {
+        const woodFromStorage = this.woodStorage ? this.woodStorage.reduce((sum, w) => sum + (w.amount || 0), 0) : 0;
+        const woodFromInventory = this.inventory ? this.inventory.filter(i => i.type === 'wood').reduce((sum, w) => sum + (w.amount || 0), 0) : 0;
+        return woodFromStorage + woodFromInventory;
     }
     
     checkForPredators() {
@@ -1613,6 +1985,45 @@ class Agent {
             case 'console':
                 // Утешение других агентов
                 this.consoleAgent();
+                break;
+            
+            // ========== НОВЫЕ СОСТОЯНИЯ ДЛЯ СИСТЕМЫ ПРИОРИТЕТОВ ==========
+            case 'gatherSupplies':
+                // Сбор запасов с расширяющимся радиусом поиска
+                this.gatherSupplies();
+                break;
+            case 'recoverSelf':
+                // Восстановление при критическом состоянии
+                this.recoverSelf();
+                break;
+            case 'buildHouse':
+                // Строительство жилища
+                this.buildHouse();
+                break;
+            case 'buildPen':
+                // Строительство загона для животных
+                this.buildPen();
+                break;
+            case 'buildBarn':
+                // Строительство сарая для хранения
+                this.buildBarn();
+                break;
+            case 'findAnimals':
+                // Поиск и ловля животных для загона
+                this.findAnimals();
+                break;
+            case 'goToMarket':
+                // Поход на ярмарку
+                const market = this.findMarket();
+                if (market) {
+                    this.moveTo(market.x, market.y);
+                } else {
+                    this.state = 'explore';
+                }
+                break;
+            case 'developFarm':
+                // Развитие фермерства
+                this.developFarm();
                 break;
         }
     }
@@ -2449,6 +2860,626 @@ class Agent {
         }
         
         this.state = 'explore';
+    }
+    
+    // Строительство жилища (упрощенная система)
+    buildHouse() {
+        if (!window.world) return;
+        
+        const HOUSE_REQUIREMENTS = {
+            wood: 20,
+            stone: 10,
+            buildingSkill: 10,
+            buildTime: 500 // кадров
+        };
+        
+        // Проверяем навык
+        if (this.experience.building < HOUSE_REQUIREMENTS.buildingSkill) {
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚠️ ${this.name} не хватает опыта строительства для жилища (нужно: ${HOUSE_REQUIREMENTS.buildingSkill})`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем ресурсы
+        const woodCount = this.getWoodCount();
+        if (woodCount < HOUSE_REQUIREMENTS.wood) {
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚠️ ${this.name} не хватает дров для жилища (есть: ${woodCount}, нужно: ${HOUSE_REQUIREMENTS.wood})`);
+            }
+            this.state = 'gatherSupplies';
+            this.searchResourceType = 'wood';
+            return;
+        }
+        
+        // Инициализируем строительство
+        if (!this.currentBuilding || this.currentBuilding.type !== 'house') {
+            this.currentBuilding = {
+                type: 'house',
+                x: this.position.x + 30,
+                y: this.position.y + 30,
+                progress: 0
+            };
+            this.buildingProgress = 0;
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏠 ${this.name} начинает строить жилище`);
+            }
+        }
+        
+        // Процесс строительства
+        this.buildingProgress += 1;
+        
+        // Тратим ресурсы постепенно
+        if (this.buildingProgress % 25 === 0) {
+            this.consumeWood(1);
+        }
+        
+        // Получаем опыт
+        if (this.buildingProgress % 50 === 0) {
+            this.gainExperience('building', 1);
+        }
+        
+        // Завершение строительства
+        if (this.buildingProgress >= HOUSE_REQUIREMENTS.buildTime) {
+            // Создаем здание
+            const building = {
+                type: 'house',
+                x: this.currentBuilding.x,
+                y: this.currentBuilding.y,
+                id: 'building_' + Date.now() + '_' + Math.random(),
+                ownerId: this.id
+            };
+            
+            this.ownedBuildings.push(building);
+            
+            // Добавляем в мир
+            if (!window.world.buildings) {
+                window.world.buildings = [];
+            }
+            window.world.buildings.push(building);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏠 ${this.name} построил жилище!`);
+            }
+            
+            this.currentBuilding = null;
+            this.buildingProgress = 0;
+            this.gainExperience('building', 10);
+            this.state = 'explore';
+        }
+    }
+    
+    // Строительство загона для животных
+    buildPen() {
+        if (!window.world) return;
+        
+        const PEN_REQUIREMENTS = {
+            wood: 15,
+            buildingSkill: 5,
+            buildTime: 300
+        };
+        
+        // Проверяем навык
+        if (this.experience.building < PEN_REQUIREMENTS.buildingSkill) {
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚠️ ${this.name} не хватает опыта для загона (нужно: ${PEN_REQUIREMENTS.buildingSkill})`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем ресурсы
+        const woodCount = this.getWoodCount();
+        if (woodCount < PEN_REQUIREMENTS.wood) {
+            this.state = 'gatherSupplies';
+            this.searchResourceType = 'wood';
+            return;
+        }
+        
+        // Инициализируем строительство
+        if (!this.currentBuilding || this.currentBuilding.type !== 'pen') {
+            this.currentBuilding = {
+                type: 'pen',
+                x: this.position.x + 50,
+                y: this.position.y + 30,
+                progress: 0
+            };
+            this.buildingProgress = 0;
+            if (window.addLogEntry) {
+                window.addLogEntry(`🐄 ${this.name} начинает строить загон`);
+            }
+        }
+        
+        // Процесс строительства
+        this.buildingProgress += 1;
+        
+        if (this.buildingProgress % 20 === 0) {
+            this.consumeWood(1);
+        }
+        
+        if (this.buildingProgress % 50 === 0) {
+            this.gainExperience('building', 1);
+        }
+        
+        // Завершение
+        if (this.buildingProgress >= PEN_REQUIREMENTS.buildTime) {
+            const building = {
+                type: 'pen',
+                x: this.currentBuilding.x,
+                y: this.currentBuilding.y,
+                id: 'building_' + Date.now() + '_' + Math.random(),
+                ownerId: this.id,
+                animals: []
+            };
+            
+            this.ownedBuildings.push(building);
+            
+            if (!window.world.buildings) {
+                window.world.buildings = [];
+            }
+            window.world.buildings.push(building);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🐄 ${this.name} построил загон!`);
+            }
+            
+            this.currentBuilding = null;
+            this.buildingProgress = 0;
+            this.gainExperience('building', 5);
+            this.state = 'explore';
+        }
+    }
+    
+    // Строительство сарая для хранения
+    buildBarn() {
+        if (!window.world) return;
+        
+        const BARN_REQUIREMENTS = {
+            wood: 25,
+            stone: 5,
+            buildingSkill: 15,
+            buildTime: 400
+        };
+        
+        // Проверяем навык
+        if (this.experience.building < BARN_REQUIREMENTS.buildingSkill) {
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚠️ ${this.name} не хватает опыта для сарая (нужно: ${BARN_REQUIREMENTS.buildingSkill})`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем ресурсы
+        const woodCount = this.getWoodCount();
+        if (woodCount < BARN_REQUIREMENTS.wood) {
+            this.state = 'gatherSupplies';
+            this.searchResourceType = 'wood';
+            return;
+        }
+        
+        // Инициализируем строительство
+        if (!this.currentBuilding || this.currentBuilding.type !== 'barn') {
+            this.currentBuilding = {
+                type: 'barn',
+                x: this.position.x + 70,
+                y: this.position.y + 30,
+                progress: 0
+            };
+            this.buildingProgress = 0;
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏚️ ${this.name} начинает строить сарай`);
+            }
+        }
+        
+        // Процесс строительства
+        this.buildingProgress += 1;
+        
+        if (this.buildingProgress % 16 === 0) {
+            this.consumeWood(1);
+        }
+        
+        if (this.buildingProgress % 50 === 0) {
+            this.gainExperience('building', 1);
+        }
+        
+        // Завершение
+        if (this.buildingProgress >= BARN_REQUIREMENTS.buildTime) {
+            const building = {
+                type: 'barn',
+                x: this.currentBuilding.x,
+                y: this.currentBuilding.y,
+                id: 'building_' + Date.now() + '_' + Math.random(),
+                ownerId: this.id,
+                storage: []
+            };
+            
+            this.ownedBuildings.push(building);
+            
+            if (!window.world.buildings) {
+                window.world.buildings = [];
+            }
+            window.world.buildings.push(building);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🏚️ ${this.name} построил сарай!`);
+            }
+            
+            this.currentBuilding = null;
+            this.buildingProgress = 0;
+            this.gainExperience('building', 8);
+            this.state = 'explore';
+        }
+    }
+    
+    // Вспомогательный метод для траты дров
+    consumeWood(amount) {
+        let remaining = amount;
+        
+        // Сначала из woodStorage
+        if (this.woodStorage && this.woodStorage.length > 0) {
+            for (let i = this.woodStorage.length - 1; i >= 0 && remaining > 0; i--) {
+                const wood = this.woodStorage[i];
+                if (wood.amount <= remaining) {
+                    remaining -= wood.amount;
+                    this.woodStorage.splice(i, 1);
+                } else {
+                    wood.amount -= remaining;
+                    remaining = 0;
+                }
+            }
+        }
+        
+        // Затем из inventory
+        if (remaining > 0 && this.inventory) {
+            for (let i = this.inventory.length - 1; i >= 0 && remaining > 0; i--) {
+                const item = this.inventory[i];
+                if (item.type === 'wood') {
+                    if (item.amount <= remaining) {
+                        remaining -= item.amount;
+                        this.inventory.splice(i, 1);
+                    } else {
+                        item.amount -= remaining;
+                        remaining = 0;
+                    }
+                }
+            }
+        }
+        
+        return amount - remaining; // Возвращаем сколько реально потратили
+    }
+    
+    // Развитие фермы
+    developFarm() {
+        if (!window.world) return;
+        
+        // Проверяем навык фермерства
+        if (this.experience.farming < 5) {
+            this.state = 'explore';
+            return;
+        }
+        
+        // Ищем животных на ферме или работаем с полями
+        if (window.world.farmAnimals && window.world.farmAnimals.length > 0) {
+            // Находим ближайшее фермерское животное
+            let nearestAnimal = null;
+            let nearestDistance = Infinity;
+            
+            for (const animal of window.world.farmAnimals) {
+                const dx = animal.x - this.position.x;
+                const dy = animal.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < nearestDistance) {
+                    nearestAnimal = animal;
+                    nearestDistance = distance;
+                }
+            }
+            
+            if (nearestAnimal && nearestDistance < 200) {
+                // Идем к животному и ухаживаем
+                if (nearestDistance > 20) {
+                    this.moveTo(nearestAnimal.x, nearestAnimal.y);
+                } else {
+                    // Ухаживаем
+                    nearestAnimal.hunger = Math.max(0, (nearestAnimal.hunger || 50) - 10);
+                    this.gainExperience('farming', 1);
+                    
+                    if (window.addLogEntry && Math.random() < 0.1) {
+                        window.addLogEntry(`🌾 ${this.name} ухаживает за фермой`);
+                    }
+                }
+                return;
+            }
+        }
+        
+        // Если нет животных - исследуем
+        this.state = 'explore';
+    }
+    
+    // Поиск и ловля животных для загона
+    findAnimals() {
+        if (!window.world) return;
+        
+        // Проверяем, есть ли загон
+        const pen = this.ownedBuildings.find(b => b.type === 'pen');
+        if (!pen) {
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`⚠️ ${this.name} нужен загон для содержания животных`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Сначала ищем ярмарку
+        const market = this.findMarket();
+        if (market) {
+            const dx = market.x - this.position.x;
+            const dy = market.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 30) {
+                // Идем к ярмарке
+                this.moveTo(market.x, market.y);
+                return;
+            } else {
+                // На ярмарке - покупаем животное (если есть деньги)
+                if (this.money >= 50) {
+                    this.money -= 50;
+                    const animal = {
+                        type: 'chicken',
+                        id: 'animal_' + Date.now() + '_' + Math.random(),
+                        x: pen.x + Math.random() * 30,
+                        y: pen.y + Math.random() * 30,
+                        hunger: 30,
+                        health: 100
+                    };
+                    this.caughtAnimals.push(animal);
+                    pen.animals = pen.animals || [];
+                    pen.animals.push(animal);
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🐔 ${this.name} купил животное на ярмарке`);
+                    }
+                    this.state = 'explore';
+                    return;
+                }
+            }
+        }
+        
+        // Если нет ярмарки или денег - ищем диких животных по карте
+        if (!this.targetAnimal) {
+            this.targetAnimal = this.findWildAnimal();
+        }
+        
+        if (this.targetAnimal) {
+            const dx = this.targetAnimal.x - this.position.x;
+            const dy = this.targetAnimal.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 20) {
+                // Идем к животному
+                this.moveTo(this.targetAnimal.x, this.targetAnimal.y);
+            } else {
+                // Ловим животное (требуется навык охоты или фермерства)
+                const catchChance = Math.min(0.8, (this.experience.hunting + this.experience.farming) / 100);
+                
+                if (Math.random() < catchChance) {
+                    // Успешно поймали
+                    const animal = {
+                        type: this.targetAnimal.type || 'rabbit',
+                        id: 'animal_' + Date.now() + '_' + Math.random(),
+                        x: pen.x + Math.random() * 30,
+                        y: pen.y + Math.random() * 30,
+                        hunger: 50,
+                        health: 100
+                    };
+                    this.caughtAnimals.push(animal);
+                    pen.animals = pen.animals || [];
+                    pen.animals.push(animal);
+                    
+                    // Удаляем дикое животное из мира
+                    if (window.world.animals) {
+                        const index = window.world.animals.indexOf(this.targetAnimal);
+                        if (index > -1) {
+                            window.world.animals.splice(index, 1);
+                        }
+                    }
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`🐰 ${this.name} поймал дикое животное!`);
+                    }
+                    
+                    this.gainExperience('hunting', 2);
+                    this.gainExperience('farming', 1);
+                } else {
+                    // Не удалось поймать
+                    if (window.addLogEntry && Math.random() < 0.3) {
+                        window.addLogEntry(`❌ ${this.name} не удалось поймать животное`);
+                    }
+                }
+                
+                this.targetAnimal = null;
+            }
+        } else {
+            // Нет животных поблизости - исследуем
+            this.moveToRandomPoint();
+        }
+    }
+    
+    // Поиск ярмарки
+    findMarket() {
+        if (!window.world || !window.world.buildings) return null;
+        
+        for (const building of window.world.buildings) {
+            if (building.type === 'market' || building.type === 'fair') {
+                return building;
+            }
+        }
+        return null;
+    }
+    
+    // Поиск дикого животного для ловли
+    findWildAnimal() {
+        if (!window.world) return null;
+        
+        // Ищем среди животных мира
+        const animals = window.world.animals || [];
+        let nearestAnimal = null;
+        let nearestDistance = Infinity;
+        
+        // Типы животных, которых можно поймать для загона
+        const catchableTypes = ['rabbit', 'chicken', 'sheep', 'goat', 'pig'];
+        
+        for (const animal of animals) {
+            // Пропускаем хищников и уже пойманных
+            if (animal.isPredator || animal.isCaught) continue;
+            
+            // Проверяем тип
+            if (catchableTypes.length > 0 && !catchableTypes.includes(animal.type)) continue;
+            
+            const dx = animal.x - this.position.x;
+            const dy = animal.y - this.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < nearestDistance && distance < 300) {
+                nearestAnimal = animal;
+                nearestDistance = distance;
+            }
+        }
+        
+        return nearestAnimal;
+    }
+    
+    // Метод восстановления себя (при критическом состоянии)
+    recoverSelf() {
+        // Если здоровье критическое - лечимся
+        if (this.health < 30) {
+            // Пробуем использовать медикаменты
+            if (this.hasMedicalSupplies()) {
+                // Используем аптечку на себя
+                const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey'];
+                let herbItem = this.inventory.find(item => healingHerbs.includes(item.type));
+                
+                if (!herbItem && this.foodStorage) {
+                    herbItem = this.foodStorage.find(item => healingHerbs.includes(item.type));
+                }
+                
+                if (herbItem) {
+                    // Используем лечебную траву
+                    const healAmount = 15;
+                    this.health = Math.min(this.maxHealth, this.health + healAmount);
+                    
+                    herbItem.amount--;
+                    if (herbItem.amount <= 0) {
+                        if (this.inventory.includes(herbItem)) {
+                            const index = this.inventory.indexOf(herbItem);
+                            this.inventory.splice(index, 1);
+                        } else if (this.foodStorage && this.foodStorage.includes(herbItem)) {
+                            const index = this.foodStorage.indexOf(herbItem);
+                            this.foodStorage.splice(index, 1);
+                        }
+                    }
+                    
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`💊 ${this.name} использовал лечебные травы (здоровье: ${Math.floor(this.health)}%)`);
+                    }
+                }
+            }
+            
+            // Также едим, если есть еда
+            if (this.foodStorage && this.foodStorage.length > 0) {
+                const food = this.foodStorage[0];
+                if (food && food.amount > 0) {
+                    food.amount--;
+                    this.hunger = Math.max(0, this.hunger - 25);
+                    this.health = Math.min(this.maxHealth, this.health + 5);
+                    
+                    if (food.amount <= 0) {
+                        this.foodStorage.shift();
+                    }
+                }
+            }
+        }
+        
+        // Если энергия критическая - отдыхаем
+        if (this.energy < 20) {
+            this.energy += 2;
+            if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
+        }
+        
+        // Проверяем, восстановились ли
+        const SUPPLIES_CONFIG = window.GAME_CONFIG?.AGENTS?.SUPPLIES || {
+            CRITICAL_HEALTH: 30,
+            CRITICAL_ENERGY: 20
+        };
+        
+        if (this.health >= SUPPLIES_CONFIG.CRITICAL_HEALTH + 20 && 
+            this.energy >= SUPPLIES_CONFIG.CRITICAL_ENERGY + 20) {
+            // Восстановились - возвращаемся к прерванной задаче
+            if (this.interruptedTask) {
+                this.state = this.interruptedTask;
+                this.interruptedTask = null;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`✅ ${this.name} восстановился и продолжает работу`);
+                }
+            } else {
+                this.state = 'explore';
+            }
+        }
+    }
+    
+    // Сбор запасов (движение к найденному ресурсу)
+    gatherSupplies() {
+        if (!this.targetSupplyResource) {
+            // Нет цели - ищем заново
+            const neededSupply = this.getMostNeededSupply();
+            if (neededSupply) {
+                const found = this.searchWithExpandingRadius(neededSupply.resourceTypes);
+                if (found) {
+                    this.targetSupplyResource = found;
+                } else {
+                    // Не нашли - двигаемся в случайном направлении для расширения области поиска
+                    this.moveToRandomPoint();
+                    return;
+                }
+            } else {
+                // Все запасы в норме
+                this.state = 'explore';
+                return;
+            }
+        }
+        
+        const resource = this.targetSupplyResource.resource;
+        const dx = resource.x - this.position.x;
+        const dy = resource.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 10) {
+            // Идем к ресурсу
+            this.moveTo(resource.x, resource.y);
+        } else {
+            // Достигли ресурса - собираем
+            if (resource.isTree) {
+                // Это дерево - рубим
+                this.state = 'chop_wood';
+                this.targetTree = resource;
+            } else {
+                // Обычный ресурс - собираем через interactWithWorld
+                // Ресурс будет собран автоматически при близости
+                this.targetSupplyResource = null;
+                
+                // Проверяем, нужно ли продолжать сбор
+                const supplies = this.checkSupplies();
+                if (!supplies.allOk) {
+                    // Продолжаем искать
+                    this.state = 'gatherSupplies';
+                } else {
+                    this.state = 'explore';
+                }
+            }
+        }
     }
     
     fish() {
