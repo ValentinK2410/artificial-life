@@ -1192,9 +1192,133 @@ class World {
         // Восстанавливаем контекст (убираем трансформацию камеры)
         this.ctx.restore();
         
+        // Отрисовка сетки и линейки поверх всего (если включено)
+        if (window.showGrid) {
+            this.drawGrid();
+        }
+        
         // Отрисовка подсказок поверх всего (в координатах экрана)
         if (this.mouse.hoveredObject) {
             this.drawTooltip(this.mouse.hoveredObject);
+        }
+    }
+    
+    // Отрисовка сетки и линейки
+    drawGrid() {
+        if (!this.ctx || !this.canvas) return;
+        
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const gridSize = 50; // Размер ячейки сетки в пикселях
+        const rulerSize = 25; // Высота/ширина линейки
+        
+        // Вычисляем смещение камеры для правильного отображения координат
+        const offsetX = this.camera.x * this.camera.scale;
+        const offsetY = this.camera.y * this.camera.scale;
+        const scale = this.camera.scale;
+        
+        // Рисуем полупрозрачный фон для линеек
+        this.ctx.fillStyle = 'rgba(30, 30, 30, 0.8)';
+        this.ctx.fillRect(0, 0, width, rulerSize); // Верхняя линейка
+        this.ctx.fillRect(0, rulerSize, rulerSize, height - rulerSize); // Левая линейка
+        
+        // Настройки для сетки
+        this.ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+        this.ctx.lineWidth = 1;
+        
+        // Вычисляем начальные координаты сетки с учетом камеры
+        const startWorldX = Math.floor(this.camera.x / gridSize) * gridSize;
+        const startWorldY = Math.floor(this.camera.y / gridSize) * gridSize;
+        
+        // Рисуем вертикальные линии сетки
+        for (let worldX = startWorldX; worldX < this.camera.x + width / scale + gridSize; worldX += gridSize) {
+            const screenX = (worldX - this.camera.x) * scale;
+            if (screenX >= rulerSize && screenX <= width) {
+                // Основная линия сетки
+                const isMajor = worldX % (gridSize * 2) === 0;
+                this.ctx.strokeStyle = isMajor ? 'rgba(100, 150, 200, 0.4)' : 'rgba(100, 100, 100, 0.2)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(screenX, rulerSize);
+                this.ctx.lineTo(screenX, height);
+                this.ctx.stroke();
+            }
+        }
+        
+        // Рисуем горизонтальные линии сетки
+        for (let worldY = startWorldY; worldY < this.camera.y + height / scale + gridSize; worldY += gridSize) {
+            const screenY = (worldY - this.camera.y) * scale;
+            if (screenY >= rulerSize && screenY <= height) {
+                // Основная линия сетки
+                const isMajor = worldY % (gridSize * 2) === 0;
+                this.ctx.strokeStyle = isMajor ? 'rgba(100, 150, 200, 0.4)' : 'rgba(100, 100, 100, 0.2)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(rulerSize, screenY);
+                this.ctx.lineTo(width, screenY);
+                this.ctx.stroke();
+            }
+        }
+        
+        // Настройки для текста линейки
+        this.ctx.font = '10px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        // Рисуем метки на верхней линейке (координаты X)
+        for (let worldX = startWorldX; worldX < this.camera.x + width / scale + gridSize; worldX += gridSize) {
+            const screenX = (worldX - this.camera.x) * scale;
+            if (screenX >= rulerSize && screenX <= width) {
+                // Метка
+                this.ctx.fillStyle = 'rgba(74, 158, 255, 0.9)';
+                this.ctx.fillText(Math.round(worldX).toString(), screenX, rulerSize / 2);
+                
+                // Засечка
+                this.ctx.strokeStyle = 'rgba(74, 158, 255, 0.6)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(screenX, rulerSize - 5);
+                this.ctx.lineTo(screenX, rulerSize);
+                this.ctx.stroke();
+            }
+        }
+        
+        // Рисуем метки на левой линейке (координаты Y)
+        this.ctx.textAlign = 'center';
+        for (let worldY = startWorldY; worldY < this.camera.y + height / scale + gridSize; worldY += gridSize) {
+            const screenY = (worldY - this.camera.y) * scale;
+            if (screenY >= rulerSize && screenY <= height) {
+                // Метка
+                this.ctx.fillStyle = 'rgba(74, 158, 255, 0.9)';
+                this.ctx.fillText(Math.round(worldY).toString(), rulerSize / 2, screenY);
+                
+                // Засечка
+                this.ctx.strokeStyle = 'rgba(74, 158, 255, 0.6)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(rulerSize - 5, screenY);
+                this.ctx.lineTo(rulerSize, screenY);
+                this.ctx.stroke();
+            }
+        }
+        
+        // Рисуем угловой квадрат с информацией о масштабе
+        this.ctx.fillStyle = 'rgba(30, 30, 30, 0.9)';
+        this.ctx.fillRect(0, 0, rulerSize, rulerSize);
+        this.ctx.fillStyle = 'rgba(74, 158, 255, 0.9)';
+        this.ctx.font = '8px Arial';
+        this.ctx.fillText(`${Math.round(scale * 100)}%`, rulerSize / 2, rulerSize / 2);
+        
+        // Рисуем координаты мыши (если есть)
+        if (this.mouseScreenX !== undefined && this.mouseScreenY !== undefined) {
+            const worldMouseX = this.camera.x + this.mouseScreenX / scale;
+            const worldMouseY = this.camera.y + this.mouseScreenY / scale;
+            
+            // Фон для координат
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(width - 120, height - 25, 115, 20);
+            
+            // Текст координат
+            this.ctx.fillStyle = '#4a9eff';
+            this.ctx.font = '11px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`X: ${Math.round(worldMouseX)} Y: ${Math.round(worldMouseY)}`, width - 115, height - 12);
         }
     }
     

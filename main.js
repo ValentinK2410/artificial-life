@@ -2223,6 +2223,7 @@ let simulation = null;
 // Инициализация при загрузке страницы
 // Глобальные настройки отображения
 window.showAgentDirection = false; // Показывать направление движения агентов
+window.showGrid = false; // Показывать сетку и линейку
 window.showHealthBars = true; // Показывать полоски здоровья
 window.showAgentNames = true; // Показывать имена агентов
 
@@ -2247,6 +2248,17 @@ function initializeDisplaySettings() {
             window.showAgentDirection = e.target.checked;
             if (window.world) window.world.draw();
             console.log('Показ направления:', window.showAgentDirection);
+        });
+    }
+    
+    // Чекбокс сетки и линейки
+    const gridCheckbox = document.getElementById('showGridCheckbox');
+    if (gridCheckbox) {
+        gridCheckbox.checked = window.showGrid;
+        gridCheckbox.addEventListener('change', (e) => {
+            window.showGrid = e.target.checked;
+            if (window.world) window.world.draw();
+            console.log('Показ сетки:', window.showGrid);
         });
     }
     
