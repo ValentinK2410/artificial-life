@@ -2240,6 +2240,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Инициализация настроек отображения
 function initializeDisplaySettings() {
+    console.log('🔧 Инициализация настроек отображения...');
+    
     // Чекбокс направления движения
     const directionCheckbox = document.getElementById('showDirectionCheckbox');
     if (directionCheckbox) {
@@ -2247,8 +2249,14 @@ function initializeDisplaySettings() {
         directionCheckbox.addEventListener('change', (e) => {
             window.showAgentDirection = e.target.checked;
             if (window.world) window.world.draw();
+            if (window.addLogEntry) {
+                window.addLogEntry(e.target.checked ? '📍 Направление движения: ВКЛ' : '📍 Направление движения: ВЫКЛ');
+            }
             console.log('Показ направления:', window.showAgentDirection);
         });
+        console.log('  ✓ Чекбокс направления найден');
+    } else {
+        console.warn('  ✗ Чекбокс направления НЕ найден');
     }
     
     // Чекбокс сетки и линейки
@@ -2258,8 +2266,14 @@ function initializeDisplaySettings() {
         gridCheckbox.addEventListener('change', (e) => {
             window.showGrid = e.target.checked;
             if (window.world) window.world.draw();
+            if (window.addLogEntry) {
+                window.addLogEntry(e.target.checked ? '📐 Сетка и линейка: ВКЛ' : '📐 Сетка и линейка: ВЫКЛ');
+            }
             console.log('Показ сетки:', window.showGrid);
         });
+        console.log('  ✓ Чекбокс сетки найден');
+    } else {
+        console.warn('  ✗ Чекбокс сетки НЕ найден');
     }
     
     // Чекбокс полосок здоровья
@@ -2269,8 +2283,14 @@ function initializeDisplaySettings() {
         healthBarsCheckbox.addEventListener('change', (e) => {
             window.showHealthBars = e.target.checked;
             if (window.world) window.world.draw();
+            if (window.addLogEntry) {
+                window.addLogEntry(e.target.checked ? '❤️ Полоски здоровья: ВКЛ' : '❤️ Полоски здоровья: ВЫКЛ');
+            }
             console.log('Показ полосок здоровья:', window.showHealthBars);
         });
+        console.log('  ✓ Чекбокс здоровья найден');
+    } else {
+        console.warn('  ✗ Чекбокс здоровья НЕ найден');
     }
     
     // Чекбокс имен агентов
@@ -2280,9 +2300,17 @@ function initializeDisplaySettings() {
         namesCheckbox.addEventListener('change', (e) => {
             window.showAgentNames = e.target.checked;
             if (window.world) window.world.draw();
+            if (window.addLogEntry) {
+                window.addLogEntry(e.target.checked ? '📛 Имена агентов: ВКЛ' : '📛 Имена агентов: ВЫКЛ');
+            }
             console.log('Показ имен агентов:', window.showAgentNames);
         });
+        console.log('  ✓ Чекбокс имен найден');
+    } else {
+        console.warn('  ✗ Чекбокс имен НЕ найден');
     }
+    
+    console.log('🔧 Настройки отображения инициализированы');
 }
 
 // Управление вкладками
@@ -3591,6 +3619,9 @@ function initializeNetwork() {
                             }
                         }
                         
+                        // Инициализируем настройки отображения (после показа mainContainer)
+                        initializeDisplaySettings();
+                        
                         // Инициализируем игру с данными с сервера
                         initializeGameWithServerData(data, shouldLoadSave);
                     }, 500);
@@ -4115,6 +4146,9 @@ function startOfflineMode(playerName) {
                 window.addLogEntry('🔐 Вы вошли как администратор');
             }
         }
+        
+        // Инициализируем настройки отображения (после показа mainContainer)
+        initializeDisplaySettings();
         
         // Инициализируем игру без сервера
         initializeCanvas();
