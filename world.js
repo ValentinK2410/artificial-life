@@ -895,6 +895,15 @@ class World {
     
     // Форматирование времени для отображения
     formatTime() {
+        if (!this.getTimeInfo) {
+            // Fallback если метод не определен
+            return {
+                full: `День ${this.day || 1} | День/Ночь`,
+                short: `День ${this.day || 1} | День/Ночь`,
+                compact: `День ${this.day || 1} | День/Ночь`
+            };
+        }
+        
         const timeInfo = this.getTimeInfo();
         const timeOfDayText = this.timeOfDay === 'day' ? 'День' : 'Ночь';
         
@@ -918,9 +927,22 @@ class World {
         if (weatherSelect) weatherSelect.value = this.weather;
         
         // Обновляем отображение времени на главном экране
-        if (gameTimeDisplay) {
-            const timeFormatted = this.formatTime();
-            gameTimeDisplay.textContent = timeFormatted.compact;
+        if (gameTimeDisplay && this.formatTime) {
+            try {
+                const timeFormatted = this.formatTime();
+                if (timeFormatted && timeFormatted.compact) {
+                    gameTimeDisplay.textContent = timeFormatted.compact;
+                } else {
+                    // Fallback если форматирование не работает
+                    gameTimeDisplay.textContent = `День ${this.day || 1} | День/Ночь`;
+                }
+            } catch (error) {
+                console.error('Ошибка обновления времени:', error);
+                // Fallback при ошибке
+                gameTimeDisplay.textContent = `День ${this.day || 1} | День/Ночь`;
+            }
+        } else if (!gameTimeDisplay) {
+            console.warn('Элемент gameTimeDisplay не найден');
         }
     }
 
@@ -3658,7 +3680,9 @@ class World {
         if (!this.lastUIUpdateFrame) this.lastUIUpdateFrame = 0;
         this.lastUIUpdateFrame++;
         if (this.lastUIUpdateFrame >= 10) {
-            this.updateUI();
+            if (this.updateUI) {
+                this.updateUI();
+            }
             this.lastUIUpdateFrame = 0;
         }
         

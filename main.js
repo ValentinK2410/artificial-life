@@ -2108,6 +2108,10 @@ class Simulation {
         // Обновление статистики мира
         if (this.world) {
             this.updateWorldStats();
+            // Также обновляем UI мира напрямую
+            if (this.world.updateUI) {
+                this.world.updateUI();
+            }
         }
     }
 
@@ -2267,9 +2271,25 @@ class Simulation {
         }
         
         // Обновляем отображение времени на главном экране
-        if (gameTimeDisplay && this.world && this.world.formatTime) {
-            const timeFormatted = this.world.formatTime();
-            gameTimeDisplay.textContent = timeFormatted.compact;
+        if (gameTimeDisplay && this.world) {
+            try {
+                if (this.world.formatTime) {
+                    const timeFormatted = this.world.formatTime();
+                    if (timeFormatted && timeFormatted.compact) {
+                        gameTimeDisplay.textContent = timeFormatted.compact;
+                    } else {
+                        // Fallback если форматирование не работает
+                        gameTimeDisplay.textContent = `День ${this.world.day || 1} | День/Ночь`;
+                    }
+                } else {
+                    // Fallback если метод formatTime не существует
+                    gameTimeDisplay.textContent = `День ${this.world.day || 1} | День/Ночь`;
+                }
+            } catch (error) {
+                console.error('Ошибка обновления времени:', error);
+                // Fallback при ошибке
+                gameTimeDisplay.textContent = `День ${this.world.day || 1} | День/Ночь`;
+            }
         }
     }
     
