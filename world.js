@@ -582,23 +582,40 @@ class World {
         
         // Генерация леса (деревья) - больше деревьев для бесконечного мира
         this.terrain.forest = [];
-        const treeCount = 100; // Увеличено для бесконечного мира
+        const treeCount = 150; // Увеличено для красивого леса
         const worldSize = Math.max(width, height) * 3; // Генерируем в большем диапазоне
-        for (let i = 0; i < treeCount; i++) {
-            const age = Math.random() * 150; // Случайный возраст от 0 до 150 дней
-            let state = 'young';
-            if (age >= 200) state = 'dead_stump';
-            else if (age >= 100) state = 'old';
-            else if (age >= 30) state = 'mature';
+        
+        // Генерируем деревья группами для более реалистичного леса
+        const forestGroups = 8; // Количество групп деревьев
+        for (let group = 0; group < forestGroups; group++) {
+            const groupX = (Math.random() - 0.5) * worldSize;
+            const groupY = (Math.random() - 0.5) * worldSize;
+            const groupSize = 15 + Math.random() * 10; // Размер группы
             
-            this.terrain.forest.push({
-                x: (Math.random() - 0.5) * worldSize,
-                y: (Math.random() - 0.5) * worldSize,
-                size: 10 + Math.random() * 20, // Размер дерева
-                age: age,                      // Возраст дерева в днях
-                state: state,                  // Состояние: young, mature, old, dead_stump
-                id: 'tree_' + Date.now() + '_' + i // Уникальный ID дерева
-            });
+            const treesInGroup = Math.floor(treeCount / forestGroups) + Math.floor(Math.random() * 5);
+            for (let i = 0; i < treesInGroup; i++) {
+                const age = Math.random() * 150; // Случайный возраст от 0 до 150 дней
+                let state = 'young';
+                if (age >= 200) state = 'dead_stump';
+                else if (age >= 100) state = 'old';
+                else if (age >= 30) state = 'mature';
+                
+                // Распределяем деревья в группе с небольшим разбросом
+                const offsetX = (Math.random() - 0.5) * groupSize;
+                const offsetY = (Math.random() - 0.5) * groupSize;
+                
+                this.terrain.forest.push({
+                    x: groupX + offsetX,
+                    y: groupY + offsetY,
+                    size: 12 + Math.random() * 25, // Размер дерева (увеличен для больших деревьев)
+                    age: age,
+                    state: state,
+                    id: 'tree_' + Date.now() + '_' + group + '_' + i,
+                    woodAmount: state === 'mature' ? 3 + Math.floor(Math.random() * 3) : 
+                               state === 'old' ? 2 + Math.floor(Math.random() * 2) : 
+                               state === 'young' ? 1 : 0 // Количество дров при рубке
+                });
+            }
         }
         
         // Создание пруда (овал в центре начальной области)
@@ -1010,68 +1027,139 @@ class World {
             }
         }
 
-        // Отрисовка деревьев (реалистичные, с учетом состояния)
+        // Отрисовка леса (красивые реалистичные деревья)
         this.terrain.forest.forEach(tree => {
             if (!tree) return;
             
             const state = tree.state || 'mature';
-            const trunkHeight = tree.size * 0.6;
-            const trunkWidth = 4 + tree.size * 0.1;
+            const trunkHeight = tree.size * 0.65;
+            const trunkWidth = 5 + tree.size * 0.12;
             
-            // Тень дерева
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            // Тень дерева (более реалистичная)
+            const shadowGradient = this.ctx.createRadialGradient(
+                tree.x + 3, tree.y + trunkHeight + 2, 0,
+                tree.x + 3, tree.y + trunkHeight + 2, tree.size * 0.4
+            );
+            shadowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+            shadowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            this.ctx.fillStyle = shadowGradient;
             this.ctx.beginPath();
-            this.ctx.ellipse(tree.x + 3, tree.y + trunkHeight + 2, tree.size * 0.3, tree.size * 0.15, 0, 0, Math.PI * 2);
+            this.ctx.ellipse(tree.x + 3, tree.y + trunkHeight + 2, tree.size * 0.35, tree.size * 0.18, 0, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Ствол дерева (коричневый, с текстурой)
-            // Основной ствол
-            this.ctx.fillStyle = state === 'dead_stump' ? '#4a3a2a' : '#6b4a3a';
+            // Ствол дерева (улучшенная визуализация с градиентом)
+            const trunkGradient = this.ctx.createLinearGradient(
+                tree.x - trunkWidth/2, tree.y,
+                tree.x + trunkWidth/2, tree.y + trunkHeight
+            );
+            if (state === 'dead_stump') {
+                trunkGradient.addColorStop(0, '#5a4a3a');
+                trunkGradient.addColorStop(1, '#3a2a1a');
+            } else {
+                trunkGradient.addColorStop(0, '#8b6b4a'); // Светлее сверху
+                trunkGradient.addColorStop(0.5, '#6b4a3a'); // Средний
+                trunkGradient.addColorStop(1, '#4a3a2a'); // Темнее снизу
+            }
+            
+            this.ctx.fillStyle = trunkGradient;
             this.ctx.fillRect(tree.x - trunkWidth/2, tree.y, trunkWidth, trunkHeight);
             
-            // Текстура ствола (темные линии)
-            this.ctx.strokeStyle = '#4a2a1a';
+            // Текстура ствола (вертикальные линии коры)
+            this.ctx.strokeStyle = state === 'dead_stump' ? '#3a2a1a' : '#5a3a2a';
             this.ctx.lineWidth = 1;
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < Math.floor(trunkWidth / 2); i++) {
+                const lineX = tree.x - trunkWidth/2 + i * 2.5;
                 this.ctx.beginPath();
-                this.ctx.moveTo(tree.x - trunkWidth/2 + i * 2, tree.y);
-                this.ctx.lineTo(tree.x - trunkWidth/2 + i * 2, tree.y + trunkHeight);
+                this.ctx.moveTo(lineX, tree.y);
+                this.ctx.lineTo(lineX, tree.y + trunkHeight);
+                this.ctx.stroke();
+            }
+            
+            // Горизонтальные линии коры (годовые кольца)
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+            this.ctx.lineWidth = 0.5;
+            for (let i = 1; i < 4; i++) {
+                const ringY = tree.y + (trunkHeight / 4) * i;
+                this.ctx.beginPath();
+                this.ctx.moveTo(tree.x - trunkWidth/2, ringY);
+                this.ctx.lineTo(tree.x + trunkWidth/2, ringY);
                 this.ctx.stroke();
             }
             
             // Крона дерева в зависимости от состояния
             if (state !== 'dead_stump') {
-                const crownRadius = tree.size * 0.5;
+                const crownRadius = tree.size * 0.55;
                 
                 if (state === 'young') {
                     // Молодое дерево - маленькая зеленая крона
-                    this.ctx.fillStyle = '#2a7a2a';
+                    const youngGradient = this.ctx.createRadialGradient(
+                        tree.x, tree.y - 2, 0,
+                        tree.x, tree.y - 2, crownRadius * 0.6
+                    );
+                    youngGradient.addColorStop(0, '#4a9a4a');
+                    youngGradient.addColorStop(1, '#2a7a2a');
+                    this.ctx.fillStyle = youngGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(tree.x, tree.y - 2, crownRadius * 0.6, 0, Math.PI * 2);
                     this.ctx.fill();
                 } else if (state === 'mature') {
-                    // Зрелое дерево - полная крона (несколько слоев)
+                    // Зрелое дерево - полная крона (несколько слоев с градиентами)
                     // Внешний слой (темнее)
-                    this.ctx.fillStyle = '#1a4a1a';
+                    const outerGradient = this.ctx.createRadialGradient(
+                        tree.x, tree.y - 2, crownRadius * 0.5,
+                        tree.x, tree.y - 2, crownRadius
+                    );
+                    outerGradient.addColorStop(0, '#2a5a2a');
+                    outerGradient.addColorStop(1, '#1a4a1a');
+                    this.ctx.fillStyle = outerGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(tree.x, tree.y - 2, crownRadius, 0, Math.PI * 2);
                     this.ctx.fill();
                     
                     // Средний слой
-                    this.ctx.fillStyle = '#2a6a2a';
+                    const middleGradient = this.ctx.createRadialGradient(
+                        tree.x - 2, tree.y - 4, crownRadius * 0.4,
+                        tree.x - 2, tree.y - 4, crownRadius * 0.8
+                    );
+                    middleGradient.addColorStop(0, '#3a7a3a');
+                    middleGradient.addColorStop(1, '#2a6a2a');
+                    this.ctx.fillStyle = middleGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(tree.x - 2, tree.y - 4, crownRadius * 0.8, 0, Math.PI * 2);
                     this.ctx.fill();
                     
                     // Внутренний слой (светлее)
-                    this.ctx.fillStyle = '#3a8a3a';
+                    const innerGradient = this.ctx.createRadialGradient(
+                        tree.x + 2, tree.y - 3, 0,
+                        tree.x + 2, tree.y - 3, crownRadius * 0.6
+                    );
+                    innerGradient.addColorStop(0, '#5a9a5a');
+                    innerGradient.addColorStop(1, '#3a8a3a');
+                    this.ctx.fillStyle = innerGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(tree.x + 2, tree.y - 3, crownRadius * 0.6, 0, Math.PI * 2);
                     this.ctx.fill();
+                    
+                    // Детали листьев (маленькие точки)
+                    this.ctx.fillStyle = 'rgba(100, 150, 100, 0.4)';
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const dist = crownRadius * (0.3 + Math.random() * 0.4);
+                        const leafX = tree.x + Math.cos(angle) * dist;
+                        const leafY = tree.y - 2 + Math.sin(angle) * dist;
+                        this.ctx.beginPath();
+                        this.ctx.arc(leafX, leafY, 1.5 + Math.random(), 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
                 } else if (state === 'old') {
                     // Старое дерево - частично голая крона
-                    // Внешний слой (меньше)
-                    this.ctx.fillStyle = '#1a4a1a';
+                    const oldGradient = this.ctx.createRadialGradient(
+                        tree.x, tree.y - 2, crownRadius * 0.3,
+                        tree.x, tree.y - 2, crownRadius * 0.7
+                    );
+                    oldGradient.addColorStop(0, '#3a6a3a');
+                    oldGradient.addColorStop(1, '#1a4a1a');
+                    this.ctx.fillStyle = oldGradient;
                     this.ctx.beginPath();
                     this.ctx.arc(tree.x, tree.y - 2, crownRadius * 0.7, 0, Math.PI * 2);
                     this.ctx.fill();
@@ -1083,26 +1171,26 @@ class World {
                     this.ctx.fill();
                     
                     // Показываем голые ветки
-                    this.ctx.strokeStyle = '#4a3a2a';
+                    this.ctx.strokeStyle = '#5a4a3a';
                     this.ctx.lineWidth = 2;
-                    for (let i = 0; i < 3; i++) {
-                        const angle = (i * Math.PI * 2 / 3) + Math.PI / 2;
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i * Math.PI * 2 / 4) + Math.PI / 2;
                         this.ctx.beginPath();
                         this.ctx.moveTo(tree.x, tree.y - 2);
+                        const branchLength = crownRadius * (0.5 + Math.random() * 0.3);
                         this.ctx.lineTo(
-                            tree.x + Math.cos(angle) * crownRadius * 0.6,
-                            tree.y - 2 + Math.sin(angle) * crownRadius * 0.6
+                            tree.x + Math.cos(angle) * branchLength,
+                            tree.y - 2 + Math.sin(angle) * branchLength
                         );
                         this.ctx.stroke();
                     }
                 }
             } else {
-                // Голый ствол - только ствол, без кроны
-                // Можно добавить небольшие сучки
-                this.ctx.strokeStyle = '#3a2a1a';
+                // Голый пень - только ствол, без кроны
+                this.ctx.strokeStyle = '#4a3a2a';
                 this.ctx.lineWidth = 2;
-                for (let i = 0; i < 2; i++) {
-                    const angle = (i * Math.PI) + Math.PI / 4;
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i * Math.PI * 2 / 3) + Math.PI / 4;
                     this.ctx.beginPath();
                     this.ctx.moveTo(tree.x, tree.y);
                     this.ctx.lineTo(
@@ -3205,7 +3293,8 @@ class World {
         if (treeIndex === -1) return null;
         
         const tree = this.terrain.forest[treeIndex];
-        const woodAmount = window.GAME_CONFIG?.TREES?.WOOD_PER_TREE || 3;
+        // Используем количество дров из дерева, если оно задано, иначе используем значение по умолчанию
+        const woodAmount = tree.woodAmount || window.GAME_CONFIG?.TREES?.WOOD_PER_TREE || 3;
         
         // Удаляем дерево из леса
         this.terrain.forest.splice(treeIndex, 1);
