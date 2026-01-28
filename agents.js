@@ -1361,7 +1361,8 @@ class Agent {
                 }
                 
                 if (window.addLogEntry) {
-                    window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${this.getFoodName(herbItem.type)}, еду и тепло. Здоровье: ${Math.floor(this.sickAgent.health)}%. Теперь они друзья! 🤝`);
+                    const herbName = herbItem ? this.getFoodName(herbItem.type) : 'базовое лечение';
+                    window.addLogEntry(`💊 ${this.name} вылечил(а) ${this.sickAgent.name} используя ${herbName}, еду и тепло. Здоровье: ${Math.floor(this.sickAgent.health)}%. Теперь они друзья! 🤝`);
                 }
             } else {
                 // Свойства травы не найдены - не можем лечить
@@ -1525,7 +1526,16 @@ class Agent {
         } else if (this.temperature > MAX_TEMP || isNaN(this.temperature) || !isFinite(this.temperature)) {
             // Проверяем только если температура действительно слишком высокая (выше 40°C) или некорректная
             if (this.temperature > MAX_TEMP) {
-                console.warn(`⚠️ Слишком высокая температура у агента ${this.name}: ${this.temperature}°C. Ограничиваем до ${MAX_TEMP}°C.`);
+                // Выводим предупреждение только если температура критически высокая (выше 41°C) или раз в 5 секунд
+                const CRITICAL_TEMP = 41; // Критическая температура для предупреждения
+                const now = Date.now();
+                const lastTempWarning = this.lastTempWarningTime || 0;
+                const WARNING_INTERVAL = 5000; // Интервал между предупреждениями (5 секунд)
+                
+                if (this.temperature > CRITICAL_TEMP || (now - lastTempWarning > WARNING_INTERVAL)) {
+                    console.warn(`⚠️ Слишком высокая температура у агента ${this.name}: ${this.temperature.toFixed(2)}°C. Ограничиваем до ${MAX_TEMP}°C.`);
+                    this.lastTempWarningTime = now;
+                }
                 this.temperature = MAX_TEMP; // Устанавливаем максимальную температуру
             } else if (isNaN(this.temperature) || !isFinite(this.temperature)) {
                 console.warn(`⚠️ Некорректная температура у агента ${this.name}: ${this.temperature}. Устанавливаем нормальную.`);
