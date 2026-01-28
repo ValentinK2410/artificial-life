@@ -457,6 +457,9 @@ class Agent {
             }
         }
         
+        // Проверка беременности и рождения детей
+        this.updatePregnancy();
+        
         // Принятие решений - ТОЛЬКО если игрок не управляет агентом
         if (!this.isPlayerControlled || !this.targetPosition) {
             this.decide();
@@ -474,6 +477,189 @@ class Agent {
         if (window.world && (!this.isPlayerControlled || !this.targetPosition)) {
             this.interactWithWorld(window.world);
             this.interactWithAnimals(window.world);
+        }
+        
+        // Обновление детей
+        this.updateChildren();
+    }
+    
+    updateChildren() {
+        // Обновление роста и развития детей
+        if (!this.children || this.children.length === 0) return;
+        
+        const currentTime = Date.now();
+        
+        for (let i = this.children.length - 1; i >= 0; i--) {
+            const child = this.children[i];
+            if (!child.bornAt) continue;
+            
+            // Вычисляем возраст в днях (1 минута реального времени = 1 игровой день)
+            const ageInDays = (currentTime - child.bornAt) / (1000 * 60);
+            
+            // Определяем стадию развития на основе возраста
+            let newStage = child.stage;
+            let newType = child.type;
+            
+            if (ageInDays < 1) {
+                // Малыш (0-1 день)
+                newStage = 'baby';
+            } else if (ageInDays < 5) {
+                // Мальчик/Девочка (1-5 дней)
+                newStage = child.gender === 'male' ? 'boy' : 'girl';
+                newType = child.gender === 'male' ? 'boy' : 'girl';
+            } else if (ageInDays < 15) {
+                // Юноша/Девушка (5-15 дней)
+                newStage = child.gender === 'male' ? 'young_man' : 'young_woman';
+                newType = child.gender === 'male' ? 'boy' : 'girl'; // Используем boy/girl для визуализации
+            } else if (ageInDays < 50) {
+                // Мужчина/Женщина (15-50 дней)
+                newStage = child.gender === 'male' ? 'man' : 'woman';
+                newType = child.gender === 'male' ? 'man' : 'woman';
+            } else {
+                // Старик/Старуха (50+ дней)
+                newStage = child.gender === 'male' ? 'oldman' : 'oldwoman';
+                newType = child.gender === 'male' ? 'oldman' : 'oldwoman';
+            }
+            
+            // Если стадия изменилась - обновляем
+            if (newStage !== child.stage) {
+                const oldStage = child.stage;
+                child.stage = newStage;
+                child.type = newType;
+                child.age = Math.floor(ageInDays);
+                
+                // Если малыш вырос из стадии baby - убираем коляску
+                if (oldStage === 'baby' && newStage !== 'baby' && this.stroller && this.stroller.babyId === child.id) {
+                    this.stroller = null;
+                }
+                
+                if (window.addLogEntry) {
+                    const stageNames = {
+                        'baby': 'малыш',
+                        'boy': 'мальчик',
+                        'girl': 'девочка',
+                        'young_man': 'юноша',
+                        'young_woman': 'девушка',
+                        'man': 'мужчина',
+                        'woman': 'женщина',
+                        'oldman': 'старик',
+                        'oldwoman': 'старуха'
+                    };
+                    window.addLogEntry(`👶 ${child.gender === 'male' ? 'Сын' : 'Дочь'} ${this.name} вырос(ла) и стал(а) ${stageNames[newStage]}! (${Math.floor(ageInDays)} дней)`);
+                }
+            }
+            
+            // Обновляем позицию ребенка (если малыш - следует за мамой, иначе независим)
+            if (child.stage === 'baby' && this.stroller) {
+                child.position.x = this.stroller.x;
+                child.position.y = this.stroller.y;
+            } else if (child.stage !== 'baby') {
+                // Взрослые дети двигаются независимо
+                // Пока оставляем на месте, можно добавить логику движения позже
+            }
+        }
+    }
+    
+    updatePregnancy() {
+        // Обновление беременности и рождения детей
+        if (!window.agents || !window.agents.getAllAgents) return;
+        
+        // Если агент уже беременен - увеличиваем прогресс
+        if (this.pregnant) {
+            this.pregnancyProgress += 0.1; // Увеличиваем прогресс беременности (0-100)
+            
+            if (this.pregnancyProgress >= 100) {
+                // Беременность завершена - рождается ребенок
+                this.giveBirth();
+            }
+            return;
+        }
+        
+        // Проверяем возможность зачатия (только для женщин)
+        const isFemale = ['woman', 'girl', 'oldwoman'].includes(this.type);
+        if (!isFemale) return; // Только женщины могут быть беременны
+        
+        // Проверяем, влюблена ли женщина и есть ли у неё возлюбленный
+        if (!this.inLove) return; // Не влюблена
+        
+        // Ищем возлюбленного
+        const allAgents = window.agents.getAllAgents();
+        const beloved = allAgents.find(a => a.id === this.inLove);
+        if (!beloved) return; // Возлюбленный не найден
+        
+        // Проверяем, влюблен ли возлюбленный в неё (оба должны быть влюблены друг в друга)
+        if (beloved.inLove !== this.id) return; // Возлюбленный не влюблен в неё
+        
+        // Проверяем, рядом ли они (в пределах 30 пикселей)
+        const dx = beloved.position.x - this.position.x;
+        const dy = beloved.position.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance <= 30 && Math.random() < 0.001) { // Очень маленький шанс зачатия за кадр
+            // Зачатие произошло
+            this.pregnant = true;
+            this.pregnancyProgress = 0;
+            this.beloved = beloved.id;
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`🤰 ${this.name} забеременела от ${beloved.name}! 💕`);
+            }
+        }
+    }
+    
+    giveBirth() {
+        // Рождение ребенка
+        if (!window.agents || !window.agents.addAgent) return;
+        
+        // Определяем пол ребенка (50/50)
+        const childGender = Math.random() < 0.5 ? 'male' : 'female';
+        
+        // Определяем тип ребенка на основе возраста родителей
+        const beloved = window.agents.getAllAgents().find(a => a.id === this.beloved);
+        const parentAge = Math.min(this.age, beloved ? beloved.age : this.age);
+        let childType = 'boy'; // По умолчанию мальчик
+        if (childGender === 'female') {
+            childType = 'girl';
+        }
+        
+        // Создаем ребенка
+        const child = {
+            id: 'child_' + Date.now() + '_' + Math.random(),
+            parentId: this.id,
+            parent2Id: beloved ? beloved.id : null,
+            age: 0, // Новорожденный
+            stage: 'baby', // Стадия: baby, boy/girl, young_man/young_woman, man/woman, oldman/oldwoman
+            gender: childGender,
+            type: childType,
+            position: { x: this.position.x, y: this.position.y },
+            health: 100,
+            energy: 100,
+            hunger: 20,
+            thirst: 15,
+            temperature: 37,
+            bornAt: Date.now() // Время рождения для расчета возраста
+        };
+        
+        // Добавляем ребенка в список детей
+        this.children.push(child);
+        if (beloved) {
+            beloved.children = beloved.children || [];
+            beloved.children.push(child);
+        }
+        
+        // Создаем коляску для малыша
+        this.stroller = {
+            babyId: child.id,
+            x: this.position.x,
+            y: this.position.y
+        };
+        
+        // Сбрасываем беременность
+        this.pregnant = false;
+        this.pregnancyProgress = 0;
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`👶 ${this.name} родила ${childGender === 'male' ? 'мальчика' : 'девочку'}! ${beloved ? `Отцом является ${beloved.name}` : ''} 🎉`);
         }
     }
     

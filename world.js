@@ -3341,6 +3341,55 @@ class World {
                 this.ctx.restore();
             }
             
+            // Рисуем коляску с малышом, если агент - мама с коляской
+            if (agent.stroller && agent.children && agent.children.length > 0) {
+                const baby = agent.children.find(c => c.id === agent.stroller.babyId && c.stage === 'baby');
+                if (baby) {
+                    // Позиция коляски (сзади мамы)
+                    const strollerX = x - 8;
+                    const strollerY = y + 5;
+                    
+                    // Коляска (основа)
+                    this.ctx.fillStyle = '#4a4a4a';
+                    this.ctx.fillRect(strollerX - 6, strollerY, 12, 4);
+                    
+                    // Колеса коляски
+                    this.ctx.fillStyle = '#2a2a2a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(strollerX - 4, strollerY + 4, 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.arc(strollerX + 4, strollerY + 4, 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Ручка коляски
+                    this.ctx.strokeStyle = '#3a3a3a';
+                    this.ctx.lineWidth = 1.5;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(strollerX, strollerY);
+                    this.ctx.lineTo(x - 3, y - 2);
+                    this.ctx.stroke();
+                    
+                    // Малыш в коляске
+                    const babyX = strollerX;
+                    const babyY = strollerY - 2;
+                    
+                    // Голова малыша
+                    this.ctx.fillStyle = '#f4c2a1';
+                    this.ctx.beginPath();
+                    this.ctx.arc(babyX, babyY, 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Тело малыша (завернуто в одеяло)
+                    this.ctx.fillStyle = '#ff88cc';
+                    this.ctx.fillRect(babyX - 2, babyY + 1, 4, 3);
+                    
+                    // Обновляем позицию коляски
+                    agent.stroller.x = strollerX;
+                    agent.stroller.y = strollerY;
+                }
+            }
+            
             // Голова (с анимацией покачивания и улучшенной детализацией)
             const headRadius = 5;
             const headY = y - 8 + headBob;
