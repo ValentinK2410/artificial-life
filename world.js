@@ -2118,69 +2118,132 @@ class World {
         
         this.ctx.save();
         
-        // Попробуем загрузить изображение дома
-        if (!this.houseImage) {
-            this.houseImage = new Image();
-            this.houseImage.src = 'assets/wooden_house.png';
-            this.houseImage.onload = () => {
-                this.houseImageLoaded = true;
-            };
+        // Улучшенная программная отрисовка дома без белого фона
+        
+        // Тень дома
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(x + 3, y + size/2 + 2, size * 0.6, size * 0.2, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Основание дома (коричневые бревна с текстурой)
+        const wallHeight = size * 0.6;
+        const wallY = y - size/3;
+        
+        // Градиент для стены
+        const wallGradient = this.ctx.createLinearGradient(x - size/2, wallY, x - size/2, wallY + wallHeight);
+        wallGradient.addColorStop(0, '#A0522D'); // Светлее сверху
+        wallGradient.addColorStop(1, '#6B4423'); // Темнее снизу
+        this.ctx.fillStyle = wallGradient;
+        this.ctx.fillRect(x - size/2, wallY, size, wallHeight);
+        
+        // Горизонтальные линии бревен с объемом
+        this.ctx.strokeStyle = '#5D3A1A';
+        this.ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++) {
+            const lineY = wallY + i * (wallHeight / 4);
+            // Верхняя тень линии
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - size/2, lineY + 1);
+            this.ctx.lineTo(x + size/2, lineY + 1);
+            this.ctx.stroke();
+            // Основная линия
+            this.ctx.strokeStyle = '#5D3A1A';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - size/2, lineY);
+            this.ctx.lineTo(x + size/2, lineY);
+            this.ctx.stroke();
+            // Нижний блик
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - size/2, lineY - 1);
+            this.ctx.lineTo(x + size/2, lineY - 1);
+            this.ctx.stroke();
         }
         
-        if (this.houseImageLoaded && this.houseImage.complete) {
-            // Рисуем изображение дома
-            this.ctx.drawImage(this.houseImage, x - size/2, y - size/2, size, size);
-        } else {
-            // Программная отрисовка дома (пока изображение не загружено)
-            
-            // Основание дома (коричневые бревна)
-            this.ctx.fillStyle = '#8B4513';
-            this.ctx.fillRect(x - size/2, y - size/3, size, size * 0.6);
-            
-            // Горизонтальные линии бревен
-            this.ctx.strokeStyle = '#5D3A1A';
-            this.ctx.lineWidth = 2;
-            for (let i = 0; i < 4; i++) {
-                const lineY = y - size/3 + i * (size * 0.15);
-                this.ctx.beginPath();
-                this.ctx.moveTo(x - size/2, lineY);
-                this.ctx.lineTo(x + size/2, lineY);
-                this.ctx.stroke();
-            }
-            
-            // Крыша (треугольник)
-            this.ctx.fillStyle = '#654321';
+        // Вертикальные линии для объема бревен
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.lineWidth = 1;
+        for (let i = 1; i < 3; i++) {
+            const lineX = x - size/2 + i * (size / 3);
             this.ctx.beginPath();
-            this.ctx.moveTo(x - size/2 - 5, y - size/3);
-            this.ctx.lineTo(x, y - size/2 - 10);
-            this.ctx.lineTo(x + size/2 + 5, y - size/3);
-            this.ctx.closePath();
-            this.ctx.fill();
-            
-            // Контур крыши
-            this.ctx.strokeStyle = '#3D2817';
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
-            
-            // Дверь
-            this.ctx.fillStyle = '#4A3728';
-            this.ctx.fillRect(x - 8, y, 16, size * 0.25);
-            
-            // Окно
-            this.ctx.fillStyle = '#87CEEB';
-            this.ctx.fillRect(x + 12, y - size/6, 10, 10);
-            this.ctx.strokeStyle = '#5D3A1A';
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x + 12, y - size/6, 10, 10);
-            
-            // Перекрестие окна
-            this.ctx.beginPath();
-            this.ctx.moveTo(x + 17, y - size/6);
-            this.ctx.lineTo(x + 17, y - size/6 + 10);
-            this.ctx.moveTo(x + 12, y - size/6 + 5);
-            this.ctx.lineTo(x + 22, y - size/6 + 5);
+            this.ctx.moveTo(lineX, wallY);
+            this.ctx.lineTo(lineX, wallY + wallHeight);
             this.ctx.stroke();
         }
+        
+        // Крыша (треугольник с черепицей)
+        const roofGradient = this.ctx.createLinearGradient(x, y - size/2 - 10, x, y - size/3);
+        roofGradient.addColorStop(0, '#8B4513'); // Светлее сверху
+        roofGradient.addColorStop(1, '#5D3A1A'); // Темнее снизу
+        this.ctx.fillStyle = roofGradient;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - size/2 - 5, y - size/3);
+        this.ctx.lineTo(x, y - size/2 - 10);
+        this.ctx.lineTo(x + size/2 + 5, y - size/3);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Контур крыши
+        this.ctx.strokeStyle = '#3D2817';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        
+        // Черепица (горизонтальные линии)
+        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+            const roofY = y - size/3 - i * 3;
+            const roofWidth = (size/2 + 5) * (1 - i * 0.3);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - roofWidth, roofY);
+            this.ctx.lineTo(x + roofWidth, roofY);
+            this.ctx.stroke();
+        }
+        
+        // Дверь с деталями
+        const doorWidth = 16;
+        const doorHeight = size * 0.25;
+        const doorGradient = this.ctx.createLinearGradient(x - doorWidth/2, y, x - doorWidth/2, y + doorHeight);
+        doorGradient.addColorStop(0, '#5D3A1A');
+        doorGradient.addColorStop(1, '#3D2817');
+        this.ctx.fillStyle = doorGradient;
+        this.ctx.fillRect(x - doorWidth/2, y, doorWidth, doorHeight);
+        
+        // Ручка двери
+        this.ctx.fillStyle = '#C0C0C0';
+        this.ctx.beginPath();
+        this.ctx.arc(x + doorWidth/2 - 3, y + doorHeight/2, 1.5, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Окно с рамой
+        const windowX = x + 12;
+        const windowY = y - size/6;
+        const windowSize = 10;
+        
+        // Стекло окна (светлее)
+        this.ctx.fillStyle = '#B0E0E6';
+        this.ctx.fillRect(windowX, windowY, windowSize, windowSize);
+        
+        // Рама окна
+        this.ctx.strokeStyle = '#5D3A1A';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(windowX, windowY, windowSize, windowSize);
+        
+        // Перекрестие окна
+        this.ctx.strokeStyle = '#5D3A1A';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.moveTo(windowX + windowSize/2, windowY);
+        this.ctx.lineTo(windowX + windowSize/2, windowY + windowSize);
+        this.ctx.moveTo(windowX, windowY + windowSize/2);
+        this.ctx.lineTo(windowX + windowSize, windowY + windowSize/2);
+        this.ctx.stroke();
+        
+        // Блики на стекле
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        this.ctx.fillRect(windowX + 1, windowY + 1, 3, 3);
         
         this.ctx.restore();
     }
@@ -2701,14 +2764,32 @@ class World {
                 this.ctx.fillRect(x + 2, y + 15 - walkOffset, 2, 2);
             }
             
-            // Тело (туловище) - для всех одинаково (с учетом наклонения)
+            // Тело (туловище) - для всех одинаково (с учетом наклонения и улучшенной детализацией)
             this.ctx.save();
             this.ctx.translate(x + bodyOffsetX, y + bodyOffsetY);
             if (agent.isBending) {
                 this.ctx.rotate(-0.3); // Наклон вперед
             }
-            this.ctx.fillStyle = style.clothes;
+            
+            // Градиент для туловища
+            const bodyGradient = this.ctx.createLinearGradient(-4, -2, -4, 8);
+            bodyGradient.addColorStop(0, this.lightenColor(style.clothes, 15));
+            bodyGradient.addColorStop(1, style.clothes);
+            this.ctx.fillStyle = bodyGradient;
             this.ctx.fillRect(-4, -2, 8, 10);
+            
+            // Контур туловища
+            this.ctx.strokeStyle = this.darkenColor(style.clothes, 20);
+            this.ctx.lineWidth = 0.5;
+            this.ctx.strokeRect(-4, -2, 8, 10);
+            
+            // Детали одежды (пуговицы или складки)
+            this.ctx.fillStyle = this.darkenColor(style.clothes, 30);
+            this.ctx.beginPath();
+            this.ctx.arc(0, 2, 0.8, 0, Math.PI * 2);
+            this.ctx.arc(0, 5, 0.8, 0, Math.PI * 2);
+            this.ctx.fill();
+            
             this.ctx.restore();
             
             // Руки (с анимацией рубки)
@@ -2751,39 +2832,90 @@ class World {
                 this.ctx.restore();
             }
             
-            // Голова (с анимацией покачивания)
-            this.ctx.fillStyle = style.skin;
+            // Голова (с анимацией покачивания и улучшенной детализацией)
+            const headRadius = 5;
+            const headY = y - 8 + headBob;
+            
+            // Градиент для головы (объем)
+            const headGradient = this.ctx.createRadialGradient(
+                x - 2, headY - 2, 0,
+                x, headY, headRadius
+            );
+            headGradient.addColorStop(0, this.lightenColor(style.skin, 20));
+            headGradient.addColorStop(1, style.skin);
+            this.ctx.fillStyle = headGradient;
             this.ctx.beginPath();
-            this.ctx.arc(x, y - 8 + headBob, 5, 0, Math.PI * 2);
+            this.ctx.arc(x, headY, headRadius, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Волосы
+            // Контур головы
+            this.ctx.strokeStyle = this.darkenColor(style.skin, 15);
+            this.ctx.lineWidth = 0.5;
+            this.ctx.stroke();
+            
+            // Волосы с улучшенной детализацией
             this.ctx.fillStyle = style.hair;
+            // Основная часть волос
             this.ctx.beginPath();
-            this.ctx.arc(x, y - 9 + headBob, 5, 0, Math.PI * 2);
+            this.ctx.arc(x, headY - 1, headRadius, 0, Math.PI * 2);
             this.ctx.fill();
             // Верхняя часть волос
-            this.ctx.fillRect(x - 5, y - 12 + headBob, 10, 3);
+            this.ctx.fillRect(x - headRadius, headY - headRadius - 2, headRadius * 2, 3);
+            // Боковые пряди
+            this.ctx.beginPath();
+            this.ctx.arc(x - headRadius + 1, headY - 1, 2, 0, Math.PI * 2);
+            this.ctx.arc(x + headRadius - 1, headY - 1, 2, 0, Math.PI * 2);
+            this.ctx.fill();
             
-            // Лицо (глаза)
+            // Лицо (улучшенные глаза)
+            const eyeY = headY - 1;
+            // Белки глаз
             this.ctx.fillStyle = '#ffffff';
             this.ctx.beginPath();
-            this.ctx.arc(x - 2, y - 9 + headBob, 1, 0, Math.PI * 2);
-            this.ctx.arc(x + 2, y - 9 + headBob, 1, 0, Math.PI * 2);
+            this.ctx.arc(x - 2, eyeY, 1.2, 0, Math.PI * 2);
+            this.ctx.arc(x + 2, eyeY, 1.2, 0, Math.PI * 2);
             this.ctx.fill();
             
+            // Радужка
+            this.ctx.fillStyle = '#4a6a9a';
+            this.ctx.beginPath();
+            this.ctx.arc(x - 2, eyeY, 0.8, 0, Math.PI * 2);
+            this.ctx.arc(x + 2, eyeY, 0.8, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Зрачки
             this.ctx.fillStyle = '#000000';
             this.ctx.beginPath();
-            this.ctx.arc(x - 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
-            this.ctx.arc(x + 2, y - 9 + headBob, 0.5, 0, Math.PI * 2);
+            this.ctx.arc(x - 2, eyeY, 0.5, 0, Math.PI * 2);
+            this.ctx.arc(x + 2, eyeY, 0.5, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Рот (простая линия)
-            this.ctx.strokeStyle = '#000000';
-            this.ctx.lineWidth = 0.5;
+            // Блики в глазах
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             this.ctx.beginPath();
-            this.ctx.arc(x, y - 7 + headBob, 1, 0, Math.PI);
+            this.ctx.arc(x - 1.8, eyeY - 0.3, 0.2, 0, Math.PI * 2);
+            this.ctx.arc(x + 2.2, eyeY - 0.3, 0.2, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Нос (маленькая точка)
+            this.ctx.fillStyle = this.darkenColor(style.skin, 10);
+            this.ctx.beginPath();
+            this.ctx.arc(x, headY + 1, 0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Рот (улучшенный)
+            this.ctx.strokeStyle = this.darkenColor(style.skin, 20);
+            this.ctx.lineWidth = 0.8;
+            this.ctx.beginPath();
+            this.ctx.arc(x, headY + 2.5, 1, 0, Math.PI);
             this.ctx.stroke();
+            
+            // Щеки (легкий румянец)
+            this.ctx.fillStyle = 'rgba(255, 200, 200, 0.3)';
+            this.ctx.beginPath();
+            this.ctx.arc(x - 3, headY + 1, 1.5, 0, Math.PI * 2);
+            this.ctx.arc(x + 3, headY + 1, 1.5, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         
         // Индикатор здоровья (маленький кружок справа вверху)
@@ -2806,6 +2938,25 @@ class World {
             this.ctx.arc(x, y, 10, 0, Math.PI * 2);
             this.ctx.fill();
         }
+    }
+    
+    // Вспомогательные функции для работы с цветами
+    lightenColor(color, percent) {
+        const num = parseInt(color.replace("#", ""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = Math.min(255, (num >> 16) + amt);
+        const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+        const B = Math.min(255, (num & 0x0000FF) + amt);
+        return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+    
+    darkenColor(color, percent) {
+        const num = parseInt(color.replace("#", ""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = Math.max(0, (num >> 16) - amt);
+        const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
+        const B = Math.max(0, (num & 0x0000FF) - amt);
+        return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
     }
 
     animate() {
