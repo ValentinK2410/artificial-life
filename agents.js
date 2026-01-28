@@ -3241,6 +3241,88 @@ class Agent {
         }
     }
     
+    giveBouquet() {
+        // Дарение букета агенту противоположного пола
+        if (!this.bouquet || !this.bouquet.count || this.bouquet.count < 5) {
+            // Нет букета или недостаточно цветов
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`💐 ${this.name} нет букета для дарения (нужно 5 цветов)`);
+            }
+            this.state = 'explore';
+            this.targetBouquetRecipient = null;
+            return;
+        }
+        
+        if (!this.targetBouquetRecipient) {
+            // Нет целевого агента для дарения букета
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем, что целевой агент еще существует и жив
+        if (!window.agents || !window.agents.getAllAgents) {
+            this.state = 'explore';
+            this.targetBouquetRecipient = null;
+            return;
+        }
+        
+        const allAgents = window.agents.getAllAgents();
+        const recipient = allAgents.find(a => a.id === this.targetBouquetRecipient.id);
+        
+        if (!recipient || recipient.health <= 0 || recipient.state === 'dead') {
+            // Целевой агент не найден или мертв
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`💐 ${this.name} не может найти получателя букета`);
+            }
+            this.state = 'explore';
+            this.targetBouquetRecipient = null;
+            return;
+        }
+        
+        // Проверяем расстояние до получателя
+        const dx = recipient.position.x - this.position.x;
+        const dy = recipient.position.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const GIFT_DISTANCE = 25; // Расстояние для дарения букета (пиксели)
+        
+        if (distance > GIFT_DISTANCE) {
+            // Далеко от получателя - идем к нему
+            this.moveTo(recipient.position.x, recipient.position.y);
+            this.targetPosition = null; // Очищаем другие цели
+            return;
+        }
+        
+        // Рядом с получателем - дарим букет
+        // Получатель влюбляется в дарителя
+        recipient.inLove = this.id;
+        recipient.beloved = this.id;
+        
+        // Если даритель тоже влюблен в получателя - устанавливаем взаимную любовь
+        if (this.inLove === recipient.id) {
+            this.beloved = recipient.id;
+            if (window.addLogEntry) {
+                window.addLogEntry(`💕 ${this.name} и ${recipient.name} влюблены друг в друга! 💕`);
+            }
+        } else {
+            // Даритель еще не влюблен - просто дарит букет
+            if (window.addLogEntry) {
+                window.addLogEntry(`💐 ${this.name} подарил(а) букет ${recipient.name}. ${recipient.name} влюбился(ась)! 💕`);
+            }
+        }
+        
+        // Увеличиваем удовлетворенность обоих агентов
+        this.increaseSatisfaction('giveBouquet', 5);
+        recipient.increaseSatisfaction('receiveBouquet', 5);
+        
+        // Очищаем букет у дарителя
+        this.bouquet = { flowers: [], count: 0 };
+        this.targetBouquetRecipient = null;
+        
+        // Возвращаемся к исследованию
+        this.state = 'explore';
+    }
+    
     tellStory() {
         // Рассказывание стихов для поднятия настроения других
         if (this.experience.storytelling < 3) {
