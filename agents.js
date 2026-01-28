@@ -73,6 +73,13 @@ class Agent {
         // Параметры для поиска воды
         this.waterSearchRadius = 50; // Радиус поиска воды (пиксели, расширяется при неудаче)
         
+        // Параметры для умного поиска еды
+        this.foodSearchRadius = 400; // Радиус поиска еды (пиксели)
+        this.foodSearchStep = 150; // Шаг продвижения при отсутствии еды (пиксели)
+        this.foodSearchLastDirection = null; // Последнее направление поиска (объект {x, y} или null)
+        this.foodSearchFailedDirections = []; // Массив направлений, где еда не найдена (массив объектов {x, y})
+        this.foodSearchFoundLocations = []; // Массив мест, где была найдена еда (массив объектов {x, y, foundAt})
+        
         // Параметры для поиска животных
         this.targetAnimal = null; // Целевое животное для ловли (объект или null)
         this.caughtAnimals = []; // Пойманные животные для загона (массив объектов)
@@ -5021,95 +5028,236 @@ class Agent {
     }
     
     findAndMoveToFood() {
-        // Поиск и движение к еде
+        // Умный поиск еды с запоминанием направлений и мест
         if (!window.world) {
             this.moveToRandomPoint();
             return;
         }
         
-        const FOOD_TYPES = ['berries', 'berry', 'cooked_food', 'meat', 'bird', 'fish', 'honey', 'milk', 'bread', 'kebab', 'potato', 'salad', 'mushrooms', 'banana', 'orange', 'apple']; // Типы еды, которую можно собирать
-        const DETECTION_RADIUS = 150; // Радиус обнаружения еды (пиксели, увеличен для лучшего поиска)
-        const FOOD_SATISFACTION_THRESHOLD = 30; // Порог сытости, при котором прекращаем собирать еду (0-100)
-        const MIN_FOOD_STORAGE = 3; // Минимальное количество припасов для прекращения сбора еды
-        
-        // Проверяем, нужно ли еще собирать еду
-        const HUNGER_CONFIG = window.GAME_CONFIG?.AGENTS?.HUNGER || {};
-        const SEARCH_FOOD_THRESHOLD = HUNGER_CONFIG.SEARCH_FOOD_THRESHOLD || 70;
+        const FOOD_TYPES = ['berries', 'berry', 'cooked_food', 'meat', 'bird', 'fish', 'honey', 'milk', 'bread', 'kebab', 'potato', 'salad', 'mushrooms', 'banana', 'orange', 'apple'];
+        const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
+        const FOOD_SATISFACTION_THRESHOLD = 30;
+        const MIN_FOOD_STORAGE = 3;
+        const SEARCH_RADIUS = this.foodSearchRadius || 400; // Радиус поиска еды
+        const STEP_SIZE = this.foodSearchStep || 150; // Шаг продвижения
         
         // Если голод утолен и есть припасы - прекращаем поиск
         if (this.hunger < FOOD_SATISFACTION_THRESHOLD && this.foodStorage.length >= MIN_FOOD_STORAGE) {
-            this.targetFood = null; // Очищаем целевую еду
-            this.state = 'explore'; // Возвращаемся к исследованию
+            this.targetFood = null;
+            this.state = 'explore';
+            // Очищаем данные поиска
+            this.foodSearchLastDirection = null;
             return;
         }
         
-        // Ищем еду в мире
-        let nearestFood = null; // Ближайшая еда (объект {resource, distance} или null)
-        let minDistance = Infinity; // Минимальное расстояние до еды (пиксели, изначально бесконечность)
+        // Инициализируем массивы, если их нет
+        if (!this.foodSearchFailedDirections) this.foodSearchFailedDirections = [];
+        if (!this.foodSearchFoundLocations) this.foodSearchFoundLocations = [];
+        
+        // Ищем еду в радиусе SEARCH_RADIUS
+        let nearestFood = null;
+        let minDistance = Infinity;
         
         window.world.resources.forEach(resource => {
-            // Проверяем, является ли ресурс едой
-            const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {}; // Объект со свойствами всех видов еды
-            const isFood = FOOD_TYPES.includes(resource.type) || FOOD_PROPERTIES[resource.type] !== undefined; // Флаг, является ли ресурс едой (true/false)
+            const isFood = FOOD_TYPES.includes(resource.type) || FOOD_PROPERTIES[resource.type] !== undefined;
             
             if (isFood) {
-                const dx = resource.x - this.position.x; // Разница по оси X до еды (пиксели)
-                const dy = resource.y - this.position.y; // Разница по оси Y до еды (пиксели)
-                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до еды (пиксели)
+                const dx = resource.x - this.position.x;
+                const dy = resource.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                // Если еда в радиусе обнаружения и ближе предыдущей
-                if (distance <= DETECTION_RADIUS && distance < minDistance) {
-                    minDistance = distance; // Обновляем минимальное расстояние
-                    nearestFood = { resource: resource, distance: distance }; // Сохраняем ближайшую еду
+                if (distance <= SEARCH_RADIUS && distance < minDistance) {
+                    minDistance = distance;
+                    nearestFood = { resource: resource, distance: distance };
                 }
             }
         });
         
-        // Если нашли еду - идем к ней
+        // Если нашли еду - идем к ней и запоминаем место
         if (nearestFood) {
-            this.targetFood = nearestFood; // Сохраняем целевую еду
+            this.targetFood = nearestFood;
             
-            // Вычисляем угол поворота к еде
-            const dx = nearestFood.resource.x - this.position.x; // Разница по оси X до еды (пиксели)
-            const dy = nearestFood.resource.y - this.position.y; // Разница по оси Y до еды (пиксели)
-            this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к еде (градусы, -180 до 180)
+            // Запоминаем место, где нашли еду
+            const foodLocation = {
+                x: nearestFood.resource.x,
+                y: nearestFood.resource.y,
+                foundAt: Date.now()
+            };
             
-            // Двигаемся к еде
+            // Проверяем, нет ли уже этого места в памяти
+            const existingLocation = this.foodSearchFoundLocations.find(loc => 
+                Math.abs(loc.x - foodLocation.x) < 50 && Math.abs(loc.y - foodLocation.y) < 50
+            );
+            
+            if (!existingLocation) {
+                this.foodSearchFoundLocations.push(foodLocation);
+                // Ограничиваем размер массива (максимум 20 мест)
+                if (this.foodSearchFoundLocations.length > 20) {
+                    this.foodSearchFoundLocations.shift();
+                }
+            }
+            
+            // Очищаем последнее направление, так как нашли еду
+            this.foodSearchLastDirection = null;
+            
+            const dx = nearestFood.resource.x - this.position.x;
+            const dy = nearestFood.resource.y - this.position.y;
+            this.angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            
             this.moveTo(nearestFood.resource.x, nearestFood.resource.y);
             
-            // Если очень близко к еде - она будет собрана в interactWithWorld()
-            if (nearestFood.distance < 5) {
-                // Еда будет собрана автоматически при взаимодействии с миром
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`🍎 ${this.name} нашел еду на расстоянии ${Math.floor(minDistance)}px`);
             }
         } else {
-            // Еды поблизости нет - ищем в памяти или двигаемся случайно
-            this.targetFood = null; // Очищаем целевую еду
+            // Еды в радиусе SEARCH_RADIUS нет - продвигаемся на STEP_SIZE пикселей
+            this.targetFood = null;
             
-            // Ищем еду в памяти
-            const foodInMemory = this.memory.find(item => 
-                FOOD_TYPES.includes(item.type) || FOOD_PROPERTIES[item.type] !== undefined
-            ); // Найденная в памяти локация еды (объект {type, x, y} или undefined)
-            
-            if (foodInMemory) {
-                // Двигаемся к еде из памяти
-                const dx = foodInMemory.x - this.position.x; // Разница по оси X до еды (пиксели)
-                const dy = foodInMemory.y - this.position.y; // Разница по оси Y до еды (пиксели)
-                const distance = Math.sqrt(dx * dx + dy * dy); // Расстояние до еды (пиксели)
+            // Сначала проверяем места, где раньше находили еду
+            if (this.foodSearchFoundLocations.length > 0) {
+                // Ищем ближайшее место, где находили еду
+                let nearestFoundLocation = null;
+                let minFoundDistance = Infinity;
                 
-                // Вычисляем угол поворота к еде
-                this.angle = Math.atan2(dy, dx) * 180 / Math.PI; // Угол поворота к еде (градусы)
-                
-                this.moveTo(foodInMemory.x, foodInMemory.y); // Двигаемся к еде из памяти
-                
-                // Если достигли места из памяти, но еды там нет - удаляем из памяти
-                if (distance < 10) {
-                    const index = this.memory.indexOf(foodInMemory); // Индекс записи в памяти
-                    if (index > -1) this.memory.splice(index, 1); // Удаляем из памяти
+                for (const location of this.foodSearchFoundLocations) {
+                    const dx = location.x - this.position.x;
+                    const dy = location.y - this.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < minFoundDistance && distance > 50) { // Не идем к местам ближе 50px
+                        minFoundDistance = distance;
+                        nearestFoundLocation = location;
+                    }
                 }
-            } else {
-                // Нет еды в памяти - двигаемся случайно и сканируем
-                this.moveToRandomPoint(); // Двигаемся случайно
-                this.scanForResources(); // Сканируем ресурсы вокруг
+                
+                if (nearestFoundLocation && minFoundDistance < 300) {
+                    // Идем к месту, где раньше находили еду
+                    this.moveTo(nearestFoundLocation.x, nearestFoundLocation.y);
+                    const dx = nearestFoundLocation.x - this.position.x;
+                    const dy = nearestFoundLocation.y - this.position.y;
+                    this.angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    
+                    if (window.addLogEntry && Math.random() < 0.1) {
+                        window.addLogEntry(`🧭 ${this.name} идет к месту, где раньше находил еду`);
+                    }
+                    return;
+                }
+            }
+            
+            // Генерируем новое направление, избегая направлений без еды
+            let newDirection = null;
+            let attempts = 0;
+            const maxAttempts = 20;
+            
+            while (!newDirection && attempts < maxAttempts) {
+                // Генерируем случайное направление
+                const angle = Math.random() * Math.PI * 2;
+                const dirX = Math.cos(angle);
+                const dirY = Math.sin(angle);
+                
+                // Нормализуем направление
+                const length = Math.sqrt(dirX * dirX + dirY * dirY);
+                const normalizedDir = { x: dirX / length, y: dirY / length };
+                
+                // Проверяем, не было ли это направление уже проверено без еды
+                let isFailedDirection = false;
+                for (const failedDir of this.foodSearchFailedDirections) {
+                    const dotProduct = normalizedDir.x * failedDir.x + normalizedDir.y * failedDir.y;
+                    // Если направление похоже (угол < 45 градусов) - пропускаем
+                    if (dotProduct > 0.7) {
+                        isFailedDirection = true;
+                        break;
+                    }
+                }
+                
+                if (!isFailedDirection) {
+                    newDirection = normalizedDir;
+                }
+                
+                attempts++;
+            }
+            
+            // Если не удалось найти новое направление - используем случайное
+            if (!newDirection) {
+                const angle = Math.random() * Math.PI * 2;
+                newDirection = { x: Math.cos(angle), y: Math.sin(angle) };
+            }
+            
+            // Запоминаем направление
+            this.foodSearchLastDirection = newDirection;
+            
+            // Продвигаемся на STEP_SIZE пикселей в выбранном направлении
+            const newX = this.position.x + newDirection.x * STEP_SIZE;
+            const newY = this.position.y + newDirection.y * STEP_SIZE;
+            
+            this.moveTo(newX, newY);
+            this.angle = Math.atan2(newDirection.y, newDirection.x) * 180 / Math.PI;
+            
+            // Сохраняем направление для проверки после продвижения
+            this.foodSearchPendingDirection = newDirection;
+            this.foodSearchPendingPosition = { x: this.position.x, y: this.position.y };
+            
+            if (window.addLogEntry && Math.random() < 0.1) {
+                window.addLogEntry(`🔍 ${this.name} продвигается на ${STEP_SIZE}px в поисках еды (радиус поиска: ${SEARCH_RADIUS}px)`);
+            }
+        }
+        
+        // Проверяем, достигли ли мы точки, куда продвинулись
+        if (this.foodSearchPendingDirection && this.foodSearchPendingPosition) {
+            const dx = this.position.x - this.foodSearchPendingPosition.x;
+            const dy = this.position.y - this.foodSearchPendingPosition.y;
+            const movedDistance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Если продвинулись достаточно далеко - проверяем, есть ли еда в новом месте
+            if (movedDistance >= STEP_SIZE * 0.8) {
+                // Проверяем еду в новом месте
+                let foundFoodAtNewLocation = false;
+                
+                window.world.resources.forEach(resource => {
+                    const isFood = FOOD_TYPES.includes(resource.type) || FOOD_PROPERTIES[resource.type] !== undefined;
+                    if (isFood) {
+                        const dx = resource.x - this.position.x;
+                        const dy = resource.y - this.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance <= SEARCH_RADIUS) {
+                            foundFoodAtNewLocation = true;
+                        }
+                    }
+                });
+                
+                if (!foundFoodAtNewLocation) {
+                    // Еды нет в новом месте - запоминаем направление как неудачное
+                    if (this.foodSearchPendingDirection) {
+                        this.foodSearchFailedDirections.push(this.foodSearchPendingDirection);
+                        // Ограничиваем размер массива (максимум 10 направлений)
+                        if (this.foodSearchFailedDirections.length > 10) {
+                            this.foodSearchFailedDirections.shift();
+                        }
+                    }
+                } else {
+                    // Нашли еду в новом месте - запоминаем место
+                    const foodLocation = {
+                        x: this.position.x,
+                        y: this.position.y,
+                        foundAt: Date.now()
+                    };
+                    
+                    const existingLocation = this.foodSearchFoundLocations.find(loc => 
+                        Math.abs(loc.x - foodLocation.x) < 50 && Math.abs(loc.y - foodLocation.y) < 50
+                    );
+                    
+                    if (!existingLocation) {
+                        this.foodSearchFoundLocations.push(foodLocation);
+                        if (this.foodSearchFoundLocations.length > 20) {
+                            this.foodSearchFoundLocations.shift();
+                        }
+                    }
+                }
+                
+                // Очищаем данные о продвижении
+                this.foodSearchPendingDirection = null;
+                this.foodSearchPendingPosition = null;
             }
         }
     }
