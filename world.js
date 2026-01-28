@@ -606,8 +606,24 @@ class World {
             centerX: 0,
             centerY: 0,
             radiusX: width * 0.15,
-            radiusY: height * 0.12
+            radiusY: height * 0.12,
+            reeds: [] // Камыши вокруг пруда
         };
+        
+        // Генерируем камыши вокруг пруда
+        const reedCount = 20; // Количество камышей
+        for (let i = 0; i < reedCount; i++) {
+            const angle = (i / reedCount) * Math.PI * 2;
+            const distance = this.terrain.pond.radiusX + 10 + Math.random() * 20;
+            const reedX = this.terrain.pond.centerX + Math.cos(angle) * distance;
+            const reedY = this.terrain.pond.centerY + Math.sin(angle) * distance;
+            this.terrain.pond.reeds.push({
+                x: reedX,
+                y: reedY,
+                height: 15 + Math.random() * 10,
+                width: 2 + Math.random() * 2
+            });
+        }
         
         // Полянка (область вокруг пруда)
         this.terrain.clearing = {
@@ -821,46 +837,176 @@ class World {
             this.ctx.fill();
         }
 
-        // Отрисовка пруда (реалистичная вода)
+        // Отрисовка пруда (красивая визуализация с пляжем и камышами)
         if (this.terrain.pond) {
-            // Градиент для воды
-            const waterGradient = this.ctx.createRadialGradient(
-                this.terrain.pond.centerX - this.terrain.pond.radiusX * 0.3,
-                this.terrain.pond.centerY - this.terrain.pond.radiusY * 0.3,
-                0,
-                this.terrain.pond.centerX,
-                this.terrain.pond.centerY,
-                Math.max(this.terrain.pond.radiusX, this.terrain.pond.radiusY)
-            );
-            waterGradient.addColorStop(0, '#4a7a9a'); // Светлее в центре
-            waterGradient.addColorStop(1, '#1a3a5a'); // Темнее по краям
+            const pond = this.terrain.pond;
+            const beachWidth = 15; // Ширина пляжа (песчаного берега)
             
-            this.ctx.fillStyle = waterGradient;
+            // 1. Пляж (песчаный берег) - рисуем первым, чтобы он был под водой
+            const beachGradient = this.ctx.createRadialGradient(
+                pond.centerX,
+                pond.centerY,
+                Math.max(pond.radiusX, pond.radiusY),
+                pond.centerX,
+                pond.centerY,
+                Math.max(pond.radiusX, pond.radiusY) + beachWidth
+            );
+            beachGradient.addColorStop(0, '#d4c5a9'); // Песок ближе к воде
+            beachGradient.addColorStop(0.5, '#e8dcc0'); // Светлее песок
+            beachGradient.addColorStop(1, '#f5ead8'); // Очень светлый песок
+            
+            this.ctx.fillStyle = beachGradient;
             this.ctx.beginPath();
             this.ctx.ellipse(
-                this.terrain.pond.centerX,
-                this.terrain.pond.centerY,
-                this.terrain.pond.radiusX,
-                this.terrain.pond.radiusY,
+                pond.centerX,
+                pond.centerY,
+                pond.radiusX + beachWidth,
+                pond.radiusY + beachWidth,
                 0,
                 0,
                 Math.PI * 2
             );
             this.ctx.fill();
             
-            // Берег пруда (темная обводка)
-            this.ctx.strokeStyle = '#1a2a1a';
-            this.ctx.lineWidth = 3;
+            // Текстура песка (маленькие точки)
+            this.ctx.fillStyle = 'rgba(200, 180, 150, 0.3)';
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.max(pond.radiusX, pond.radiusY) + Math.random() * beachWidth;
+                const sandX = pond.centerX + Math.cos(angle) * dist;
+                const sandY = pond.centerY + Math.sin(angle) * dist;
+                this.ctx.beginPath();
+                this.ctx.arc(sandX, sandY, 1 + Math.random(), 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            // 2. Вода (красивая без белого фона)
+            const waterGradient = this.ctx.createRadialGradient(
+                pond.centerX - pond.radiusX * 0.2,
+                pond.centerY - pond.radiusY * 0.2,
+                0,
+                pond.centerX,
+                pond.centerY,
+                Math.max(pond.radiusX, pond.radiusY)
+            );
+            waterGradient.addColorStop(0, '#5a9ab8'); // Светло-голубая в центре
+            waterGradient.addColorStop(0.5, '#4a7a9a'); // Средняя голубая
+            waterGradient.addColorStop(1, '#2a4a6a'); // Темно-синяя по краям
+            
+            this.ctx.fillStyle = waterGradient;
+            this.ctx.beginPath();
+            this.ctx.ellipse(
+                pond.centerX,
+                pond.centerY,
+                pond.radiusX,
+                pond.radiusY,
+                0,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.fill();
+            
+            // 3. Береговая линия (граница между водой и пляжем)
+            this.ctx.strokeStyle = '#3a5a4a';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.ellipse(
+                pond.centerX,
+                pond.centerY,
+                pond.radiusX,
+                pond.radiusY,
+                0,
+                0,
+                Math.PI * 2
+            );
             this.ctx.stroke();
             
-            // Отражения/рябь на воде
-            this.ctx.fillStyle = 'rgba(150, 200, 255, 0.2)';
-            for (let i = 0; i < 5; i++) {
-                const rippleX = this.terrain.pond.centerX + (Math.random() - 0.5) * this.terrain.pond.radiusX;
-                const rippleY = this.terrain.pond.centerY + (Math.random() - 0.5) * this.terrain.pond.radiusY;
+            // 4. Рябь на воде (анимированная)
+            const time = Date.now() / 1000;
+            this.ctx.fillStyle = 'rgba(150, 200, 255, 0.15)';
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 + time * 0.5;
+                const rippleRadius = 5 + Math.sin(time * 2 + i) * 3;
+                const rippleX = pond.centerX + Math.cos(angle) * (pond.radiusX * 0.6);
+                const rippleY = pond.centerY + Math.sin(angle) * (pond.radiusY * 0.6);
                 this.ctx.beginPath();
-                this.ctx.arc(rippleX, rippleY, 8 + Math.random() * 5, 0, Math.PI * 2);
+                this.ctx.arc(rippleX, rippleY, rippleRadius, 0, Math.PI * 2);
                 this.ctx.fill();
+            }
+            
+            // 5. Отражения света на воде
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let i = 0; i < 3; i++) {
+                const lightX = pond.centerX + (Math.random() - 0.5) * pond.radiusX * 0.5;
+                const lightY = pond.centerY + (Math.random() - 0.5) * pond.radiusY * 0.5;
+                const lightGradient = this.ctx.createRadialGradient(
+                    lightX, lightY, 0,
+                    lightX, lightY, 15
+                );
+                lightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+                lightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                this.ctx.fillStyle = lightGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(lightX, lightY, 15, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            // 6. Камыши вокруг пруда
+            if (pond.reeds && pond.reeds.length > 0) {
+                pond.reeds.forEach(reed => {
+                    // Стебель камыша
+                    const reedGradient = this.ctx.createLinearGradient(
+                        reed.x - reed.width / 2, reed.y,
+                        reed.x + reed.width / 2, reed.y - reed.height
+                    );
+                    reedGradient.addColorStop(0, '#4a5a3a');
+                    reedGradient.addColorStop(0.5, '#5a6a4a');
+                    reedGradient.addColorStop(1, '#6a7a5a');
+                    
+                    this.ctx.fillStyle = reedGradient;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(
+                        reed.x,
+                        reed.y - reed.height / 2,
+                        reed.width / 2,
+                        reed.height / 2,
+                        Math.random() * 0.3 - 0.15,
+                        0,
+                        Math.PI * 2
+                    );
+                    this.ctx.fill();
+                    
+                    // Колосок камыша
+                    this.ctx.fillStyle = '#8a7a5a';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(
+                        reed.x,
+                        reed.y - reed.height,
+                        reed.width * 1.5,
+                        reed.width * 0.8,
+                        Math.random() * 0.2 - 0.1,
+                        0,
+                        Math.PI * 2
+                    );
+                    this.ctx.fill();
+                    
+                    // Листья камыша (несколько)
+                    this.ctx.strokeStyle = '#5a6a4a';
+                    this.ctx.lineWidth = 1.5;
+                    for (let i = 0; i < 2; i++) {
+                        const leafAngle = (i - 0.5) * 0.4;
+                        const leafLength = reed.height * 0.6;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(reed.x, reed.y);
+                        this.ctx.quadraticCurveTo(
+                            reed.x + Math.cos(leafAngle) * leafLength * 0.5,
+                            reed.y - leafLength * 0.3,
+                            reed.x + Math.cos(leafAngle) * leafLength,
+                            reed.y - leafLength
+                        );
+                        this.ctx.stroke();
+                    }
+                });
             }
         }
 
