@@ -2854,26 +2854,52 @@ class World {
         // Визуализация движения к ресурсу
         if (agent.targetSupplyResource && agent.targetSupplyResource.resource) {
             const resource = agent.targetSupplyResource.resource;
-            // Рисуем линию к ресурсу
-            this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([4, 4]);
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, y);
-            this.ctx.lineTo(resource.x, resource.y);
-            this.ctx.stroke();
-            this.ctx.setLineDash([]);
             
-            // Рисуем маркер на ресурсе
-            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-            this.ctx.beginPath();
-            this.ctx.arc(resource.x, resource.y, 6, 0, Math.PI * 2);
-            this.ctx.fill();
+            // Проверяем, что ресурс все еще существует в мире
+            let resourceExists = false;
+            if (resource.isTree && this.terrain && this.terrain.forest) {
+                // Для деревьев проверяем в массиве деревьев
+                resourceExists = this.terrain.forest.includes(resource);
+            } else if (this.resources) {
+                // Для обычных ресурсов проверяем в массиве ресурсов
+                resourceExists = this.resources.includes(resource);
+            }
             
-            // Обводка маркера
-            this.ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+            // Проверяем расстояние до ресурса
+            const dx = resource.x - x;
+            const dy = resource.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Рисуем линию только если:
+            // 1. Ресурс существует в мире
+            // 2. Агент еще не достиг ресурса (расстояние > 10 пикселей)
+            // 3. Агент в состоянии сбора ресурсов или движется к ресурсу
+            if (resourceExists && distance > 10 && (agent.state === 'gatherSupplies' || agent.targetPosition)) {
+                // Рисуем линию к ресурсу
+                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([4, 4]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(resource.x, resource.y);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                
+                // Рисуем маркер на ресурсе
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                this.ctx.beginPath();
+                this.ctx.arc(resource.x, resource.y, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Обводка маркера
+                this.ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+            } else if (!resourceExists || distance <= 10) {
+                // Ресурс собран или агент достиг его - очищаем targetSupplyResource
+                agent.targetSupplyResource = null;
+                agent.searchDirection = null;
+            }
         }
         
         // Определение типа агента и соответствующих цветов одежды

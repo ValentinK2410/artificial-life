@@ -3966,6 +3966,31 @@ class Agent {
         }
         
         const resource = this.targetSupplyResource.resource;
+        
+        // Проверяем, что ресурс все еще существует в мире
+        let resourceExists = false;
+        if (resource.isTree && window.world && window.world.terrain && window.world.terrain.forest) {
+            // Для деревьев проверяем в массиве деревьев
+            resourceExists = window.world.terrain.forest.includes(resource);
+        } else if (window.world && window.world.resources) {
+            // Для обычных ресурсов проверяем в массиве ресурсов
+            resourceExists = window.world.resources.includes(resource);
+        }
+        
+        // Если ресурс уже собран или не существует - очищаем цель
+        if (!resourceExists) {
+            this.targetSupplyResource = null;
+            this.searchDirection = null;
+            // Продолжаем поиск других ресурсов
+            const supplies = this.checkSupplies();
+            if (!supplies.allOk) {
+                this.state = 'gatherSupplies';
+            } else {
+                this.state = 'explore';
+            }
+            return;
+        }
+        
         const dx = resource.x - this.position.x;
         const dy = resource.y - this.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
