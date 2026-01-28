@@ -1022,6 +1022,13 @@ class Simulation {
                 }
                 break;
             case 'fish':
+                // Проверяем навык рыбалки
+                if (!this.selectedAgent.experience.fishing || this.selectedAgent.experience.fishing < 5) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет ловить рыбу (нужен навык рыбалки >= 5)`);
+                    }
+                    return;
+                }
                 // Проверяем наличие удочки
                 const hasFishingRod = this.selectedAgent.inventory.some(item => item.type === 'fishing_rod');
                 if (!hasFishingRod) {
@@ -1030,6 +1037,33 @@ class Simulation {
                     }
                     return;
                 }
+                // Проверяем наличие водоёма и расстояние до него
+                if (!window.world || !window.world.terrain || !window.world.terrain.pond) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ Нет водоёма для рыбалки`);
+                    }
+                    return;
+                }
+                const pond = window.world.terrain.pond;
+                const dx = pond.centerX - this.selectedAgent.position.x;
+                const dy = pond.centerY - this.selectedAgent.position.y;
+                const distanceToPondCenter = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx);
+                const a = pond.radiusX;
+                const b = pond.radiusY;
+                const cosAngle = Math.cos(angle);
+                const sinAngle = Math.sin(angle);
+                const distanceToEdge = Math.sqrt(a * a * cosAngle * cosAngle + b * b * sinAngle * sinAngle);
+                const distanceFromEdge = distanceToPondCenter - distanceToEdge;
+                
+                // Проверяем, что агент находится достаточно близко к водоёму
+                if (distanceFromEdge > 100) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} слишком далеко от водоёма для рыбалки`);
+                    }
+                    return;
+                }
+                
                 this.selectedAgent.state = 'fish';
                 if (window.addLogEntry) {
                     window.addLogEntry(`🎣 ${this.selectedAgent.name} идет рыбачить`);
