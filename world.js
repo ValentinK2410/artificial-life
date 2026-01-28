@@ -375,6 +375,8 @@ class World {
             'pickaxe': 'Кирка',
             'shovel': 'Лопата',
             'fishing_rod': 'Удочка',
+            'cookware': 'Посуда для готовки',
+            'cooking_pot': 'Кастрюля',
             'berries': 'Ягоды',
             'wood': 'Дрова',
             'money': 'Деньги',
@@ -2091,7 +2093,7 @@ class World {
         const type = resource.type;
         
         // Инструменты и оружие
-        if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow'].includes(type)) {
+        if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow', 'cookware', 'cooking_pot'].includes(type)) {
             this.ctx.fillStyle = '#5a5a5a';
             this.ctx.strokeStyle = '#3a3a3a';
             this.ctx.lineWidth = 1;
@@ -2168,6 +2170,40 @@ class World {
                 this.ctx.beginPath();
                 this.ctx.moveTo(x - 8, y);
                 this.ctx.lineTo(x + 8, y);
+                this.ctx.stroke();
+            } else if (type === 'cookware' || type === 'cooking_pot') {
+                // Посуда для готовки - кастрюля
+                this.ctx.fillStyle = '#c0c0c0';
+                this.ctx.strokeStyle = '#808080';
+                this.ctx.lineWidth = 1;
+                // Основание кастрюли
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y + 2, 6, 3, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.stroke();
+                // Боковые стенки
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 6, y + 2);
+                this.ctx.lineTo(x - 5, y - 4);
+                this.ctx.lineTo(x + 5, y - 4);
+                this.ctx.lineTo(x + 6, y + 2);
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+                // Верхний ободок
+                this.ctx.strokeStyle = '#606060';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.beginPath();
+                this.ctx.ellipse(x, y - 4, 5, 1, 0, 0, Math.PI * 2);
+                this.ctx.stroke();
+                // Ручки
+                this.ctx.strokeStyle = '#808080';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.arc(x - 5, y - 2, 2, 0, Math.PI);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.arc(x + 5, y - 2, 2, 0, Math.PI);
                 this.ctx.stroke();
             }
         }

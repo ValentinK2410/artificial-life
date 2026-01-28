@@ -557,6 +557,8 @@ class Simulation {
             'shovel': 'Лопата',
             'fishing_rod': 'Удочка',
             'first_aid_kit': 'Аптечка',
+            'cookware': 'Посуда для готовки',
+            'cooking_pot': 'Кастрюля',
             // Одежда
             'summer_clothes_man': 'Летняя одежда (мужская)',
             'summer_clothes_woman': 'Летняя одежда (женская)',
@@ -602,6 +604,8 @@ class Simulation {
             'shovel': '🪣',
             'fishing_rod': '🎣',
             'first_aid_kit': '💊',
+            'cookware': '🍳',
+            'cooking_pot': '🍲',
             // Одежда
             'summer_clothes_man': '👕',
             'summer_clothes_woman': '👚',
@@ -640,7 +644,7 @@ class Simulation {
         let html = '';
         
         // Инвентарь (инструменты, одежда, ресурсы) - группируем
-        const tools = this.groupItems(inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit'].includes(item.type)));
+        const tools = this.groupItems(inventory.filter(item => ['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'first_aid_kit', 'cookware', 'cooking_pot'].includes(item.type)));
         const clothes = this.groupItems(inventory.filter(item => ['summer_clothes_man', 'summer_clothes_woman', 'winter_clothes_man', 'winter_clothes_woman'].includes(item.type)));
         const resources = this.groupItems(inventory.filter(item => ['wood', 'stone', 'money'].includes(item.type)));
         
@@ -913,6 +917,34 @@ class Simulation {
                 this.forceHealAgent();
                 break;
             case 'cook':
+                // Проверяем навык готовки
+                if (!this.selectedAgent.experience.cooking || this.selectedAgent.experience.cooking < 5) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} не умеет готовить (нужен навык готовки >= 5)`);
+                    }
+                    return;
+                }
+                // Проверяем наличие посуды
+                const hasCookware = this.selectedAgent.inventory.some(item => 
+                    item.type === 'cookware' || item.type === 'cooking_pot'
+                );
+                if (!hasCookware) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ У ${this.selectedAgent.name} нет посуды для готовки`);
+                    }
+                    return;
+                }
+                // Проверяем наличие костра поблизости
+                const nearestFire = this.selectedAgent.findNearestFire();
+                const hasFireNearby = nearestFire && 
+                    Math.sqrt(Math.pow(nearestFire.x - this.selectedAgent.position.x, 2) + 
+                             Math.pow(nearestFire.y - this.selectedAgent.position.y, 2)) < 30;
+                if (!hasFireNearby) {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ ${this.selectedAgent.name} нужен костер поблизости для готовки`);
+                    }
+                    return;
+                }
                 // Проверяем наличие ингредиентов
                 const hasIngredients = this.selectedAgent.inventory.some(item => 
                     ['meat', 'fish', 'bird', 'berries', 'potato', 'mushrooms'].includes(item.type)
@@ -2771,6 +2803,15 @@ function initializeWorldControls() {
             }
         }
         addLogEntry(`Аптечка добавлена на карту (${count} шт.)`);
+    });
+    document.getElementById('addCookwareBtn')?.addEventListener('click', () => {
+        const count = getResourceAmount();
+        if (window.world) {
+            for (let i = 0; i < count; i++) {
+                world.addResource('cookware', 1);
+            }
+        }
+        addLogEntry(`Посуда для готовки добавлена на карту (${count} шт.)`);
     });
     
     // Оружие

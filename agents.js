@@ -2124,15 +2124,46 @@ class Agent {
             return;
         }
         
-        // Готовка (если есть навык и ингредиенты)
-        if (this.experience.cooking >= 5 && this.foodStorage.length > 0 && Math.random() < 0.15) {
+        // Готовка (если есть навык, посуда, костер и ингредиенты)
+        const hasCookware = this.inventory.some(item => 
+            item.type === 'cookware' || item.type === 'cooking_pot'
+        );
+        const hasFireNearby = this.findNearestFire() && 
+            Math.sqrt(Math.pow(this.findNearestFire().x - this.position.x, 2) + 
+                     Math.pow(this.findNearestFire().y - this.position.y, 2)) < 30;
+        const hasIngredients = this.inventory.some(item => 
+            ['meat', 'fish', 'bird', 'berries', 'potato', 'mushrooms'].includes(item.type)
+        ) || this.foodStorage.length > 0;
+        
+        if (this.experience.cooking >= 5 && hasCookware && hasFireNearby && hasIngredients && Math.random() < 0.15) {
             this.state = 'cook';
-            this.logDecision('cook', `есть навык готовки (${this.experience.cooking}) и ингредиенты (${this.foodStorage.length})`, {
+            this.logDecision('cook', `есть навык готовки (${this.experience.cooking}), посуда, костер и ингредиенты`, {
                 skillLevel: this.experience.cooking,
+                hasCookware: hasCookware,
+                hasFire: hasFireNearby,
                 foodCount: this.foodStorage.length
             });
             this.act();
             return;
+        }
+        
+        // Если нет посуды или костра, но есть навык - ищем готовую еду
+        if (this.experience.cooking >= 5 && (!hasCookware || !hasFireNearby) && Math.random() < 0.1) {
+            const readyFood = window.world?.resources?.find(r => r.type === 'cooked_food');
+            if (readyFood) {
+                const dx = readyFood.x - this.position.x;
+                const dy = readyFood.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 100) {
+                    this.moveTo(readyFood.x, readyFood.y);
+                    this.logDecision('findFood', `ищу готовую еду (нет посуды или костра)`, {
+                        hasCookware: hasCookware,
+                        hasFire: hasFireNearby
+                    });
+                    this.act();
+                    return;
+                }
+            }
         }
         
         // Рыбалка (если есть навык)
@@ -3395,6 +3426,45 @@ class Agent {
     cook() {
         // Готовка еды
         if (!window.world) return;
+        
+        // Проверяем навык готовки (минимум 5 опыта)
+        if (!this.experience.cooking || this.experience.cooking < 5) {
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🍳 ${this.name} не умеет готовить (нужен навык готовки >= 5)`);
+            }
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем наличие посуды для приготовления
+        const hasCookware = this.inventory.some(item => 
+            item.type === 'cookware' || item.type === 'cooking_pot'
+        );
+        
+        if (!hasCookware) {
+            // Нет посуды - ищем готовую еду или ищем посуду
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🍳 ${this.name} нужна посуда для готовки`);
+            }
+            // Пытаемся найти готовую еду в мире вместо готовки
+            const readyFood = window.world.resources.find(r => r.type === 'cooked_food');
+            if (readyFood) {
+                const dx = readyFood.x - this.position.x;
+                const dy = readyFood.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 50) {
+                    // Близко к готовой еде - собираем её
+                    this.interactWithWorld(window.world);
+                } else {
+                    // Двигаемся к готовой еде
+                    this.moveTo(readyFood.x, readyFood.y);
+                }
+            } else {
+                // Нет готовой еды - переходим в режим поиска еды
+                this.state = 'findFood';
+            }
+            return;
+        }
         
         // Проверяем, есть ли костер поблизости (для готовки нужен огонь)
         const nearestFire = this.findNearestFire(); // Ближайший костер (объект {x, y, intensity, heatRadius} или null)
@@ -5619,6 +5689,8 @@ class Agent {
             'shovel': 'лопату',
             'fishing_rod': 'удочку',
             'first_aid_kit': 'аптечку',
+            'cookware': 'посуду для готовки',
+            'cooking_pot': 'кастрюлю',
             'summer_clothes_man': 'летнюю одежду (мужскую)',
             'summer_clothes_woman': 'летнюю одежду (женскую)',
             'winter_clothes_man': 'зимнюю одежду (мужскую)',
@@ -5712,7 +5784,7 @@ class Agent {
                 const resourceType = resource.type; // Тип ресурса (строка: 'saw', 'axe', 'money', и т.д.)
                 
                 // Инструменты и оружие
-                if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow'].includes(resourceType)) {
+                if (['saw', 'axe', 'hammer', 'pickaxe', 'shovel', 'fishing_rod', 'gun', 'bow', 'cookware', 'cooking_pot'].includes(resourceType)) {
                     // Проверяем, есть ли уже такой инструмент или оружие (не собираем дубликаты)
                     const hasTool = this.inventory.some(item => item.type === resourceType); // Флаг наличия инструмента/оружия (true/false)
                     if (!hasTool) {
@@ -5725,7 +5797,9 @@ class Agent {
                             'shovel': 'farming',        // Лопата -> опыт фермерства
                             'fishing_rod': 'fishing',   // Удочка -> опыт рыбалки
                             'gun': 'gun_shooting',      // Ружье -> опыт стрельбы из ружья
-                            'bow': 'bow_shooting'       // Лук -> опыт стрельбы из лука
+                            'bow': 'bow_shooting',      // Лук -> опыт стрельбы из лука
+                            'cookware': 'cooking',      // Посуда -> опыт готовки
+                            'cooking_pot': 'cooking'    // Кастрюля -> опыт готовки
                         }; // Карта соответствия инструментов/оружия и навыков опыта
                         if (skillMap[resourceType]) {
                             this.gainExperience(skillMap[resourceType], 1); // Получаем опыт соответствующего навыка
