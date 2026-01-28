@@ -340,6 +340,7 @@ class Simulation {
                         <p><strong>Деньги:</strong> ${this.getPlayerMoney()} монет</p>
                         <p><strong>Возраст:</strong> ${agent.age} лет</p>
                         <p><strong>Состояние:</strong> ${this.getStateName(agent.state)}</p>
+                        ${agent.inLove ? `<p><strong>Эмоции:</strong> ${agent.gender === 'male' ? 'Влюблен' : 'Влюблена'} в ${this.getAgentNameById(agent.inLove) || 'неизвестного'}</p>` : ''}
                         <p><strong>Удовлетворенность:</strong> ${Math.floor(agent.satisfaction || 50)}% ${agent.satisfaction >= 70 ? '😊' : agent.satisfaction >= 40 ? '😐' : '😢'}</p>
                         ${agent.fear > 0 ? `<p><strong>Страх:</strong> ${Math.floor(agent.fear)}% ${agent.panic ? '😱 ПАНИКА!' : ''}</p>` : ''}
                         ${agent.panic ? `<p style="color: #ff4444;"><strong>⚠️ ПАНИКА!</strong></p>` : ''}
@@ -855,9 +856,18 @@ class Simulation {
             'developFarm': 'Развивает ферму',
             'findWater': 'Ищет воду',
             'dead': 'Мертв',
-            'goToMarket': 'Идет на ярмарку'
+            'goToMarket': 'Идет на ярмарку',
+            'giveBouquet': 'Дарит букет'
         };
         return stateNames[state] || state;
+    }
+    
+    getAgentNameById(agentId) {
+        // Получить имя агента по ID
+        if (!window.agents || !window.agents.getAllAgents) return null;
+        const allAgents = window.agents.getAllAgents();
+        const agent = allAgents.find(a => a.id === agentId);
+        return agent ? agent.name : null;
     }
     
     // Скрыть панель управления
@@ -2137,6 +2147,7 @@ class Simulation {
                         </div>
                         <div class="agent-stat-row">
                             <span class="stat-label">📍 Состояние:</span>
+                            ${agent.inLove ? `<span class="stat-label">💕 Эмоции:</span><span class="stat-value">${agent.gender === 'male' ? 'Влюблен' : 'Влюблена'} в ${this.getAgentNameById(agent.inLove) || 'неизвестного'}</span>` : ''}
                             <div class="stat-bar-container">
                                 <span class="stat-value">${stateName}</span>
                             </div>

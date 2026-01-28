@@ -108,7 +108,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm', 'findWater'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm', 'findWater', 'giveBouquet'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -130,6 +130,7 @@ class Agent {
         this.bouquet = null; // Букет цветов в руке (null или объект {flowers: [], count: число})
         this.inLove = null; // ID агента, в которого влюблен (null или строка ID)
         this.beloved = null; // ID агента, который влюблен в этого агента (null или строка ID)
+        this.targetBouquetRecipient = null; // Целевой агент для дарения букета (объект Agent или null)
         this.children = []; // Массив детей агента (массив объектов {id, age, stage})
         this.pregnant = false; // Флаг беременности (true/false)
         this.pregnancyProgress = 0; // Прогресс беременности (0-100)
@@ -1742,6 +1743,48 @@ class Agent {
         // Запасов достаточно - можем помогать другим
         // (Проверка больных агентов уже выполнена в УРОВНЕ 1)
         
+        // Проверяем возможность дарения букета (если есть полный букет из 5 цветов)
+        if (this.bouquet && this.bouquet.count >= 5 && !this.inLove) {
+            // Ищем агента противоположного пола поблизости
+            if (window.agents && window.agents.getAllAgents) {
+                const allAgents = window.agents.getAllAgents();
+                const searchRadius = 100; // Радиус поиска для дарения букета
+                let nearestOppositeGender = null;
+                let minDistance = Infinity;
+                
+                // Определяем противоположный пол
+                const isMale = ['man', 'boy', 'oldman'].includes(this.type);
+                const oppositeGender = isMale ? ['woman', 'girl', 'oldwoman'] : ['man', 'boy', 'oldman'];
+                
+                for (const agent of allAgents) {
+                    if (agent.id === this.id || agent.health <= 0 || agent.state === 'dead') continue;
+                    if (!oppositeGender.includes(agent.type)) continue; // Пропускаем агентов того же пола
+                    if (agent.inLove === this.id) continue; // Пропускаем тех, кто уже влюблен в нас
+                    
+                    const dx = agent.position.x - this.position.x;
+                    const dy = agent.position.y - this.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < searchRadius && distance < minDistance) {
+                        minDistance = distance;
+                        nearestOppositeGender = agent;
+                    }
+                }
+                
+                if (nearestOppositeGender) {
+                    // Нашли агента противоположного пола - идем к нему для дарения букета
+                    this.targetBouquetRecipient = nearestOppositeGender;
+                    this.state = 'giveBouquet';
+                    this.logDecision('giveBouquet', `найден агент противоположного пола ${nearestOppositeGender.name} для дарения букета`, {
+                        targetName: nearestOppositeGender.name,
+                        distance: Math.floor(minDistance)
+                    });
+                    this.act();
+                    return;
+                }
+            }
+        }
+        
         // Проверяем друзей
         this.checkForFriends();
         if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
@@ -2470,6 +2513,10 @@ class Agent {
             case 'stayWithFriend':
                 // Находиться рядом с другом
                 this.stayWithFriend();
+                break;
+            case 'giveBouquet':
+                // Дарение букета агенту противоположного пола
+                this.giveBouquet();
                 break;
             case 'sing':
                 // Пение песен для поднятия настроения других
