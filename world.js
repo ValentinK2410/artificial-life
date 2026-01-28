@@ -15,6 +15,7 @@ class World {
         this.animals = []; // Массив животных [{type, x, y, ...}]
         this.predators = []; // Массив хищников
         this.otherPlayersAgents = []; // Агенты других игроков для мультиплеера
+        this.graves = []; // Массив могил [{x, y, agentName, agentId, buriedAt}]
         
         // Система камеры для бесконечного мира
         this.camera = {
@@ -1649,10 +1650,17 @@ class World {
         // Отрисовка зданий
         this.drawBuildings();
         
+        // Отрисовка могил
+        this.drawGraves();
+        
         // Отрисовка агентов (если есть)
         if (window.agents) {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
+                // Не рисуем мертвых агентов (они похоронены в могилах)
+                if (agent.health <= 0 || agent.state === 'dead') {
+                    return;
+                }
                 this.drawAgent(agent);
                 
                 // Отрисовка взрослых детей агента (которые выросли из стадии baby)
@@ -2654,6 +2662,115 @@ class World {
                     this.ctx.fillRect(building.x - 20, building.y - 20, 40, 40);
             }
         }
+    }
+    
+    // ========== ОТРИСОВКА МОГИЛ ==========
+    
+    drawGraves() {
+        if (!this.graves || this.graves.length === 0) return;
+        
+        for (const grave of this.graves) {
+            this.drawGrave(grave);
+        }
+    }
+    
+    drawGrave(grave) {
+        if (!this.ctx || !grave) return;
+        
+        const x = grave.x;
+        const y = grave.y;
+        
+        // Преобразуем мировые координаты в экранные
+        const screenX = (x - this.camera.x) * this.camera.scale;
+        const screenY = (y - this.camera.y) * this.camera.scale;
+        
+        // Проверяем, видна ли могила на экране
+        if (screenX < -50 || screenX > this.canvas.width + 50 ||
+            screenY < -50 || screenY > this.canvas.height + 50) {
+            return;
+        }
+        
+        this.ctx.save();
+        this.ctx.translate(screenX, screenY);
+        
+        // Холмик (эллипс с градиентом для объема)
+        const moundGradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+        moundGradient.addColorStop(0, '#5a4a3a');
+        moundGradient.addColorStop(0.5, '#4a3a2a');
+        moundGradient.addColorStop(1, '#3a2a1a');
+        
+        this.ctx.fillStyle = moundGradient;
+        this.ctx.beginPath();
+        this.ctx.ellipse(0, 0, 20, 12, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Контур холмика
+        this.ctx.strokeStyle = '#3a2a1a';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.ellipse(0, 0, 20, 12, 0, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
+        // Крест (вертикальная часть)
+        this.ctx.strokeStyle = '#8B7355';
+        this.ctx.fillStyle = '#8B7355';
+        this.ctx.lineWidth = 3;
+        this.ctx.lineCap = 'round';
+        
+        // Вертикальная часть креста
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -15);
+        this.ctx.lineTo(0, -5);
+        this.ctx.stroke();
+        
+        // Горизонтальная часть креста
+        this.ctx.beginPath();
+        this.ctx.moveTo(-8, -10);
+        this.ctx.lineTo(8, -10);
+        this.ctx.stroke();
+        
+        // Основание креста (деревянная доска)
+        this.ctx.fillStyle = '#6B5A4A';
+        this.ctx.fillRect(-2, -5, 4, 2);
+        
+        // Тень от креста на холмике
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.beginPath();
+        this.ctx.ellipse(2, 2, 18, 10, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Имя на могиле (если есть)
+        if (grave.agentName) {
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '9px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'top';
+            
+            // Тень для текста
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(grave.agentName, 1, 8);
+            
+            // Сам текст
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.fillText(grave.agentName, 0, 7);
+        }
+        
+        this.ctx.restore();
+    }
+    
+    // Добавить могилу
+    addGrave(x, y, agentName, agentId) {
+        const grave = {
+            x: x,
+            y: y,
+            agentName: agentName || 'Неизвестный',
+            agentId: agentId || null,
+            buriedAt: Date.now(),
+            id: 'grave_' + Date.now() + '_' + Math.random()
+        };
+        this.graves.push(grave);
+        this.draw();
+        return grave;
     }
     
     drawHouse(building) {

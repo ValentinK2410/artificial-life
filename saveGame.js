@@ -162,6 +162,16 @@ export function saveGame(playerName, worldId, gameState) {
                     ownerId: building.ownerId || null
                 })),
                 
+                // Могилы
+                graves: (gameState.world?.graves || []).map(grave => ({
+                    id: grave.id,
+                    x: grave.x,
+                    y: grave.y,
+                    agentName: grave.agentName || 'Неизвестный',
+                    agentId: grave.agentId || null,
+                    buriedAt: grave.buriedAt || Date.now()
+                })),
+                
                 // Террейн (лес, цветы и т.д.)
                 terrain: gameState.world?.terrain ? {
                     forest: gameState.world.terrain.forest || [],
@@ -412,6 +422,16 @@ export function createSnapshot(playerName, worldId, gameState, snapshotName = nu
                     x: building.x,
                     y: building.y,
                     ownerId: building.ownerId || null
+                })),
+                
+                // Могилы
+                graves: (gameState.world?.graves || []).map(grave => ({
+                    id: grave.id,
+                    x: grave.x,
+                    y: grave.y,
+                    agentName: grave.agentName || 'Неизвестный',
+                    agentId: grave.agentId || null,
+                    buriedAt: grave.buriedAt || Date.now()
                 })),
                 
                 // Террейн (лес, цветы и т.д.)

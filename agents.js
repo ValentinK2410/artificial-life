@@ -115,7 +115,7 @@ class Agent {
         this.panic = false; // Флаг паники (true/false, активируется при высоком страхе)
         
         // Состояние для конечного автомата (определяет текущее поведение агента)
-        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm', 'findWater', 'giveBouquet'
+        this.state = 'explore'; // Текущее состояние: 'explore', 'findFood', 'rest', 'sleep', 'findHeat', 'buildFire', 'defend', 'feedAnimal', 'playWithPet', 'storeFood', 'cook', 'hunt', 'build', 'fish', 'farm', 'moveToPoint', 'dead', 'heal', 'findClothes', 'chop_wood', 'sing', 'tellStory', 'makeLaugh', 'console', 'stayWithFriend', 'gatherSupplies', 'recoverSelf', 'buildHouse', 'buildPen', 'buildBarn', 'findAnimals', 'goToMarket', 'developFarm', 'findWater', 'giveBouquet', 'bury'
         this.sleepStartTime = 0; // Время начала сна (timestamp, для определения длительности сна)
         this.speed = 2; // Базовая скорость движения агента (пикселей за кадр)
         this.maxEnergy = 100; // Максимальная энергия агента (верхний предел для this.energy)
@@ -138,6 +138,8 @@ class Agent {
         this.inLove = null; // ID агента, в которого влюблен (null или строка ID)
         this.beloved = null; // ID агента, который влюблен в этого агента (null или строка ID)
         this.targetBouquetRecipient = null; // Целевой агент для дарения букета (объект Agent или null)
+        this.targetDeadAgent = null; // Мертвый агент для захоронения (объект Agent или null)
+        this.buried = false; // Флаг захоронения агента (true если уже похоронен)
         this.children = []; // Массив детей агента (массив объектов {id, age, stage})
         this.pregnant = false; // Флаг беременности (true/false)
         this.pregnancyProgress = 0; // Прогресс беременности (0-100)
@@ -461,6 +463,7 @@ class Agent {
                 
                 window.addLogEntry(`💀 ${this.name} погиб ${cause}. Температура тела: ${Math.floor(ambientTemp)}°C`);
                 this.state = 'dead';
+                this.buried = false; // Агент еще не похоронен
             }
         }
         
@@ -1978,6 +1981,40 @@ class Agent {
             }
         }
         
+        // Проверяем наличие мертвых агентов для захоронения (приоритетная задача)
+        if (!this.targetDeadAgent && Math.random() < 0.3) {
+            const allAgents = window.agents ? window.agents.getAllAgents() : [];
+            let nearestDeadAgent = null;
+            let minDistance = Infinity;
+            const searchRadius = 200; // Радиус поиска мертвых агентов
+            
+            for (const agent of allAgents) {
+                if (agent.id === this.id) continue;
+                if (agent.health > 0 || agent.state !== 'dead') continue;
+                if (agent.buried) continue; // Уже похоронен
+                
+                const dx = agent.position.x - this.position.x;
+                const dy = agent.position.y - this.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < searchRadius && distance < minDistance) {
+                    minDistance = distance;
+                    nearestDeadAgent = agent;
+                }
+            }
+            
+            if (nearestDeadAgent) {
+                this.targetDeadAgent = nearestDeadAgent;
+                this.state = 'bury';
+                this.logDecision('bury', `найден мертвый агент ${nearestDeadAgent.name} для захоронения`, {
+                    deadAgentName: nearestDeadAgent.name,
+                    distance: Math.floor(minDistance)
+                });
+                this.act();
+                return;
+            }
+        }
+        
         // Проверяем друзей
         this.checkForFriends();
         if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
@@ -2236,7 +2273,9 @@ class Agent {
             'build': 'строит',
             'farm': 'занимается фермерством',
             'dead': 'мертв',
-            'goToMarket': 'идет на ярмарку'
+            'goToMarket': 'идет на ярмарку',
+            'bury': 'хоронит мертвого агента',
+            'giveBouquet': 'дарит букет'
         };
         
         const stateName = stateNames[newState] || newState;
@@ -2801,6 +2840,10 @@ class Agent {
                 // Поиск воды и питье
                 this.findAndDrinkWater();
                 break;
+            case 'bury':
+                // Захоронение мертвого агента
+                this.bury();
+                break;
         }
     }
     
@@ -3318,6 +3361,85 @@ class Agent {
         // Очищаем букет у дарителя
         this.bouquet = { flowers: [], count: 0 };
         this.targetBouquetRecipient = null;
+        
+        // Возвращаемся к исследованию
+        this.state = 'explore';
+    }
+    
+    bury() {
+        // Захоронение мертвого агента
+        if (!this.targetDeadAgent) {
+            // Нет целевого мертвого агента
+            this.state = 'explore';
+            return;
+        }
+        
+        // Проверяем, что целевой агент еще существует и мертв
+        if (!window.agents || !window.agents.getAllAgents) {
+            this.state = 'explore';
+            this.targetDeadAgent = null;
+            return;
+        }
+        
+        const allAgents = window.agents.getAllAgents();
+        const deadAgent = allAgents.find(a => a.id === this.targetDeadAgent.id);
+        
+        if (!deadAgent || deadAgent.health > 0 || deadAgent.state !== 'dead' || deadAgent.buried) {
+            // Целевой агент не найден, не мертв или уже похоронен
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`⚰️ ${this.name} не может найти мертвого агента для захоронения`);
+            }
+            this.state = 'explore';
+            this.targetDeadAgent = null;
+            return;
+        }
+        
+        // Проверяем расстояние до мертвого агента
+        const dx = deadAgent.position.x - this.position.x;
+        const dy = deadAgent.position.y - this.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        const BURY_DISTANCE = 25; // Расстояние для захоронения (пиксели)
+        
+        if (distance > BURY_DISTANCE) {
+            // Далеко от мертвого агента - идем к нему
+            this.moveTo(deadAgent.position.x, deadAgent.position.y);
+            this.targetPosition = null; // Очищаем другие цели
+            return;
+        }
+        
+        // Рядом с мертвым агентом - хороним его
+        if (!this.buryingProgress) {
+            this.buryingProgress = 0;
+        }
+        
+        this.buryingProgress += 1;
+        
+        // Захоронение занимает время (15-20 кадров)
+        const buryingTime = 20;
+        if (this.buryingProgress < buryingTime) {
+            // Еще хороним
+            return;
+        }
+        
+        // Захоронение завершено - создаем могилу
+        if (window.world && window.world.addGrave) {
+            window.world.addGrave(deadAgent.position.x, deadAgent.position.y, deadAgent.name, deadAgent.id);
+            
+            // Помечаем агента как похороненного
+            deadAgent.buried = true;
+            
+            // Увеличиваем удовлетворенность от захоронения
+            this.increaseSatisfaction('bury', 3);
+            
+            if (window.addLogEntry) {
+                window.addLogEntry(`⚰️ ${this.name} похоронил(а) ${deadAgent.name}. Покойся с миром... 💐`);
+            }
+        }
+        
+        // Сбрасываем прогресс и очищаем цель
+        this.buryingProgress = 0;
+        this.targetDeadAgent = null;
         
         // Возвращаемся к исследованию
         this.state = 'explore';

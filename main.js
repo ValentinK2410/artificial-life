@@ -4074,6 +4074,21 @@ function initializeGameWithServerData(data, loadSave = false) {
                 id: b.id
             }));
         }
+        
+        // Загружаем могилы
+        if (data.world.graves) {
+            if (!window.world.graves) {
+                window.world.graves = [];
+            }
+            window.world.graves = data.world.graves.map(g => ({
+                id: g.id,
+                x: g.x,
+                y: g.y,
+                agentName: g.agentName || 'Неизвестный',
+                agentId: g.agentId || null,
+                buriedAt: g.buriedAt || Date.now()
+            }));
+        }
 
         // Обновляем погоду и время
         if (data.world.weather) window.world.weather = data.world.weather;
@@ -4156,6 +4171,18 @@ function loadSavedGameState(worldState) {
             y: b.y,
             ownerId: b.ownerId,
             id: b.id
+        }));
+    }
+    
+    // Загружаем могилы
+    if (worldState.graves) {
+        window.world.graves = worldState.graves.map(g => ({
+            id: g.id,
+            x: g.x,
+            y: g.y,
+            agentName: g.agentName || 'Неизвестный',
+            agentId: g.agentId || null,
+            buriedAt: g.buriedAt || Date.now()
         }));
     }
     
