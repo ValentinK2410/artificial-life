@@ -175,7 +175,7 @@ export function saveGame(playerName, worldId, gameState) {
             // Состояние симуляции
             simulation: {
                 isRunning: gameState.simulation?.isRunning || false,
-                simulationSpeed: gameState.simulation?.simulationSpeed || 20,
+                simulationSpeed: gameState.simulation?.simulationSpeed || 300,
                 frameCount: gameState.simulation?.frameCount || 0
             }
         };
@@ -427,7 +427,7 @@ export function createSnapshot(playerName, worldId, gameState, snapshotName = nu
             // Состояние симуляции
             simulation: {
                 isRunning: gameState.simulation?.isRunning || false,
-                simulationSpeed: gameState.simulation?.simulationSpeed || 20,
+                simulationSpeed: gameState.simulation?.simulationSpeed || 300,
                 frameCount: gameState.simulation?.frameCount || 0
             }
         };

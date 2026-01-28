@@ -9,7 +9,7 @@ class Simulation {
         this.isRunning = false;
         this.animationFrameId = null;
         this.colonyDeadShown = false; // Флаг для показа сообщения о гибели колонии
-        this.simulationSpeed = 20; // Скорость симуляции (1-50)
+        this.simulationSpeed = 300; // Скорость симуляции (1-300)
         this.frameCount = 0;
         this.startTime = Date.now(); // Время начала симуляции (для защиты от быстрой потери здоровья в начале игры)
         this.selectedAgent = null; // Выбранный агент для управления
@@ -1954,6 +1954,7 @@ class Simulation {
         // Скорость 1 = 1 обновление за 50 кадров (медленно)
         // Скорость 25 = 1 обновление за 2 кадра (средне)
         // Скорость 50 = несколько обновлений за кадр (быстро)
+        // Скорость 300 = 30 обновлений за кадр (очень быстро)
         const updatesPerFrame = Math.max(1, Math.floor(this.simulationSpeed / 10));
         const frameSkip = Math.max(1, Math.floor(51 / this.simulationSpeed));
         
@@ -4227,7 +4228,7 @@ function saveCurrentGame() {
         selectedAgentTypes: window.selectedAgentTypes || null, // Сохраняем выбранные типы агентов
         simulation: {
             isRunning: simulation?.isRunning || false,
-            simulationSpeed: simulation?.simulationSpeed || 20,
+            simulationSpeed: simulation?.simulationSpeed || 300,
             frameCount: simulation?.frameCount || 0
         }
     };
@@ -4503,7 +4504,7 @@ function createSnapshot() {
         selectedAgentTypes: window.selectedAgentTypes || null,
         simulation: {
             isRunning: simulation?.isRunning || false,
-            simulationSpeed: simulation?.simulationSpeed || 20,
+            simulationSpeed: simulation?.simulationSpeed || 300,
             frameCount: simulation?.frameCount || 0
         }
     };
