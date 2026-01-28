@@ -439,6 +439,11 @@ class Simulation {
                         </div>
                         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3a3a3a;">
                             <h4 style="color: #4a9eff; margin-bottom: 10px; font-size: 14px;">💊 Помощь:</h4>
+                            <button class="command-btn" onclick="window.simulation.giveCommand('forceHeal')" 
+                                    style="background-color: #e74c3c; font-weight: bold; margin-bottom: 5px;"
+                                    ${agent.experience.healing < 5 ? 'disabled style="opacity: 0.5; background-color: #e74c3c;"' : ''}>
+                                🚨 Лечить принудительно ${agent.experience.healing < 5 ? '(нужен опыт ≥5)' : ''}
+                            </button>
                             <button class="command-btn" onclick="window.simulation.giveCommand('console')" 
                                     ${agent.experience.consoling < 5 ? 'disabled style="opacity: 0.5;"' : ''}>
                                 🤗 Утешать ${agent.experience.consoling < 5 ? '(нужен опыт ≥5)' : ''}
@@ -878,6 +883,9 @@ class Simulation {
             case 'heal':
                 this.healAgent();
                 break;
+            case 'forceHeal':
+                this.forceHealAgent();
+                break;
             case 'cook':
                 // Проверяем наличие ингредиентов
                 const hasIngredients = this.selectedAgent.inventory.some(item => 
@@ -1313,7 +1321,7 @@ class Simulation {
         this.selectedAgent.checkForSickAgents();
         if (!this.selectedAgent.sickAgent) {
             if (window.addLogEntry) {
-                window.addLogEntry(`❌ Нет больных агентов поблизости (нужно здоровье < 30% в радиусе 100 пикселей)`);
+                window.addLogEntry(`❌ Нет больных агентов поблизости (нужно здоровье < 30% в радиусе 150 пикселей)`);
             }
             return;
         }
@@ -1324,6 +1332,68 @@ class Simulation {
             window.addLogEntry(`💊 ${this.selectedAgent.name} начинает лечить ${this.selectedAgent.sickAgent.name}`);
         }
         this.hideAgentControlPanel();
+    }
+    
+    forceHealAgent() {
+        if (!this.selectedAgent) return;
+        
+        // Проверяем навык лечения
+        if (this.selectedAgent.experience.healing < 5) {
+            if (window.addLogEntry) {
+                window.addLogEntry(`❌ У ${this.selectedAgent.name} недостаточно опыта лечения (нужен опыт ≥5)`);
+            }
+            return;
+        }
+        
+        // Проверяем наличие больных агентов (расширяем радиус поиска)
+        this.selectedAgent.checkForSickAgents();
+        if (!this.selectedAgent.sickAgent) {
+            // Ищем больных агентов в большем радиусе
+            if (window.agents && window.agents.getAllAgents) {
+                const allAgents = window.agents.getAllAgents();
+                let nearestSickAgent = null;
+                let minDistance = Infinity;
+                
+                allAgents.forEach(agent => {
+                    if (agent.id === this.selectedAgent.id || agent.health <= 0 || agent.state === 'dead') return;
+                    if (agent.health < 30) {
+                        const dx = agent.position.x - this.selectedAgent.position.x;
+                        const dy = agent.position.y - this.selectedAgent.position.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Ищем в радиусе 500 пикселей для принудительного лечения
+                        if (distance < 500 && distance < minDistance) {
+                            minDistance = distance;
+                            nearestSickAgent = agent;
+                        }
+                    }
+                });
+                
+                if (nearestSickAgent) {
+                    this.selectedAgent.sickAgent = nearestSickAgent;
+                } else {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`❌ Нет больных агентов поблизости (нужно здоровье < 30%)`);
+                    }
+                    return;
+                }
+            } else {
+                if (window.addLogEntry) {
+                    window.addLogEntry(`❌ Нет больных агентов поблизости`);
+                }
+                return;
+            }
+        }
+        
+        // Устанавливаем флаг принудительного лечения (самый высокий приоритет)
+        this.selectedAgent.forceHeal = true;
+        this.selectedAgent.state = 'heal';
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`🚨 ${this.selectedAgent.name} принудительно направлен на лечение ${this.selectedAgent.sickAgent.name} (здоровье: ${Math.floor(this.selectedAgent.sickAgent.health)}%)`);
+        }
+        
+        // Не закрываем панель, чтобы пользователь мог видеть статус
     }
     
     // Обучение навыку
