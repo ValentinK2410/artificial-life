@@ -833,13 +833,29 @@ class Simulation {
             'playWithPet': 'Играет с питомцем',
             'storeFood': 'Запасает еду',
             'moveToPoint': 'Двигается к цели',
-            'cook': 'Готовит',
+            'cook': 'Готовит еду',
             'hunt': 'Охотится',
             'build': 'Строит',
-            'fish': 'Рыбачит',
+            'fish': 'Ловит рыбу',
             'farm': 'Занимается фермерством',
-            'heal': 'Лечит',
-            'findClothes': 'Ищет одежду'
+            'heal': 'Лечит больного',
+            'findClothes': 'Ищет одежду',
+            'chop_wood': 'Рубит дерево',
+            'sing': 'Поет песни',
+            'tellStory': 'Рассказывает стихи',
+            'makeLaugh': 'Смешит других',
+            'console': 'Утешает',
+            'stayWithFriend': 'Находится с другом',
+            'gatherSupplies': 'Собирает запасы',
+            'recoverSelf': 'Восстанавливается',
+            'buildHouse': 'Строит жилище',
+            'buildPen': 'Строит загон',
+            'buildBarn': 'Строит сарай',
+            'findAnimals': 'Ищет животных',
+            'developFarm': 'Развивает ферму',
+            'findWater': 'Ищет воду',
+            'dead': 'Мертв',
+            'goToMarket': 'Идет на ярмарку'
         };
         return stateNames[state] || state;
     }

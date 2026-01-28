@@ -1575,7 +1575,28 @@ class World {
         // Дополнительная информация в зависимости от типа объекта
         if (obj.type === 'agent') {
             const agent = obj.obj;
-            additionalInfo = ` (Здоровье: ${Math.floor(agent.health)}%, Голод: ${Math.floor(agent.hunger)}%)`;
+            // Получаем русское название состояния
+            let stateName = agent.state || 'explore';
+            if (window.simulation && window.simulation.getStateName) {
+                stateName = window.simulation.getStateName(stateName);
+            } else {
+                // Резервный перевод, если функция недоступна
+                const stateNames = {
+                    'explore': 'Исследует', 'findFood': 'Ищет еду', 'rest': 'Отдыхает', 'sleep': 'Спит',
+                    'findHeat': 'Ищет тепло', 'buildFire': 'Разводит костер', 'defend': 'Обороняется',
+                    'feedAnimal': 'Кормит животных', 'playWithPet': 'Играет с питомцем', 'storeFood': 'Запасает еду',
+                    'moveToPoint': 'Двигается к цели', 'cook': 'Готовит еду', 'hunt': 'Охотится', 'build': 'Строит',
+                    'fish': 'Ловит рыбу', 'farm': 'Занимается фермерством', 'heal': 'Лечит больного',
+                    'findClothes': 'Ищет одежду', 'chop_wood': 'Рубит дерево', 'sing': 'Поет песни',
+                    'tellStory': 'Рассказывает стихи', 'makeLaugh': 'Смешит других', 'console': 'Утешает',
+                    'stayWithFriend': 'Находится с другом', 'gatherSupplies': 'Собирает запасы',
+                    'recoverSelf': 'Восстанавливается', 'buildHouse': 'Строит жилище', 'buildPen': 'Строит загон',
+                    'buildBarn': 'Строит сарай', 'findAnimals': 'Ищет животных', 'developFarm': 'Развивает ферму',
+                    'findWater': 'Ищет воду', 'dead': 'Мертв', 'goToMarket': 'Идет на ярмарку'
+                };
+                stateName = stateNames[stateName] || stateName;
+            }
+            additionalInfo = ` (Состояние: ${stateName}, Здоровье: ${Math.floor(agent.health)}%, Голод: ${Math.floor(agent.hunger)}%)`;
         } else if (obj.type === 'animal') {
             const animal = obj.obj;
             if (animal.tamed) {
