@@ -2253,6 +2253,7 @@ class Simulation {
         const dayValue = document.getElementById('dayValue');
         const timeOfDayValue = document.getElementById('timeOfDayValue');
         const weatherSelect = document.getElementById('weatherSelect');
+        const gameTimeDisplay = document.getElementById('gameTimeDisplay');
 
         if (dayValue && this.world) {
             dayValue.textContent = this.world.day;
@@ -2262,6 +2263,12 @@ class Simulation {
         }
         if (weatherSelect && this.world) {
             weatherSelect.value = this.world.weather;
+        }
+        
+        // Обновляем отображение времени на главном экране
+        if (gameTimeDisplay && this.world && this.world.formatTime) {
+            const timeFormatted = this.world.formatTime();
+            gameTimeDisplay.textContent = timeFormatted.compact;
         }
     }
     

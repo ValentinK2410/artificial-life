@@ -866,16 +866,62 @@ class World {
         return null;
     }
 
+    // Расчет времени на основе дня
+    getTimeInfo() {
+        const day = this.day || 1;
+        
+        // 7 дней = 1 неделя
+        const week = Math.floor((day - 1) / 7) + 1;
+        const dayInWeek = ((day - 1) % 7) + 1;
+        
+        // 30 дней = 1 месяц
+        const month = Math.floor((day - 1) / 30) + 1;
+        const dayInMonth = ((day - 1) % 30) + 1;
+        
+        // 365 дней = 1 год
+        const year = Math.floor((day - 1) / 365) + 1;
+        const dayInYear = ((day - 1) % 365) + 1;
+        
+        return {
+            day: day,
+            week: week,
+            dayInWeek: dayInWeek,
+            month: month,
+            dayInMonth: dayInMonth,
+            year: year,
+            dayInYear: dayInYear
+        };
+    }
+    
+    // Форматирование времени для отображения
+    formatTime() {
+        const timeInfo = this.getTimeInfo();
+        const timeOfDayText = this.timeOfDay === 'day' ? 'День' : 'Ночь';
+        
+        return {
+            full: `День ${timeInfo.day} | Неделя ${timeInfo.week} (${timeInfo.dayInWeek}/7) | Месяц ${timeInfo.month} (${timeInfo.dayInMonth}/30) | Год ${timeInfo.year} (${timeInfo.dayInYear}/365) | ${timeOfDayText}`,
+            short: `День ${timeInfo.day} | Неделя ${timeInfo.week} | Месяц ${timeInfo.month} | Год ${timeInfo.year} | ${timeOfDayText}`,
+            compact: `День ${timeInfo.day} | Нед. ${timeInfo.week} | Мес. ${timeInfo.month} | Год ${timeInfo.year} | ${timeOfDayText}`
+        };
+    }
+
     updateUI() {
         const dayValue = document.getElementById('dayValue');
         const timeOfDayValue = document.getElementById('timeOfDayValue');
         const weatherSelect = document.getElementById('weatherSelect');
+        const gameTimeDisplay = document.getElementById('gameTimeDisplay');
 
         if (dayValue) dayValue.textContent = this.day;
         if (timeOfDayValue) {
             timeOfDayValue.textContent = this.timeOfDay === 'day' ? 'День' : 'Ночь';
         }
         if (weatherSelect) weatherSelect.value = this.weather;
+        
+        // Обновляем отображение времени на главном экране
+        if (gameTimeDisplay) {
+            const timeFormatted = this.formatTime();
+            gameTimeDisplay.textContent = timeFormatted.compact;
+        }
     }
 
     draw() {
