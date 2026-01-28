@@ -1465,21 +1465,32 @@ class Agent {
                     });
                 }
             } else if (this.health < SUPPLIES_CONFIG.CRITICAL_HEALTH) {
-                // Критически мало здоровья - ищем еду или лечение
-                if (this.hasMedicalSupplies()) {
+                // Критически мало здоровья - сначала проверяем наличие аптечки у себя
+                const hasFirstAidKit = this.inventory.some(item => item.type === 'first_aid_kit' && item.amount > 0);
+                
+                if (hasFirstAidKit) {
+                    // Есть аптечка - используем её для самолечения
                     this.state = 'recoverSelf';
-                    this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть медикаменты`, {
+                    this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть аптечка - самолечение`, {
+                        health: this.health
+                    });
+                } else if (this.hasMedicalSupplies()) {
+                    // Нет аптечки, но есть лечебные травы - используем их
+                    this.state = 'recoverSelf';
+                    this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть лечебные травы - самолечение`, {
                         health: this.health
                     });
                 } else if (this.foodStorage.length > 0) {
+                    // Нет медикаментов, но есть еда - используем её для восстановления
                     this.state = 'recoverSelf';
                     this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть еда в хранилище`, {
                         health: this.health,
                         foodCount: this.foodStorage.length
                     });
                 } else {
+                    // Нет ни медикаментов, ни еды - ждем помощи от других агентов или ищем еду
                     this.state = 'findFood';
-                    this.logDecision('findFood', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), нет еды и медикаментов`, {
+                    this.logDecision('findFood', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), нет еды и медикаментов - ждем помощи`, {
                         health: this.health
                     });
                 }
@@ -3858,9 +3869,32 @@ class Agent {
     recoverSelf() {
         // Если здоровье критическое - лечимся
         if (this.health < 30) {
-            // Пробуем использовать медикаменты
-            if (this.hasMedicalSupplies()) {
-                // Используем аптечку на себя
+            // Сначала проверяем наличие аптечки в инвентаре
+            const firstAidKit = this.inventory.find(item => item.type === 'first_aid_kit' && item.amount > 0);
+            
+            if (firstAidKit) {
+                // Используем аптечку - она более эффективна
+                const healAmount = 25; // Аптечка восстанавливает больше здоровья
+                const oldHealth = this.health;
+                this.health = Math.min(this.maxHealth, this.health + healAmount);
+                
+                // Уменьшаем количество аптечек
+                firstAidKit.amount--;
+                if (firstAidKit.amount <= 0) {
+                    const index = this.inventory.indexOf(firstAidKit);
+                    if (index > -1) {
+                        this.inventory.splice(index, 1);
+                    }
+                }
+                
+                if (window.addLogEntry) {
+                    window.addLogEntry(`💊 ${this.name} использовал аптечку для лечения (здоровье: ${Math.floor(oldHealth)}% → ${Math.floor(this.health)}%)`);
+                }
+                
+                // Также восстанавливаем иммунитет при использовании аптечки
+                this.immunity = Math.min(100, (this.immunity || 0) + 10);
+            } else if (this.hasMedicalSupplies()) {
+                // Если нет аптечки, используем лечебные травы
                 const healingHerbs = ['rosehip', 'st_johns_wort', 'mint', 'lemon', 'honey'];
                 let herbItem = this.inventory.find(item => healingHerbs.includes(item.type));
                 
@@ -3870,8 +3904,16 @@ class Agent {
                 
                 if (herbItem) {
                     // Используем лечебную траву
-                    const healAmount = 15;
+                    const FOOD_PROPERTIES = window.FOOD_PROPERTIES || {};
+                    const props = FOOD_PROPERTIES[herbItem.type];
+                    const healAmount = props && props.health ? props.health : 15;
+                    const oldHealth = this.health;
                     this.health = Math.min(this.maxHealth, this.health + healAmount);
+                    
+                    // Восстанавливаем иммунитет, если трава это делает
+                    if (props && props.immunity) {
+                        this.immunity = Math.min(100, (this.immunity || 0) + props.immunity);
+                    }
                     
                     herbItem.amount--;
                     if (herbItem.amount <= 0) {
@@ -3885,7 +3927,7 @@ class Agent {
                     }
                     
                     if (window.addLogEntry) {
-                        window.addLogEntry(`💊 ${this.name} использовал лечебные травы (здоровье: ${Math.floor(this.health)}%)`);
+                        window.addLogEntry(`💊 ${this.name} использовал лечебные травы (${this.getFoodName(herbItem.type)}) для лечения (здоровье: ${Math.floor(oldHealth)}% → ${Math.floor(this.health)}%)`);
                     }
                 }
             }
