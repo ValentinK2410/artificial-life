@@ -1584,6 +1584,16 @@ class World {
             const allAgents = window.agents.getAllAgents();
             allAgents.forEach(agent => {
                 this.drawAgent(agent);
+                
+                // Отрисовка взрослых детей агента (которые выросли из стадии baby)
+                if (agent.children && agent.children.length > 0) {
+                    agent.children.forEach(child => {
+                        if (child.stage !== 'baby' && child.position) {
+                            // Рисуем взрослого ребенка как агента
+                            this.drawAgent(child);
+                        }
+                    });
+                }
             });
             
             // Отрисовка активных путей агентов (кроме добычи ресурсов)
