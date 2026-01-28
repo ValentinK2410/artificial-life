@@ -3494,6 +3494,42 @@ class World {
         this.ctx.arc(x + 7, y - 12, 2, 0, Math.PI * 2);
         this.ctx.fill();
         
+        // Полоска здоровья (если включено в настройках)
+        if (window.showHealthBars !== false && health < 100) {
+            const maxHealth = 100;
+            const healthPercent = Math.max(0, Math.min(100, (health / maxHealth) * 100));
+            
+            const barWidth = 30;
+            const barHeight = 4;
+            const barX = x - barWidth / 2;
+            const barY = y - 20;
+            
+            // Фон полоски здоровья
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+            
+            // Полоска здоровья
+            const healthWidth = (barWidth * healthPercent) / 100;
+            this.ctx.fillStyle = healthPercent > 50 ? '#4CAF50' : healthPercent > 25 ? '#FF9800' : '#F44336';
+            this.ctx.fillRect(barX, barY, healthWidth, barHeight);
+        }
+        
+        // Имя агента (если включено в настройках)
+        if (window.showAgentNames !== false && agent.name) {
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '11px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'bottom';
+            
+            // Тень для текста для лучшей читаемости
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(agent.name, x + 1, y - (window.showHealthBars !== false ? 25 : 20) + 1);
+            
+            // Сам текст
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.fillText(agent.name, x, y - (window.showHealthBars !== false ? 25 : 20));
+        }
+        
         // Индикатор состояния (цветной фон за агентом)
         if (state) {
             const stateColors = {

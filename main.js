@@ -2489,6 +2489,30 @@ function initializeSimulationControls() {
         });
     }
     
+    // Кнопка создания слепка
+    const createSnapshotBtn = document.getElementById('createSnapshotBtn');
+    if (createSnapshotBtn) {
+        createSnapshotBtn.addEventListener('click', () => {
+            openSnapshotsModal();
+        });
+    }
+    
+    // Кнопка загрузки слепка
+    const loadSnapshotBtn = document.getElementById('loadSnapshotBtn');
+    if (loadSnapshotBtn) {
+        loadSnapshotBtn.addEventListener('click', () => {
+            openSnapshotsModal();
+        });
+    }
+    
+    // Кнопка подтверждения создания слепка
+    const createSnapshotConfirmBtn = document.getElementById('createSnapshotConfirmBtn');
+    if (createSnapshotConfirmBtn) {
+        createSnapshotConfirmBtn.addEventListener('click', () => {
+            createSnapshot();
+        });
+    }
+    
     // Кнопка добавления агента
     const addAgentBtn = document.getElementById('addAgentBtn');
     const addAgentModal = document.getElementById('addAgentModal');
@@ -4051,8 +4075,24 @@ function loadSavedGameState(worldState) {
                 agent.pets = savedAgent.pets || [];
                 agent.state = savedAgent.state || 'explore';
                 agent.angle = savedAgent.angle || 0;
+                
+                // Дополнительные данные для системы любви и семьи
+                if (savedAgent.bouquet !== undefined) agent.bouquet = savedAgent.bouquet;
+                if (savedAgent.inLove !== undefined) agent.inLove = savedAgent.inLove;
+                if (savedAgent.beloved !== undefined) agent.beloved = savedAgent.beloved;
+                if (savedAgent.children !== undefined) agent.children = savedAgent.children || [];
+                if (savedAgent.pregnant !== undefined) agent.pregnant = savedAgent.pregnant;
+                if (savedAgent.pregnancyProgress !== undefined) agent.pregnancyProgress = savedAgent.pregnancyProgress;
+                if (savedAgent.stroller !== undefined) agent.stroller = savedAgent.stroller;
             }
         });
+    }
+    
+    // Загружаем terrain (лес, цветы)
+    if (worldState.terrain && window.world) {
+        if (!window.world.terrain) window.world.terrain = {};
+        if (worldState.terrain.forest) window.world.terrain.forest = worldState.terrain.forest;
+        if (worldState.terrain.flowers) window.world.terrain.flowers = worldState.terrain.flowers;
     }
 }
 
@@ -4098,7 +4138,8 @@ function saveCurrentGame() {
             animals: window.world?.animals || [],
             predators: window.world?.predators || [],
             fires: window.world?.fires || [],
-            buildings: window.world?.buildings || []
+            buildings: window.world?.buildings || [],
+            terrain: window.world?.terrain || { forest: [], flowers: [] }
         },
         agents: window.agents?.getPlayerAgents() || [],
         selectedAgentTypes: window.selectedAgentTypes || null, // Сохраняем выбранные типы агентов
@@ -4263,6 +4304,204 @@ function startOfflineMode(playerName) {
         }
     }, 500);
 }
+
+// ========== ФУНКЦИИ ДЛЯ РАБОТЫ СО СЛЕПКАМИ ==========
+
+// Открыть модальное окно слепков
+function openSnapshotsModal() {
+    const snapshotsModal = document.getElementById('snapshotsModal');
+    if (!snapshotsModal) return;
+    
+    snapshotsModal.style.display = 'flex';
+    refreshSnapshotsList();
+    
+    // Закрытие при клике вне модального окна
+    snapshotsModal.addEventListener('click', (e) => {
+        if (e.target === snapshotsModal) {
+            closeSnapshotsModal();
+        }
+    });
+}
+
+// Закрыть модальное окно слепков
+window.closeSnapshotsModal = function() {
+    const snapshotsModal = document.getElementById('snapshotsModal');
+    if (snapshotsModal) {
+        snapshotsModal.style.display = 'none';
+    }
+};
+
+// Обновить список слепков
+function refreshSnapshotsList() {
+    const snapshotsList = document.getElementById('snapshotsList');
+    if (!snapshotsList) return;
+    
+    const saveModule = saveGameModule || window.saveGameModule;
+    if (!saveModule || !currentPlayerName || !currentWorldId) {
+        snapshotsList.innerHTML = '<p style="color: #b0b0b0; text-align: center; padding: 20px;">Нет данных для отображения</p>';
+        return;
+    }
+    
+    const snapshots = saveModule.getAllSnapshots(currentPlayerName, currentWorldId);
+    
+    if (snapshots.length === 0) {
+        snapshotsList.innerHTML = '<p style="color: #b0b0b0; text-align: center; padding: 20px;">Нет созданных слепков</p>';
+        return;
+    }
+    
+    let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+    snapshots.forEach(snapshot => {
+        const date = new Date(snapshot.createdAt);
+        const dateStr = date.toLocaleString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        html += `
+            <div style="padding: 15px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px; border: 1px solid rgba(74, 158, 255, 0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <h4 style="color: #4a9eff; margin: 0 0 5px 0; font-size: 14px;">${snapshot.snapshotName}</h4>
+                        <p style="color: #b0b0b0; margin: 0; font-size: 12px;">${dateStr}</p>
+                        <p style="color: #b0b0b0; margin: 5px 0 0 0; font-size: 12px;">День: ${snapshot.day} | Агентов: ${snapshot.agentsCount}</p>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="loadSnapshotFromList('${snapshot.snapshotKey}')" 
+                                class="control-btn" 
+                                style="padding: 8px 15px; font-size: 12px; background-color: #3498db;">
+                            📂 Загрузить
+                        </button>
+                        <button onclick="deleteSnapshotFromList('${snapshot.snapshotKey}')" 
+                                class="control-btn" 
+                                style="padding: 8px 15px; font-size: 12px; background-color: #e74c3c;">
+                            🗑️ Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    snapshotsList.innerHTML = html;
+}
+
+// Создать слепок
+function createSnapshot() {
+    const snapshotNameInput = document.getElementById('snapshotNameInput');
+    const snapshotName = snapshotNameInput ? snapshotNameInput.value.trim() : null;
+    
+    if (!currentPlayerName || !currentWorldId) {
+        alert('Не указаны имя игрока или ID мира');
+        return;
+    }
+    
+    const saveModule = saveGameModule || window.saveGameModule;
+    if (!saveModule) {
+        alert('Модуль сохранения не загружен');
+        return;
+    }
+    
+    // Собираем состояние игры (аналогично saveCurrentGame, но с дополнительными данными)
+    const gameState = {
+        world: {
+            day: window.world?.day || 1,
+            timeOfDay: window.world?.timeOfDay || 'day',
+            weather: window.world?.weather || 'sunny',
+            resources: window.world?.resources || [],
+            animals: window.world?.animals || [],
+            predators: window.world?.predators || [],
+            fires: window.world?.fires || [],
+            buildings: window.world?.buildings || [],
+            terrain: window.world?.terrain || { forest: [], flowers: [] }
+        },
+        agents: window.agents?.getPlayerAgents() || [],
+        selectedAgentTypes: window.selectedAgentTypes || null,
+        simulation: {
+            isRunning: simulation?.isRunning || false,
+            simulationSpeed: simulation?.simulationSpeed || 20,
+            frameCount: simulation?.frameCount || 0
+        }
+    };
+    
+    const result = saveModule.createSnapshot(currentPlayerName, currentWorldId, gameState, snapshotName);
+    
+    if (result.success) {
+        if (snapshotNameInput) snapshotNameInput.value = '';
+        refreshSnapshotsList();
+        if (window.addLogEntry) {
+            window.addLogEntry(`📸 Слепок создан: ${result.snapshotName}`);
+        }
+        alert(`Слепок "${result.snapshotName}" успешно создан!`);
+    } else {
+        alert(`Ошибка создания слепка: ${result.error || 'Неизвестная ошибка'}`);
+    }
+}
+
+// Загрузить слепок из списка
+window.loadSnapshotFromList = function(snapshotKey) {
+    if (!confirm('Вы уверены, что хотите загрузить этот слепок? Текущее состояние игры будет заменено.')) {
+        return;
+    }
+    
+    const saveModule = saveGameModule || window.saveGameModule;
+    if (!saveModule) {
+        alert('Модуль сохранения не загружен');
+        return;
+    }
+    
+    const snapshotData = saveModule.loadSnapshot(snapshotKey);
+    if (!snapshotData) {
+        alert('Ошибка загрузки слепка');
+        return;
+    }
+    
+    // Восстанавливаем состояние игры
+    if (snapshotData.worldState) {
+        loadSavedGameState(snapshotData.worldState);
+        
+        // Восстанавливаем состояние симуляции
+        if (snapshotData.simulation && simulation) {
+            simulation.simulationSpeed = snapshotData.simulation.simulationSpeed || 20;
+            if (snapshotData.simulation.isRunning && !simulation.isRunning) {
+                simulation.start();
+            } else if (!snapshotData.simulation.isRunning && simulation.isRunning) {
+                simulation.pause();
+            }
+        }
+        
+        if (window.addLogEntry) {
+            window.addLogEntry(`📂 Слепок "${snapshotData.snapshotName}" загружен`);
+        }
+        
+        closeSnapshotsModal();
+        alert(`Слепок "${snapshotData.snapshotName}" успешно загружен!`);
+    }
+};
+
+// Удалить слепок из списка
+window.deleteSnapshotFromList = function(snapshotKey) {
+    if (!confirm('Вы уверены, что хотите удалить этот слепок?')) {
+        return;
+    }
+    
+    const saveModule = saveGameModule || window.saveGameModule;
+    if (!saveModule) {
+        alert('Модуль сохранения не загружен');
+        return;
+    }
+    
+    if (saveModule.deleteSnapshot(snapshotKey)) {
+        refreshSnapshotsList();
+        if (window.addLogEntry) {
+            window.addLogEntry('🗑️ Слепок удален');
+        }
+    } else {
+        alert('Ошибка удаления слепка');
+    }
+};
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {

@@ -212,6 +212,10 @@
                         <div style="margin-top: 10px;">
                             <button id="saveBtn" class="control-btn" style="width: 100%;">💾 Сохранить игру</button>
                         </div>
+                        <div style="margin-top: 10px;">
+                            <button id="createSnapshotBtn" class="control-btn" style="width: 100%; background-color: #9b59b6;">📸 Создать слепок</button>
+                            <button id="loadSnapshotBtn" class="control-btn" style="width: 100%; background-color: #3498db; margin-top: 5px;">📂 Загрузить слепок</button>
+                        </div>
                         <div class="slider-container">
                             <label for="speedSlider" style="color: #b0b0b0; font-size: 14px;">Скорость
                                 симуляции:</label>
@@ -329,6 +333,32 @@
                     <div id="log" class="log-container">
                         <!-- События будут добавляться сюда -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для работы со слепками -->
+    <div id="snapshotsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" onclick="closeSnapshotsModal()">&times;</span>
+            <h2 style="color: #4a9eff; margin-bottom: 20px;">📸 Управление слепками</h2>
+            
+            <!-- Создание нового слепка -->
+            <div style="margin-bottom: 30px; padding: 15px; background-color: rgba(74, 158, 255, 0.1); border-radius: 5px;">
+                <h3 style="color: #4a9eff; margin-bottom: 10px; font-size: 16px;">Создать новый слепок</h3>
+                <input type="text" id="snapshotNameInput" placeholder="Название слепка (необязательно)" 
+                       style="width: 100%; padding: 10px; margin-bottom: 10px; background-color: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 5px; color: #fff; font-size: 14px;">
+                <button id="createSnapshotConfirmBtn" class="control-btn" style="width: 100%; background-color: #9b59b6;">
+                    📸 Создать слепок
+                </button>
+            </div>
+            
+            <!-- Список существующих слепков -->
+            <div>
+                <h3 style="color: #4a9eff; margin-bottom: 15px; font-size: 16px;">Существующие слепки</h3>
+                <div id="snapshotsList" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Слепки будут добавлены динамически -->
                 </div>
             </div>
         </div>
