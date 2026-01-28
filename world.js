@@ -3088,6 +3088,61 @@ class World {
             predator.hunger += 0.3;
             if (predator.hunger > 100) predator.hunger = 100;
             
+            // Хищники могут есть еду агентов, если они голодны и находятся рядом
+            if (predator.hunger > 60 && window.agents) {
+                const allAgents = window.agents.getAllAgents();
+                for (const agent of allAgents) {
+                    if (!agent.position) continue;
+                    const dx = agent.position.x - predator.x;
+                    const dy = agent.position.y - predator.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Если хищник рядом с агентом (в пределах 25 пикселей)
+                    if (distance < 25) {
+                        // Ищем еду в foodStorage агента
+                        if (agent.foodStorage && agent.foodStorage.length > 0) {
+                            const foodItem = agent.foodStorage.find(f => f.amount > 0);
+                            if (foodItem) {
+                                // Хищник ест еду
+                                foodItem.amount--;
+                                predator.hunger = Math.max(0, predator.hunger - 40);
+                                
+                                if (foodItem.amount <= 0) {
+                                    const index = agent.foodStorage.indexOf(foodItem);
+                                    if (index > -1) agent.foodStorage.splice(index, 1);
+                                }
+                                
+                                if (window.addLogEntry && Math.random() < 0.1) {
+                                    window.addLogEntry(`🐺 ${this.getPredatorName(predator.type)} съел еду у ${agent.name}`);
+                                }
+                                break; // Хищник наелся
+                            }
+                        }
+                        
+                        // Если не нашли в foodStorage, ищем в inventory
+                        if (agent.inventory && agent.inventory.length > 0) {
+                            const foodTypes = ['berries', 'mushrooms', 'fish', 'meat', 'apple', 'potato', 'bread', 'bird'];
+                            const foodItem = agent.inventory.find(item => foodTypes.includes(item.type) && item.amount > 0);
+                            if (foodItem) {
+                                // Хищник ест еду из инвентаря
+                                foodItem.amount--;
+                                predator.hunger = Math.max(0, predator.hunger - 40);
+                                
+                                if (foodItem.amount <= 0) {
+                                    const index = agent.inventory.indexOf(foodItem);
+                                    if (index > -1) agent.inventory.splice(index, 1);
+                                }
+                                
+                                if (window.addLogEntry && Math.random() < 0.1) {
+                                    window.addLogEntry(`🐺 ${this.getPredatorName(predator.type)} съел еду у ${agent.name}`);
+                                }
+                                break; // Хищник наелся
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Проверяем, есть ли рядом агенты, которые атакуют хищника
             if (window.agents && window.agents.agents) {
                 window.agents.agents.forEach(agent => {
