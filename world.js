@@ -2390,6 +2390,114 @@ class World {
             this.ctx.fill();
         }
         
+        // Визуализация поиска ресурсов
+        if (agent.searchResourceType && agent.searchRadius > 50 && !agent.targetSupplyResource) {
+            // Агент ищет ресурсы - рисуем круг с радиусом поиска
+            this.ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([3, 3]);
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, agent.searchRadius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Рисуем стрелку в направлении поиска
+            if (agent.searchDirection) {
+                const arrowLength = Math.min(agent.searchRadius, 80);
+                const arrowEndX = x + agent.searchDirection.x * arrowLength;
+                const arrowEndY = y + agent.searchDirection.y * arrowLength;
+                
+                // Линия стрелки
+                this.ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
+                this.ctx.lineWidth = 3;
+                this.ctx.lineCap = 'round';
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(arrowEndX, arrowEndY);
+                this.ctx.stroke();
+                
+                // Наконечник стрелки
+                const arrowSize = 8;
+                const angle = Math.atan2(agent.searchDirection.y, agent.searchDirection.x);
+                this.ctx.fillStyle = 'rgba(255, 200, 0, 0.8)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(arrowEndX, arrowEndY);
+                this.ctx.lineTo(
+                    arrowEndX - arrowSize * Math.cos(angle - Math.PI / 6),
+                    arrowEndY - arrowSize * Math.sin(angle - Math.PI / 6)
+                );
+                this.ctx.lineTo(
+                    arrowEndX - arrowSize * Math.cos(angle + Math.PI / 6),
+                    arrowEndY - arrowSize * Math.sin(angle + Math.PI / 6)
+                );
+                this.ctx.closePath();
+                this.ctx.fill();
+            } else if (agent.targetPosition) {
+                // Если нет направления поиска, но есть целевая позиция - используем её
+                const dx = agent.targetPosition.x - x;
+                const dy = agent.targetPosition.y - y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                if (length > 0) {
+                    const dirX = dx / length;
+                    const dirY = dy / length;
+                    const arrowLength = Math.min(agent.searchRadius, 80);
+                    const arrowEndX = x + dirX * arrowLength;
+                    const arrowEndY = y + dirY * arrowLength;
+                    
+                    // Линия стрелки
+                    this.ctx.strokeStyle = 'rgba(255, 200, 0, 0.6)';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y);
+                    this.ctx.lineTo(arrowEndX, arrowEndY);
+                    this.ctx.stroke();
+                    
+                    // Наконечник стрелки
+                    const arrowSize = 8;
+                    const angle = Math.atan2(dirY, dirX);
+                    this.ctx.fillStyle = 'rgba(255, 200, 0, 0.8)';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(arrowEndX, arrowEndY);
+                    this.ctx.lineTo(
+                        arrowEndX - arrowSize * Math.cos(angle - Math.PI / 6),
+                        arrowEndY - arrowSize * Math.sin(angle - Math.PI / 6)
+                    );
+                    this.ctx.lineTo(
+                        arrowEndX - arrowSize * Math.cos(angle + Math.PI / 6),
+                        arrowEndY - arrowSize * Math.sin(angle + Math.PI / 6)
+                    );
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+            }
+        }
+        
+        // Визуализация движения к ресурсу
+        if (agent.targetSupplyResource && agent.targetSupplyResource.resource) {
+            const resource = agent.targetSupplyResource.resource;
+            // Рисуем линию к ресурсу
+            this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([4, 4]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(resource.x, resource.y);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            
+            // Рисуем маркер на ресурсе
+            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+            this.ctx.beginPath();
+            this.ctx.arc(resource.x, resource.y, 6, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Обводка маркера
+            this.ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+        
         // Определение типа агента и соответствующих цветов одежды
         const agentStyles = {
             'man': { skin: '#f4c2a1', hair: '#3a2a1a', clothes: '#4a6a9a', pants: '#2a4a6a' },

@@ -60,6 +60,7 @@ class Agent {
         // Параметры для системы поиска с расширяющимся радиусом
         this.searchRadius = 50; // Текущий радиус поиска ресурсов (пиксели, начинается с 50)
         this.searchResourceType = null; // Тип искомого ресурса (строка или null)
+        this.searchDirection = null; // Направление поиска (объект {x, y} или null) для визуализации
         this.interruptedTask = null; // Прерванная задача для возврата после восстановления (строка состояния или null)
         
         // Параметры для строительства
@@ -660,6 +661,7 @@ class Agent {
         if (this.searchResourceType !== resourceKey) {
             this.searchResourceType = resourceKey;
             this.searchRadius = 50; // Начинаем с 50 пикселей
+            this.searchDirection = null; // Сбрасываем направление поиска
         }
         
         // Ищем ресурс в текущем радиусе
@@ -668,6 +670,7 @@ class Agent {
         if (found) {
             // Нашли ресурс - сбрасываем радиус для следующего поиска
             this.searchRadius = 50;
+            this.searchDirection = null; // Очищаем направление поиска
             return found;
         }
         
@@ -683,6 +686,7 @@ class Agent {
         if (this.searchRadius > maxRadius) {
             // Достигли максимального радиуса - сбрасываем и возвращаем null
             this.searchRadius = 50;
+            this.searchDirection = null;
             return null;
         }
         
@@ -743,6 +747,7 @@ class Agent {
     resetSearchRadius() {
         this.searchRadius = 50;
         this.searchResourceType = null;
+        this.searchDirection = null;
     }
     
     // ========== СИСТЕМА ПОИСКА ВОДЫ ==========
@@ -1549,6 +1554,19 @@ class Agent {
                         }
                     } else {
                         // Продолжаем искать - двигаемся в случайном направлении для расширения области поиска
+                        // Сохраняем направление поиска для визуализации
+                        if (!this.targetPosition) {
+                            this.moveToRandomPoint();
+                        }
+                        // Обновляем направление поиска на основе движения
+                        if (this.targetPosition) {
+                            const dx = this.targetPosition.x - this.position.x;
+                            const dy = this.targetPosition.y - this.position.y;
+                            const length = Math.sqrt(dx * dx + dy * dy);
+                            if (length > 0) {
+                                this.searchDirection = { x: dx / length, y: dy / length };
+                            }
+                        }
                         this.state = 'gatherSupplies';
                     }
                 }
@@ -3689,14 +3707,26 @@ class Agent {
                 const found = this.searchWithExpandingRadius(neededSupply.resourceTypes);
                 if (found) {
                     this.targetSupplyResource = found;
+                    // Ресурс найден - очищаем направление поиска
+                    this.searchDirection = null;
                 } else {
                     // Не нашли - двигаемся в случайном направлении для расширения области поиска
                     this.moveToRandomPoint();
+                    // Обновляем направление поиска для визуализации
+                    if (this.targetPosition) {
+                        const dx = this.targetPosition.x - this.position.x;
+                        const dy = this.targetPosition.y - this.position.y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        if (length > 0) {
+                            this.searchDirection = { x: dx / length, y: dy / length };
+                        }
+                    }
                     return;
                 }
             } else {
                 // Все запасы в норме
                 this.state = 'explore';
+                this.searchDirection = null;
                 return;
             }
         }
@@ -3715,10 +3745,13 @@ class Agent {
                 // Это дерево - рубим
                 this.state = 'chop_wood';
                 this.targetTree = resource;
+                this.targetSupplyResource = null;
+                this.searchDirection = null;
             } else {
                 // Обычный ресурс - собираем через interactWithWorld
                 // Ресурс будет собран автоматически при близости
                 this.targetSupplyResource = null;
+                this.searchDirection = null;
                 
                 // Проверяем, нужно ли продолжать сбор
                 const supplies = this.checkSupplies();
