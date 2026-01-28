@@ -127,6 +127,13 @@ class Agent {
         this.targetFriend = null; // Целевой друг для взаимодействия (объект Agent или null)
         this.entertainmentProgress = 0; // Прогресс развлечения других агентов (0-100)
         this.consolingTarget = null; // Целевой агент для утешения (объект Agent или null)
+        this.bouquet = null; // Букет цветов в руке (null или объект {flowers: [], count: число})
+        this.inLove = null; // ID агента, в которого влюблен (null или строка ID)
+        this.beloved = null; // ID агента, который влюблен в этого агента (null или строка ID)
+        this.children = []; // Массив детей агента (массив объектов {id, age, stage})
+        this.pregnant = false; // Флаг беременности (true/false)
+        this.pregnancyProgress = 0; // Прогресс беременности (0-100)
+        this.stroller = null; // Коляска с малышом (null или объект {babyId, x, y})
         this.consolingProgress = 0; // Прогресс утешения (0-100)
         this.lastAutoHealTime = 0; // Время последней попытки автоматического лечения (счетчик кадров)
         this.attackTarget = null; // Цель атаки (хищник или животное, объект или null)
@@ -5425,6 +5432,38 @@ class Agent {
                     }
                     world.resources.splice(index, 1); // Удаляем ресурс из массива ресурсов мира
                 }
+            }
+        }
+        
+        // Проверяем цветы под ногами
+        if (world.getFlowerAt) {
+            const flower = world.getFlowerAt(this.position.x, this.position.y);
+            if (flower && !flower.collected) {
+                // Собираем цветок
+                this.isBending = true;
+                this.animationFrame++;
+                
+                // Инициализируем букет, если его нет
+                if (!this.bouquet) {
+                    this.bouquet = { flowers: [], count: 0 };
+                }
+                
+                // Добавляем цветок в букет (максимум 5 цветов)
+                if (this.bouquet.count < 5) {
+                    this.bouquet.flowers.push(flower.type);
+                    this.bouquet.count++;
+                    flower.collected = true; // Помечаем цветок как собранный
+                    
+                    if (window.addLogEntry && Math.random() < 0.3) {
+                        window.addLogEntry(`🌸 ${this.name} собрал цветок (в букете: ${this.bouquet.count}/5)`);
+                    }
+                } else {
+                    if (window.addLogEntry) {
+                        window.addLogEntry(`💐 ${this.name} уже собрал букет из 5 цветов`);
+                    }
+                }
+                
+                this.isBending = false;
             }
         }
     }

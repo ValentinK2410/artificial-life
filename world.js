@@ -39,7 +39,8 @@ class World {
             pond: null,      // Пруд (объект с координатами и размерами)
             clearing: null, // Полянка (область)
             stones: [],     // Массив камней
-            berryBushes: [] // Кусты с ягодами
+            berryBushes: [], // Кусты с ягодами
+            flowers: []     // Массив цветов
         };
         
         // Инициализация canvas
@@ -743,6 +744,29 @@ class World {
                 });
             }
         }
+        
+        // Генерация цветов на поле
+        this.terrain.flowers = [];
+        const flowerCount = 100; // Количество цветов
+        const flowerTypes = ['red', 'pink', 'yellow', 'blue', 'purple', 'white']; // Типы цветов
+        for (let i = 0; i < flowerCount; i++) {
+            const x = (Math.random() - 0.5) * worldSize;
+            const y = (Math.random() - 0.5) * worldSize;
+            // Проверяем, чтобы цветы не попадали в пруд
+            const distToPond = Math.sqrt(
+                Math.pow(x - this.terrain.pond.centerX, 2) + 
+                Math.pow(y - this.terrain.pond.centerY, 2)
+            );
+            if (distToPond > this.terrain.pond.radiusX + 20) {
+                this.terrain.flowers.push({
+                    x: x,
+                    y: y,
+                    type: flowerTypes[Math.floor(Math.random() * flowerTypes.length)],
+                    id: 'flower_' + Date.now() + '_' + i,
+                    collected: false // Флаг собранности цветка
+                });
+            }
+        }
     }
 
     addResource(type, count = 1) {
@@ -811,6 +835,29 @@ class World {
             
             if (distance <= searchRadius) {
                 return resource;
+            }
+        }
+        
+        return null;
+    }
+    
+    getFlowerAt(x, y) {
+        // Проверяет, есть ли цветок в указанных координатах
+        if (!this.terrain || !this.terrain.flowers) return null;
+        
+        const searchRadius = 15; // Радиус поиска
+        
+        for (let i = 0; i < this.terrain.flowers.length; i++) {
+            const flower = this.terrain.flowers[i];
+            if (flower.collected) continue; // Пропускаем собранные цветы
+            
+            const distance = Math.sqrt(
+                Math.pow(flower.x - x, 2) + 
+                Math.pow(flower.y - y, 2)
+            );
+            
+            if (distance <= searchRadius) {
+                return flower;
             }
         }
         
@@ -1457,6 +1504,78 @@ class World {
             this.drawPathPreview();
         }
         
+        // Отрисовка цветов
+        if (this.terrain.flowers) {
+            this.terrain.flowers.forEach(flower => {
+                if (flower.collected) return; // Не рисуем собранные цветы
+                
+                const flowerColors = {
+                    'red': { center: '#ff4444', petal: '#ff6666', centerDark: '#cc0000' },
+                    'pink': { center: '#ff88cc', petal: '#ffaadd', centerDark: '#cc6699' },
+                    'yellow': { center: '#ffdd44', petal: '#ffee66', centerDark: '#ccaa00' },
+                    'blue': { center: '#4488ff', petal: '#66aaff', centerDark: '#0066cc' },
+                    'purple': { center: '#aa44ff', petal: '#cc66ff', centerDark: '#6600cc' },
+                    'white': { center: '#ffffff', petal: '#f0f0f0', centerDark: '#cccccc' }
+                };
+                
+                const colors = flowerColors[flower.type] || flowerColors['red'];
+                
+                // Тень цветка
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+                this.ctx.beginPath();
+                this.ctx.ellipse(flower.x + 1, flower.y + 1, 3, 1.5, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Лепестки цветка (5 лепестков)
+                const petalCount = 5;
+                for (let i = 0; i < petalCount; i++) {
+                    const angle = (i / petalCount) * Math.PI * 2;
+                    const petalX = flower.x + Math.cos(angle) * 4;
+                    const petalY = flower.y + Math.sin(angle) * 4;
+                    
+                    // Градиент для лепестка
+                    const petalGradient = this.ctx.createRadialGradient(
+                        petalX, petalY, 0,
+                        petalX, petalY, 5
+                    );
+                    petalGradient.addColorStop(0, colors.petal);
+                    petalGradient.addColorStop(1, colors.centerDark);
+                    
+                    this.ctx.fillStyle = petalGradient;
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(petalX, petalY, 5, 3, angle, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                // Центр цветка
+                const centerGradient = this.ctx.createRadialGradient(
+                    flower.x, flower.y, 0,
+                    flower.x, flower.y, 3
+                );
+                centerGradient.addColorStop(0, colors.center);
+                centerGradient.addColorStop(1, colors.centerDark);
+                
+                this.ctx.fillStyle = centerGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(flower.x, flower.y, 3, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Стебель
+                this.ctx.strokeStyle = '#2a7a2a';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.beginPath();
+                this.ctx.moveTo(flower.x, flower.y + 3);
+                this.ctx.lineTo(flower.x, flower.y + 8);
+                this.ctx.stroke();
+                
+                // Лист
+                this.ctx.fillStyle = '#3a9a3a';
+                this.ctx.beginPath();
+                this.ctx.ellipse(flower.x + 2, flower.y + 6, 2, 1, 0.5, 0, Math.PI * 2);
+                this.ctx.fill();
+            });
+        }
+
         // Отрисовка зданий
         this.drawBuildings();
         
@@ -3167,6 +3286,58 @@ class World {
                 this.ctx.fillRect(1, -2, 1, 4); // Рукоятка
                 this.ctx.fillStyle = '#C0C0C0'; // Серебряный цвет для лезвия
                 this.ctx.fillRect(1.5, -4, 1, 3); // Лезвие
+                this.ctx.restore();
+            }
+            
+            // Если есть букет - рисуем его в правой руке
+            if (agent.bouquet && agent.bouquet.count > 0) {
+                this.ctx.save();
+                this.ctx.translate(x + 4, y + 2);
+                this.ctx.rotate(armAngle);
+                
+                const flowerColors = {
+                    'red': '#ff4444',
+                    'pink': '#ff88cc',
+                    'yellow': '#ffdd44',
+                    'blue': '#4488ff',
+                    'purple': '#aa44ff',
+                    'white': '#ffffff'
+                };
+                
+                // Стебель букета
+                this.ctx.strokeStyle = '#2a7a2a';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(2, 0);
+                this.ctx.lineTo(2, 8);
+                this.ctx.stroke();
+                
+                // Обертка букета (лента)
+                this.ctx.fillStyle = '#ff6b9d';
+                this.ctx.fillRect(0, 6, 4, 2);
+                
+                // Цветы в букете (рисуем до 5 цветов)
+                const flowersToDraw = Math.min(agent.bouquet.count, 5);
+                for (let i = 0; i < flowersToDraw; i++) {
+                    const flowerType = agent.bouquet.flowers[i] || 'red';
+                    const color = flowerColors[flowerType] || '#ff4444';
+                    const angle = (i / flowersToDraw) * Math.PI * 2;
+                    const flowerX = 2 + Math.cos(angle) * 3;
+                    const flowerY = 2 + Math.sin(angle) * 2;
+                    
+                    // Лепестки цветка
+                    this.ctx.fillStyle = color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(flowerX, flowerY, 2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Центр цветка
+                    this.ctx.fillStyle = this.darkenColor(color, 30);
+                    this.ctx.beginPath();
+                    this.ctx.arc(flowerX, flowerY, 0.8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
                 this.ctx.restore();
             }
             
