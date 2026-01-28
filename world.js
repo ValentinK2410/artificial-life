@@ -3654,6 +3654,14 @@ class World {
         // Отрисовка
         this.draw();
 
+        // Обновляем UI (включая время) каждые 10 кадров для производительности
+        if (!this.lastUIUpdateFrame) this.lastUIUpdateFrame = 0;
+        this.lastUIUpdateFrame++;
+        if (this.lastUIUpdateFrame >= 10) {
+            this.updateUI();
+            this.lastUIUpdateFrame = 0;
+        }
+        
         // Продолжение анимации
         this.animationFrameId = requestAnimationFrame(() => this.animate());
     }
