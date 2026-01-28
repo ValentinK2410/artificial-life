@@ -585,6 +585,11 @@ class World {
         const treeCount = 150; // Увеличено для красивого леса
         const worldSize = Math.max(width, height) * 3; // Генерируем в большем диапазоне
         
+        // Минимальное и максимальное расстояние между деревьями
+        const minDistance = 20; // Минимальное расстояние между деревьями (пиксели)
+        const maxDistance = 40; // Максимальное расстояние между деревьями (пиксели)
+        const targetDistance = (minDistance + maxDistance) / 2; // Целевое расстояние (30 пикселей)
+        
         // Генерируем деревья группами для более реалистичного леса
         const forestGroups = 8; // Количество групп деревьев
         for (let group = 0; group < forestGroups; group++) {
@@ -593,6 +598,8 @@ class World {
             const groupSize = 15 + Math.random() * 10; // Размер группы
             
             const treesInGroup = Math.floor(treeCount / forestGroups) + Math.floor(Math.random() * 5);
+            const treesInThisGroup = []; // Массив деревьев в текущей группе
+            
             for (let i = 0; i < treesInGroup; i++) {
                 const age = Math.random() * 150; // Случайный возраст от 0 до 150 дней
                 let state = 'young';
@@ -600,13 +607,60 @@ class World {
                 else if (age >= 100) state = 'old';
                 else if (age >= 30) state = 'mature';
                 
-                // Распределяем деревья в группе с небольшим разбросом
-                const offsetX = (Math.random() - 0.5) * groupSize;
-                const offsetY = (Math.random() - 0.5) * groupSize;
+                // Пытаемся разместить дерево с правильным расстоянием
+                let attempts = 0;
+                let treeX, treeY;
+                let validPosition = false;
                 
-                this.terrain.forest.push({
-                    x: groupX + offsetX,
-                    y: groupY + offsetY,
+                while (!validPosition && attempts < 50) {
+                    // Генерируем случайную позицию в группе
+                    const offsetX = (Math.random() - 0.5) * groupSize;
+                    const offsetY = (Math.random() - 0.5) * groupSize;
+                    treeX = groupX + offsetX;
+                    treeY = groupY + offsetY;
+                    
+                    // Проверяем расстояние до всех существующих деревьев
+                    validPosition = true;
+                    for (const existingTree of [...this.terrain.forest, ...treesInThisGroup]) {
+                        const dx = treeX - existingTree.x;
+                        const dy = treeY - existingTree.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Если дерево слишком близко или слишком далеко - позиция невалидна
+                        if (distance < minDistance || (distance < maxDistance && Math.random() > 0.3)) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attempts++;
+                }
+                
+                // Если не удалось найти валидную позицию за 50 попыток, размещаем дерево с минимальным расстоянием
+                if (!validPosition) {
+                    // Ищем позицию рядом с существующим деревом, но на правильном расстоянии
+                    if (treesInThisGroup.length > 0) {
+                        const lastTree = treesInThisGroup[treesInThisGroup.length - 1];
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = minDistance + Math.random() * (maxDistance - minDistance);
+                        treeX = lastTree.x + Math.cos(angle) * distance;
+                        treeY = lastTree.y + Math.sin(angle) * distance;
+                    } else if (this.terrain.forest.length > 0) {
+                        const lastTree = this.terrain.forest[this.terrain.forest.length - 1];
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = minDistance + Math.random() * (maxDistance - minDistance);
+                        treeX = lastTree.x + Math.cos(angle) * distance;
+                        treeY = lastTree.y + Math.sin(angle) * distance;
+                    } else {
+                        // Первое дерево - размещаем случайно
+                        treeX = groupX + (Math.random() - 0.5) * groupSize;
+                        treeY = groupY + (Math.random() - 0.5) * groupSize;
+                    }
+                }
+                
+                const newTree = {
+                    x: treeX,
+                    y: treeY,
                     size: 12 + Math.random() * 25, // Размер дерева (увеличен для больших деревьев)
                     age: age,
                     state: state,
@@ -614,7 +668,10 @@ class World {
                     woodAmount: state === 'mature' ? 3 + Math.floor(Math.random() * 3) : 
                                state === 'old' ? 2 + Math.floor(Math.random() * 2) : 
                                state === 'young' ? 1 : 0 // Количество дров при рубке
-                });
+                };
+                
+                treesInThisGroup.push(newTree);
+                this.terrain.forest.push(newTree);
             }
         }
         
