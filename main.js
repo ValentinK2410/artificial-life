@@ -3296,6 +3296,13 @@ function initializeCanvas() {
             
             // Первоначальная отрисовка статичной сцены
             window.world.draw();
+            
+            // Обновляем UI (включая время) после создания мира
+            setTimeout(() => {
+                if (window.world && window.world.updateUI) {
+                    window.world.updateUI();
+                }
+            }, 100);
         }
     }
 }
@@ -3335,6 +3342,16 @@ function initializeSimulation() {
         }
         console.log('Canvas context инициализирован');
     }
+    
+    // Обновляем UI (включая время) после инициализации
+    setTimeout(() => {
+        if (window.world && window.world.updateUI) {
+            window.world.updateUI();
+        }
+        if (simulation && simulation.updateWorldStats) {
+            simulation.updateWorldStats();
+        }
+    }, 200);
     
     // Создание экземпляра Simulation
     simulation = new Simulation(window.world, window.agents);
