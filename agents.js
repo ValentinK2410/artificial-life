@@ -819,6 +819,7 @@ class Agent {
     drinkFromPond() {
         if (!window.world || !window.world.terrain || !window.world.terrain.pond) {
             this.state = 'explore';
+            this.logDecision('explore', `пруд не найден, завершение поиска воды`, {});
             return;
         }
         
@@ -852,6 +853,9 @@ class Agent {
         
         // Возвращаемся к обычным делам
         this.state = 'explore';
+        this.logDecision('explore', `жажда утолена (${Math.floor(this.thirst)}%), завершение поиска воды`, {
+            thirst: this.thirst
+        });
     }
     
     // Основной метод поиска и питья воды
@@ -886,6 +890,9 @@ class Agent {
                 }
                 
                 this.state = 'explore';
+                this.logDecision('explore', `жажда утолена из запасов (${Math.floor(this.thirst)}%), завершение поиска воды`, {
+                    thirst: this.thirst
+                });
                 return;
             }
         }
@@ -946,17 +953,24 @@ class Agent {
             // Нет больного агента или он уже мертв
             this.forceHeal = false; // Снимаем флаг принудительного лечения
             this.state = 'explore';
+            this.logDecision('explore', `больной агент не найден или мертв, завершение лечения`, {});
             return;
         }
         
         // Если больной агент выздоровел (здоровье >= 30), снимаем флаг принудительного лечения
         if (this.sickAgent.health >= 30) {
             this.forceHeal = false;
+            const healedName = this.sickAgent.name;
+            const healedHealth = Math.floor(this.sickAgent.health);
             if (window.addLogEntry) {
-                window.addLogEntry(`✅ ${this.sickAgent.name} выздоровел, лечение завершено`);
+                window.addLogEntry(`✅ ${healedName} выздоровел, лечение завершено`);
             }
             this.sickAgent = null;
             this.state = 'explore';
+            this.logDecision('explore', `больной агент ${healedName} выздоровел (здоровье: ${healedHealth}% >= 30%), завершение лечения`, {
+                targetName: healedName,
+                targetHealth: healedHealth
+            });
             return;
         }
         
@@ -967,6 +981,9 @@ class Agent {
                 window.addLogEntry(`💊 ${this.name} нужна аптечка и лечебные травы для лечения`);
             }
             this.state = 'explore';
+            this.logDecision('explore', `нет медицинских принадлежностей для лечения ${this.sickAgent.name}, завершение лечения`, {
+                targetName: this.sickAgent.name
+            });
             return;
         }
         
@@ -1150,8 +1167,10 @@ class Agent {
             }
         
         this.healingProgress = 0; // Сбрасываем прогресс лечения
+        const healedAgentName = this.sickAgent ? this.sickAgent.name : 'неизвестный';
         this.sickAgent = null; // Очищаем ссылку на больного агента
         this.state = 'explore'; // Возвращаемся к обычному поведению
+        this.logDecision('explore', `лечение ${healedAgentName} завершено, возврат к обычным задачам`, {});
     }
 
     getAmbientTemperature() {
@@ -1435,25 +1454,39 @@ class Agent {
                 if (this.energy < 10 || isNight) {
                     this.state = 'sleep';
                     this.sleepStartTime = Date.now();
-                    if (window.addLogEntry) {
-                        window.addLogEntry(`😴 ${this.name} срочно засыпает (энергия: ${Math.floor(this.energy)}%)`);
-                    }
+                    this.logDecision('sleep', `критически низкая энергия (${Math.floor(this.energy)}% < ${SUPPLIES_CONFIG.CRITICAL_ENERGY}%)`, {
+                        energy: this.energy,
+                        isNight: isNight
+                    });
                 } else {
                     this.state = 'rest';
+                    this.logDecision('rest', `низкая энергия (${Math.floor(this.energy)}% < ${SUPPLIES_CONFIG.CRITICAL_ENERGY}%)`, {
+                        energy: this.energy
+                    });
                 }
             } else if (this.health < SUPPLIES_CONFIG.CRITICAL_HEALTH) {
                 // Критически мало здоровья - ищем еду или лечение
                 if (this.hasMedicalSupplies()) {
                     this.state = 'recoverSelf';
+                    this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть медикаменты`, {
+                        health: this.health
+                    });
                 } else if (this.foodStorage.length > 0) {
                     this.state = 'recoverSelf';
+                    this.logDecision('recoverSelf', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), есть еда в хранилище`, {
+                        health: this.health,
+                        foodCount: this.foodStorage.length
+                    });
                 } else {
                     this.state = 'findFood';
+                    this.logDecision('findFood', `критически низкое здоровье (${Math.floor(this.health)}% < ${SUPPLIES_CONFIG.CRITICAL_HEALTH}%), нет еды и медикаментов`, {
+                        health: this.health
+                    });
                 }
             }
             
-            if (window.addLogEntry && oldState !== this.state) {
-                window.addLogEntry(`⚠️ ${this.name} прерывает задачу - критическое состояние!`);
+            if (oldState !== this.state && window.addLogEntry) {
+                window.addLogEntry(`⚠️ ${this.name} прерывает задачу "${oldState}" - критическое состояние!`);
             }
             this.act();
             return;
@@ -1465,9 +1498,11 @@ class Agent {
             this.state !== 'sleep') {
             this.state = 'sleep';
             this.sleepStartTime = Date.now();
-            if (window.addLogEntry) {
-                window.addLogEntry(`😴 ${this.name} засыпает ${isNight ? 'на ночь' : 'от усталости'}`);
-            }
+            const reason = isNight ? 'наступила ночь' : `энергия ниже порога (${Math.floor(this.energy)}% < ${SLEEP_CONFIG.AUTO_SLEEP_ENERGY_THRESHOLD}%)`;
+            this.logDecision('sleep', reason, {
+                energy: this.energy,
+                isNight: isNight
+            });
             return;
         }
         
@@ -1475,6 +1510,9 @@ class Agent {
         this.checkForPredators();
         if (this.nearbyPredator && this.nearbyPredator.distance < 100) {
             this.state = 'defend';
+            this.logDecision('defend', `обнаружен хищник поблизости`, {
+                distance: this.nearbyPredator.distance
+            });
             this.act();
             return;
         }
@@ -1484,23 +1522,27 @@ class Agent {
             this.checkForSickAgents();
             if (this.sickAgent && this.hasMedicalSupplies()) {
                 this.state = 'heal';
-                if (window.addLogEntry && oldState !== 'heal') {
-                    window.addLogEntry(`🚨 ${this.name} спешит на помощь к ${this.sickAgent.name} (принудительное лечение)`);
-                }
+                this.logDecision('heal', `принудительное лечение - есть медикаменты`, {
+                    targetName: this.sickAgent.name,
+                    targetHealth: Math.floor(this.sickAgent.health)
+                });
                 this.act();
                 return;
             } else if (this.sickAgent && !this.hasMedicalSupplies()) {
                 // Нужны медицинские принадлежности - ищем их
-                if (window.addLogEntry && Math.random() < 0.3) {
-                    window.addLogEntry(`💊 ${this.name} ищет медицинские принадлежности для лечения ${this.sickAgent.name}`);
-                }
-                // Переходим в состояние поиска запасов, но с высоким приоритетом лечения
                 this.state = 'gatherSupplies';
+                this.logDecision('gatherSupplies', `принудительное лечение - нужны медикаменты для ${this.sickAgent.name}`, {
+                    targetName: this.sickAgent.name,
+                    supplyType: 'медикаменты'
+                });
                 this.act();
                 return;
             } else {
                 // Больных агентов не найдено - снимаем флаг принудительного лечения
                 this.forceHeal = false;
+                if (window.addLogEntry) {
+                    window.addLogEntry(`ℹ️ ${this.name} не нашел больных агентов - снимает флаг принудительного лечения`);
+                }
             }
         }
         
@@ -1511,9 +1553,10 @@ class Agent {
         if (this.sickAgent && this.hasMedicalSupplies()) {
             // Агент болен и у нас есть медицинские принадлежности - спешим на помощь
             this.state = 'heal';
-            if (window.addLogEntry && oldState !== 'heal' && Math.random() < 0.3) {
-                window.addLogEntry(`💊 ${this.name} спешит лечить ${this.sickAgent.name} (здоровье: ${Math.floor(this.sickAgent.health)}%)`);
-            }
+            this.logDecision('heal', `обнаружен больной агент, есть медикаменты`, {
+                targetName: this.sickAgent.name,
+                targetHealth: Math.floor(this.sickAgent.health)
+            });
             this.act();
             return;
         } else if (this.sickAgent && !this.hasMedicalSupplies()) {
@@ -1523,9 +1566,12 @@ class Agent {
             if (found) {
                 this.targetSupplyResource = found;
                 this.state = 'gatherSupplies';
-                if (window.addLogEntry && Math.random() < 0.2) {
-                    window.addLogEntry(`💊 ${this.name} ищет медицинские принадлежности для лечения ${this.sickAgent.name}`);
-                }
+                this.logDecision('gatherSupplies', `обнаружен больной агент ${this.sickAgent.name}, нужны медикаменты`, {
+                    targetName: this.sickAgent.name,
+                    targetHealth: Math.floor(this.sickAgent.health),
+                    supplyType: 'медикаменты',
+                    searchRadius: this.searchRadius
+                });
                 this.act();
                 return;
             }
@@ -1536,9 +1582,9 @@ class Agent {
             // Сначала проверяем запасы воды
             if (!this.hasWaterInStorage()) {
                 this.state = 'findWater';
-                if (window.addLogEntry && oldState !== 'findWater' && Math.random() < 0.3) {
-                    window.addLogEntry(`💧 ${this.name} хочет пить (жажда: ${Math.floor(this.thirst)}%)`);
-                }
+                this.logDecision('findWater', `высокая жажда (${Math.floor(this.thirst)}% > 70%), нет воды в хранилище`, {
+                    thirst: this.thirst
+                });
                 this.act();
                 return;
             }
@@ -1553,9 +1599,9 @@ class Agent {
             if (woodCount >= HOUSE_WOOD_REQUIRED) {
                 // Достаточно дров - строим дом
                 this.state = 'buildHouse';
-                if (window.addLogEntry && oldState !== 'buildHouse') {
-                    window.addLogEntry(`🏠 ${this.name} начинает строить дом (дров: ${woodCount})`);
-                }
+                this.logDecision('buildHouse', `нет дома, достаточно дров (${woodCount} >= ${HOUSE_WOOD_REQUIRED})`, {
+                    woodCount: woodCount
+                });
                 this.act();
                 return;
             } else {
@@ -1565,9 +1611,10 @@ class Agent {
                 if (nearestTree) {
                     this.state = 'chop_wood';
                     this.targetTree = nearestTree;
-                    if (window.addLogEntry && oldState !== 'chop_wood' && Math.random() < 0.2) {
-                        window.addLogEntry(`🪵 ${this.name} рубит дерево для дома (дров: ${woodCount}/${HOUSE_WOOD_REQUIRED})`);
-                    }
+                    this.logDecision('chop_wood', `нет дома, не хватает дров (${woodCount} < ${HOUSE_WOOD_REQUIRED}), найдено дерево`, {
+                        woodCount: woodCount,
+                        required: HOUSE_WOOD_REQUIRED
+                    });
                     this.act();
                     return;
                 }
@@ -1589,10 +1636,10 @@ class Agent {
                     // Нашли ресурс - идем к нему
                     this.targetSupplyResource = foundResource;
                     this.state = 'gatherSupplies';
-                    
-                    if (window.addLogEntry && oldState !== 'gatherSupplies' && Math.random() < 0.3) {
-                        window.addLogEntry(`🎯 ${this.name} ищет ${this.getSupplyTypeName(neededSupply.type)} (радиус: ${this.searchRadius}px)`);
-                    }
+                    this.logDecision('gatherSupplies', `найден ресурс "${this.getSupplyTypeName(neededSupply.type)}"`, {
+                        supplyType: this.getSupplyTypeName(neededSupply.type),
+                        searchRadius: this.searchRadius
+                    });
                 } else {
                     // Не нашли в текущем радиусе - продолжаем расширять поиск
                     // Если радиус уже максимальный - переходим к другим задачам
@@ -1606,20 +1653,42 @@ class Agent {
                             if (nearestTree) {
                                 this.state = 'chop_wood';
                                 this.targetTree = nearestTree;
+                                this.logDecision('chop_wood', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" в радиусе 500px, переключение на рубку дерева`, {
+                                    supplyType: this.getSupplyTypeName(neededSupply.type)
+                                });
                             } else {
                                 this.state = 'explore';
+                                this.logDecision('explore', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" и нет деревьев, переключение на исследование`, {
+                                    supplyType: this.getSupplyTypeName(neededSupply.type)
+                                });
                             }
                         } else if (neededSupply.type === 'food') {
                             // Пробуем рыбачить или охотиться
                             if (this.experience.fishing >= 5) {
                                 this.state = 'fish';
+                                this.logDecision('fish', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" в радиусе 500px, переключение на рыбалку (навык: ${this.experience.fishing})`, {
+                                    supplyType: this.getSupplyTypeName(neededSupply.type),
+                                    skillLevel: this.experience.fishing
+                                });
                             } else if (this.experience.hunting >= 10) {
                                 this.state = 'hunt';
+                                this.logDecision('hunt', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" в радиусе 500px, переключение на охоту (навык: ${this.experience.hunting})`, {
+                                    supplyType: this.getSupplyTypeName(neededSupply.type),
+                                    skillLevel: this.experience.hunting
+                                });
                             } else {
                                 this.state = 'explore';
+                                this.logDecision('explore', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" в радиусе 500px, недостаточно навыков для рыбалки/охоты`, {
+                                    supplyType: this.getSupplyTypeName(neededSupply.type),
+                                    fishingSkill: this.experience.fishing,
+                                    huntingSkill: this.experience.hunting
+                                });
                             }
                         } else {
                             this.state = 'explore';
+                            this.logDecision('explore', `не найден ресурс "${this.getSupplyTypeName(neededSupply.type)}" в радиусе 500px, переключение на исследование`, {
+                                supplyType: this.getSupplyTypeName(neededSupply.type)
+                            });
                         }
                     } else {
                         // Продолжаем искать - двигаемся в случайном направлении для расширения области поиска
@@ -1637,6 +1706,13 @@ class Agent {
                             }
                         }
                         this.state = 'gatherSupplies';
+                        // Логируем только периодически, чтобы не засорять логи
+                        if (Math.random() < 0.1) {
+                            this.logDecision('gatherSupplies', `продолжает поиск "${this.getSupplyTypeName(neededSupply.type)}", расширяет радиус`, {
+                                supplyType: this.getSupplyTypeName(neededSupply.type),
+                                searchRadius: this.searchRadius
+                            });
+                        }
                     }
                 }
                 this.act();
@@ -1652,6 +1728,9 @@ class Agent {
         this.checkForFriends();
         if (this.targetFriend && this.state !== 'sing' && this.state !== 'tellStory' && this.state !== 'makeLaugh') {
             this.state = 'stayWithFriend';
+            this.logDecision('stayWithFriend', `обнаружен друг ${this.targetFriend.name}`, {
+                targetName: this.targetFriend.name
+            });
             this.act();
             return;
         }
@@ -1660,6 +1739,10 @@ class Agent {
         this.checkForAgentsNeedingHelp();
         if (this.consolingTarget && this.experience.consoling >= 5) {
             this.state = 'console';
+            this.logDecision('console', `обнаружен агент, нуждающийся в утешении, есть навык (${this.experience.consoling})`, {
+                targetName: this.consolingTarget.name,
+                skillLevel: this.experience.consoling
+            });
             this.act();
             return;
         }
@@ -1668,14 +1751,23 @@ class Agent {
         if (Math.random() < 0.05) {
             if (this.experience.singing >= 5) {
                 this.state = 'sing';
+                this.logDecision('sing', `случайное желание развлечь других, есть навык пения (${this.experience.singing})`, {
+                    skillLevel: this.experience.singing
+                });
                 this.act();
                 return;
             } else if (this.experience.storytelling >= 5) {
                 this.state = 'tellStory';
+                this.logDecision('tellStory', `случайное желание развлечь других, есть навык рассказывания (${this.experience.storytelling})`, {
+                    skillLevel: this.experience.storytelling
+                });
                 this.act();
                 return;
             } else if (this.experience.comedy >= 5) {
                 this.state = 'makeLaugh';
+                this.logDecision('makeLaugh', `случайное желание развлечь других, есть навык комедии (${this.experience.comedy})`, {
+                    skillLevel: this.experience.comedy
+                });
                 this.act();
                 return;
             }
@@ -1684,6 +1776,9 @@ class Agent {
         // Кормление домашних животных
         if (this.hasHungryPets()) {
             this.state = 'feedAnimal';
+            this.logDecision('feedAnimal', `есть голодные питомцы (${this.pets.length})`, {
+                petsCount: this.pets.length
+            });
             this.act();
             return;
         }
@@ -1691,6 +1786,9 @@ class Agent {
         // Игра с питомцами
         if (this.pets.length > 0 && Math.random() < 0.1) {
             this.state = 'playWithPet';
+            this.logDecision('playWithPet', `случайное желание поиграть с питомцами (${this.pets.length})`, {
+                petsCount: this.pets.length
+            });
             this.act();
             return;
         }
@@ -1702,13 +1800,23 @@ class Agent {
         if (this.temperature < 32) {
             if (!this.hasEnoughClothes()) {
                 this.state = 'findClothes';
+                this.logDecision('findClothes', `низкая температура (${Math.floor(this.temperature)}°C < 32°C), нет одежды`, {
+                    temperature: this.temperature
+                });
             } else {
                 this.state = 'findHeat';
+                this.logDecision('findHeat', `низкая температура (${Math.floor(this.temperature)}°C < 32°C), есть одежда`, {
+                    temperature: this.temperature
+                });
             }
             this.act();
             return;
         } else if (this.temperature < 35 && this.experience.fire_building > 0 && this.hasWoodForFire()) {
             this.state = 'buildFire';
+            this.logDecision('buildFire', `прохладно (${Math.floor(this.temperature)}°C < 35°C), есть навык и дрова`, {
+                temperature: this.temperature,
+                skillLevel: this.experience.fire_building
+            });
             this.act();
             return;
         }
@@ -1716,6 +1824,9 @@ class Agent {
         // Фермерство (если есть навык)
         if (this.experience.farming >= 5 && Math.random() < 0.2) {
             this.state = 'developFarm';
+            this.logDecision('developFarm', `случайное желание развивать ферму, есть навык (${this.experience.farming})`, {
+                skillLevel: this.experience.farming
+            });
             this.act();
             return;
         }
@@ -1731,10 +1842,18 @@ class Agent {
             // Загон и сарай строятся только после дома
             if (hasHouseBuilt && !hasPen && woodCount >= 15 && Math.random() < 0.1) {
                 this.state = 'buildPen';
+                this.logDecision('buildPen', `есть дом, нет загона, достаточно дров (${woodCount} >= 15), есть навык (${this.experience.building})`, {
+                    woodCount: woodCount,
+                    skillLevel: this.experience.building
+                });
                 this.act();
                 return;
             } else if (hasHouseBuilt && hasPen && !hasBarn && woodCount >= 25 && Math.random() < 0.1) {
                 this.state = 'buildBarn';
+                this.logDecision('buildBarn', `есть дом и загон, нет сарая, достаточно дров (${woodCount} >= 25), есть навык (${this.experience.building})`, {
+                    woodCount: woodCount,
+                    skillLevel: this.experience.building
+                });
                 this.act();
                 return;
             }
@@ -1744,6 +1863,9 @@ class Agent {
         const hasPen = this.ownedBuildings.some(b => b.type === 'pen');
         if (hasPen && this.caughtAnimals.length < 3 && Math.random() < 0.1) {
             this.state = 'findAnimals';
+            this.logDecision('findAnimals', `есть загон, мало животных (${this.caughtAnimals.length} < 3)`, {
+                animalsCount: this.caughtAnimals.length
+            });
             this.act();
             return;
         }
@@ -1751,6 +1873,10 @@ class Agent {
         // Готовка (если есть навык и ингредиенты)
         if (this.experience.cooking >= 5 && this.foodStorage.length > 0 && Math.random() < 0.15) {
             this.state = 'cook';
+            this.logDecision('cook', `есть навык готовки (${this.experience.cooking}) и ингредиенты (${this.foodStorage.length})`, {
+                skillLevel: this.experience.cooking,
+                foodCount: this.foodStorage.length
+            });
             this.act();
             return;
         }
@@ -1758,6 +1884,9 @@ class Agent {
         // Рыбалка (если есть навык)
         if (this.experience.fishing >= 5 && Math.random() < 0.1) {
             this.state = 'fish';
+            this.logDecision('fish', `случайное желание порыбачить, есть навык (${this.experience.fishing})`, {
+                skillLevel: this.experience.fishing
+            });
             this.act();
             return;
         }
@@ -1765,6 +1894,9 @@ class Agent {
         // Охота (если есть навык)
         if (this.experience.hunting >= 10 && Math.random() < 0.1) {
             this.state = 'hunt';
+            this.logDecision('hunt', `случайное желание поохотиться, есть навык (${this.experience.hunting})`, {
+                skillLevel: this.experience.hunting
+            });
             this.act();
             return;
         }
@@ -1773,48 +1905,83 @@ class Agent {
         // Но не случайно блуждаем, а целенаправленно ищем новые ресурсы
         this.state = 'explore';
         
-        // Логирование смены состояния (только при изменении)
-        if (oldState !== this.state && window.addLogEntry) {
-            const stateNames = {
-                'explore': 'исследует',
-                'findFood': 'ищет еду',
-                'rest': 'отдыхает',
-                'sleep': 'спит',
-                'findHeat': 'ищет источник тепла',
-                'buildFire': 'разводит костер',
-                'defend': 'обороняется',
-                'feedAnimal': 'кормит животных',
-                'playWithPet': 'играет с питомцем',
-                'storeFood': 'запасает еду',
-                'moveToPoint': 'движется к указанной точке',
-                'chop_wood': 'рубит дерево',
-                'findClothes': 'ищет одежду',
-                'heal': 'лечит больного',
-                'stayWithFriend': 'находится с другом',
-                'sing': 'поет песни',
-                'tellStory': 'рассказывает стихи',
-                'makeLaugh': 'смешит других',
-                'console': 'утешает',
-                'gatherSupplies': 'собирает запасы',
-                'recoverSelf': 'восстанавливается',
-                'buildHouse': 'строит жилище',
-                'buildPen': 'строит загон',
-                'buildBarn': 'строит сарай',
-                'findAnimals': 'ищет животных',
-                'developFarm': 'развивает ферму',
-                'findWater': 'ищет воду',
-                'fish': 'ловит рыбу',
-                'cook': 'готовит еду',
-                'hunt': 'охотится',
-                'build': 'строит',
-                'farm': 'занимается фермерством',
-                'dead': 'мертв',
-                'goToMarket': 'идет на ярмарку'
-            };
-            window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
+        // Логирование смены состояния на исследование (только при изменении)
+        if (oldState !== this.state) {
+            this.logDecision('explore', `все базовые потребности удовлетворены, переключение на исследование`, {});
         }
         
         this.act();
+    }
+    
+    // Вспомогательный метод для логирования решений агента
+    logDecision(newState, reason, details = {}) {
+        if (!window.addLogEntry) return;
+        
+        const stateNames = {
+            'explore': 'исследует',
+            'findFood': 'ищет еду',
+            'rest': 'отдыхает',
+            'sleep': 'спит',
+            'findHeat': 'ищет источник тепла',
+            'buildFire': 'разводит костер',
+            'defend': 'обороняется',
+            'feedAnimal': 'кормит животных',
+            'playWithPet': 'играет с питомцем',
+            'storeFood': 'запасает еду',
+            'moveToPoint': 'движется к указанной точке',
+            'chop_wood': 'рубит дерево',
+            'findClothes': 'ищет одежду',
+            'heal': 'лечит больного',
+            'stayWithFriend': 'находится с другом',
+            'sing': 'поет песни',
+            'tellStory': 'рассказывает стихи',
+            'makeLaugh': 'смешит других',
+            'console': 'утешает',
+            'gatherSupplies': 'собирает запасы',
+            'recoverSelf': 'восстанавливается',
+            'buildHouse': 'строит жилище',
+            'buildPen': 'строит загон',
+            'buildBarn': 'строит сарай',
+            'findAnimals': 'ищет животных',
+            'developFarm': 'развивает ферму',
+            'findWater': 'ищет воду',
+            'fish': 'ловит рыбу',
+            'cook': 'готовит еду',
+            'hunt': 'охотится',
+            'build': 'строит',
+            'farm': 'занимается фермерством',
+            'dead': 'мертв',
+            'goToMarket': 'идет на ярмарку'
+        };
+        
+        const stateName = stateNames[newState] || newState;
+        let logMessage = `🎯 ${this.name} → ${stateName}`;
+        
+        if (reason) {
+            logMessage += ` | Причина: ${reason}`;
+        }
+        
+        // Добавляем детали, если они есть
+        if (Object.keys(details).length > 0) {
+            const detailParts = [];
+            if (details.health !== undefined) detailParts.push(`здоровье: ${Math.floor(details.health)}%`);
+            if (details.energy !== undefined) detailParts.push(`энергия: ${Math.floor(details.energy)}%`);
+            if (details.hunger !== undefined) detailParts.push(`голод: ${Math.floor(details.hunger)}%`);
+            if (details.thirst !== undefined) detailParts.push(`жажда: ${Math.floor(details.thirst)}%`);
+            if (details.temperature !== undefined) detailParts.push(`температура: ${Math.floor(details.temperature)}°C`);
+            if (details.woodCount !== undefined) detailParts.push(`дров: ${details.woodCount}`);
+            if (details.targetName !== undefined) detailParts.push(`цель: ${details.targetName}`);
+            if (details.distance !== undefined) detailParts.push(`расстояние: ${Math.floor(details.distance)}px`);
+            if (details.searchRadius !== undefined) detailParts.push(`радиус поиска: ${details.searchRadius}px`);
+            if (details.supplyType !== undefined) detailParts.push(`тип ресурса: ${details.supplyType}`);
+            if (details.skillLevel !== undefined) detailParts.push(`навык: ${details.skillLevel}`);
+            
+            if (detailParts.length > 0) {
+                logMessage += ` | ${detailParts.join(', ')}`;
+            }
+        }
+        
+        window.addLogEntry(logMessage);
     }
     
     // Вспомогательный метод для получения названия типа запаса
