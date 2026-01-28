@@ -3780,22 +3780,56 @@ class Agent {
             return;
         }
         
-        // Ищем водоем (пруд) - в центре карты обычно есть пруд
-        const pondCenterX = window.world.canvas ? window.world.canvas.width / 2 : 400; // Координата X центра пруда (пиксели)
-        const pondCenterY = window.world.canvas ? window.world.canvas.height / 2 : 300; // Координата Y центра пруда (пиксели)
-        const pondRadius = 100; // Радиус пруда (пиксели)
-        
-        const dx = pondCenterX - this.position.x; // Разница по оси X до центра пруда (пиксели)
-        const dy = pondCenterY - this.position.y; // Разница по оси Y до центра пруда (пиксели)
-        const distanceToPond = Math.sqrt(dx * dx + dy * dy); // Расстояние до центра пруда (пиксели)
-        
-        if (distanceToPond > pondRadius + 20) {
-            // Далеко от пруда - идем к нему
-            this.moveTo(pondCenterX, pondCenterY);
+        // Проверяем наличие пруда
+        if (!window.world.terrain || !window.world.terrain.pond) {
+            if (window.addLogEntry && Math.random() < 0.2) {
+                window.addLogEntry(`🎣 ${this.name} не может найти водоём для рыбалки`);
+            }
+            this.state = 'explore';
             return;
         }
         
-        // У пруда - ловим рыбу
+        const pond = window.world.terrain.pond;
+        const dx = pond.centerX - this.position.x; // Разница по оси X до центра пруда (пиксели)
+        const dy = pond.centerY - this.position.y; // Разница по оси Y до центра пруда (пиксели)
+        const distanceToPondCenter = Math.sqrt(dx * dx + dy * dy); // Расстояние до центра пруда (пиксели)
+        
+        // Вычисляем расстояние до края пруда (эллипс)
+        const maxRadius = Math.max(pond.radiusX, pond.radiusY);
+        const minRadius = Math.min(pond.radiusX, pond.radiusY);
+        const angle = Math.atan2(dy, dx);
+        
+        // Приблизительное расстояние до края эллипса
+        const a = pond.radiusX;
+        const b = pond.radiusY;
+        const cosAngle = Math.cos(angle);
+        const sinAngle = Math.sin(angle);
+        const distanceToEdge = Math.sqrt(a * a * cosAngle * cosAngle + b * b * sinAngle * sinAngle);
+        const distanceFromEdge = distanceToPondCenter - distanceToEdge;
+        
+        // Рыбалка возможна только на расстоянии 15 пикселей от края пруда
+        const fishingDistance = 15; // Расстояние от края пруда для рыбалки
+        
+        if (distanceFromEdge > fishingDistance + 5) {
+            // Слишком далеко от пруда - идем ближе к краю пруда
+            const targetAngle = Math.atan2(dy, dx);
+            const targetX = pond.centerX + Math.cos(targetAngle) * (distanceToEdge + fishingDistance);
+            const targetY = pond.centerY + Math.sin(targetAngle) * (distanceToEdge + fishingDistance);
+            this.moveTo(targetX, targetY);
+            return;
+        }
+        
+        // Проверяем, что агент находится в пределах допустимого расстояния (15 пикселей от края)
+        if (distanceFromEdge < fishingDistance - 5 || distanceFromEdge > fishingDistance + 5) {
+            // Не в правильной позиции - корректируем
+            const targetAngle = Math.atan2(dy, dx);
+            const targetX = pond.centerX + Math.cos(targetAngle) * (distanceToEdge + fishingDistance);
+            const targetY = pond.centerY + Math.sin(targetAngle) * (distanceToEdge + fishingDistance);
+            this.moveTo(targetX, targetY);
+            return;
+        }
+        
+        // У пруда на правильном расстоянии - ловим рыбу
         if (!this.fishingProgress) {
             this.fishingProgress = 0; // Прогресс рыбалки (число кадров, 0 = начало рыбалки)
         }
@@ -3805,7 +3839,23 @@ class Agent {
         // Рыбалка занимает время (зависит от навыка)
         const fishingTime = 15 - Math.floor(this.experience.fishing / 10); // Время рыбалки в кадрах (зависит от опыта рыбалки)
         if (this.fishingProgress < fishingTime) {
-            // Еще ловим
+            // Еще ловим - проверяем, что агент все еще возле водоёма
+            if (distanceFromEdge < fishingDistance - 10 || distanceFromEdge > fishingDistance + 10) {
+                // Отошли слишком далеко - прекращаем рыбалку
+                this.fishingProgress = 0;
+                return;
+            }
+            return;
+        }
+        
+        // Проверяем, что агент все еще возле водоёма перед попыткой поймать рыбу
+        if (distanceFromEdge < fishingDistance - 10 || distanceFromEdge > fishingDistance + 10) {
+            // Отошли слишком далеко - не можем поймать рыбу
+            if (window.addLogEntry && Math.random() < 0.3) {
+                window.addLogEntry(`🎣 ${this.name} слишком далеко от водоёма для рыбалки`);
+            }
+            this.fishingProgress = 0;
+            this.state = 'explore';
             return;
         }
         

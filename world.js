@@ -1176,11 +1176,14 @@ class World {
                 this.drawAgent(agent);
             });
             
-            // Отрисовка активных путей агентов
+            // Отрисовка активных путей агентов (кроме добычи ресурсов)
             allAgents.forEach(agent => {
                 if (agent.pathType === 'direct' && agent.targetPosition) {
-                    // Для прямого пути рисуем линию к цели
-                    this.drawDirectPath(agent);
+                    // Не рисуем путь для добычи ресурсов (gatherSupplies)
+                    if (agent.state !== 'gatherSupplies' && !agent.targetSupplyResource) {
+                        // Для прямого пути рисуем линию к цели
+                        this.drawDirectPath(agent);
+                    }
                 }
             });
             
@@ -3101,8 +3104,127 @@ class World {
             animal.hunger += 0.2;
             if (animal.hunger > 100) animal.hunger = 100;
             
-            // Если есть владелец, двигаемся к нему
-            if (animal.owner && window.agents) {
+            // Животные могут есть еду агентов, если они голодны и находятся рядом
+            if (animal.hunger > 60 && window.agents && !animal.owner) {
+                const allAgents = window.agents.getAllAgents();
+                for (const agent of allAgents) {
+                    if (!agent.position) continue;
+                    const dx = agent.position.x - animal.x;
+                    const dy = agent.position.y - animal.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Если животное рядом с агентом (в пределах 25 пикселей)
+                    if (distance < 25) {
+                        // Ищем еду в foodStorage агента
+                        if (agent.foodStorage && agent.foodStorage.length > 0) {
+                            const foodItem = agent.foodStorage.find(f => f.amount > 0);
+                            if (foodItem) {
+                                // Животное ест еду
+                                foodItem.amount--;
+                                animal.hunger = Math.max(0, animal.hunger - 30);
+                                
+                                if (foodItem.amount <= 0) {
+                                    const index = agent.foodStorage.indexOf(foodItem);
+                                    if (index > -1) agent.foodStorage.splice(index, 1);
+                                }
+                                
+                                if (window.addLogEntry && Math.random() < 0.1) {
+                                    window.addLogEntry(`🐾 ${this.getAnimalName(animal.type)} съело еду у ${agent.name}`);
+                                }
+                                break; // Животное наелось
+                            }
+                        }
+                        
+                        // Если не нашли в foodStorage, ищем в inventory
+                        if (agent.inventory && agent.inventory.length > 0) {
+                            const foodTypes = ['berries', 'mushrooms', 'fish', 'meat', 'apple', 'potato', 'bread'];
+                            const foodItem = agent.inventory.find(item => foodTypes.includes(item.type) && item.amount > 0);
+                            if (foodItem) {
+                                // Животное ест еду из инвентаря
+                                foodItem.amount--;
+                                animal.hunger = Math.max(0, animal.hunger - 30);
+                                
+                                if (foodItem.amount <= 0) {
+                                    const index = agent.inventory.indexOf(foodItem);
+                                    if (index > -1) agent.inventory.splice(index, 1);
+                                }
+                                
+                                if (window.addLogEntry && Math.random() < 0.1) {
+                                    window.addLogEntry(`🐾 ${this.getAnimalName(animal.type)} съело еду у ${agent.name}`);
+                                }
+                                break; // Животное наелось
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Логика расположения животных возле водоёма (но не в водоёме)
+            if (!animal.owner && this.terrain && this.terrain.pond) {
+                const pond = this.terrain.pond;
+                const dx = pond.centerX - animal.x;
+                const dy = pond.centerY - animal.y;
+                const distanceToPondCenter = Math.sqrt(dx * dx + dy * dy);
+                
+                // Вычисляем расстояние до края пруда (эллипс)
+                const angle = Math.atan2(dy, dx);
+                const a = pond.radiusX;
+                const b = pond.radiusY;
+                const cosAngle = Math.cos(angle);
+                const sinAngle = Math.sin(angle);
+                const distanceToEdge = Math.sqrt(a * a * cosAngle * cosAngle + b * b * sinAngle * sinAngle);
+                const distanceFromEdge = distanceToPondCenter - distanceToEdge;
+                
+                // Животные должны быть возле водоёма (в пределах 50-150 пикселей от края), но не входить в водоём
+                const minDistance = 50; // Минимальное расстояние от края пруда
+                const maxDistance = 150; // Максимальное расстояние от края пруда
+                
+                if (distanceFromEdge < minDistance || distanceFromEdge > maxDistance) {
+                    // Животное слишком далеко или слишком близко - двигаемся к правильной позиции
+                    const targetDistance = minDistance + (maxDistance - minDistance) / 2; // Целевое расстояние (100 пикселей)
+                    const targetAngle = Math.atan2(dy, dx);
+                    const targetX = pond.centerX + Math.cos(targetAngle) * (distanceToEdge + targetDistance);
+                    const targetY = pond.centerY + Math.sin(targetAngle) * (distanceToEdge + targetDistance);
+                    
+                    // Двигаемся к целевой позиции
+                    const targetDx = targetX - animal.x;
+                    const targetDy = targetY - animal.y;
+                    const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                    
+                    if (targetDist > 5) {
+                        animal.x += (targetDx / targetDist) * (animal.speed || 0.5);
+                        animal.y += (targetDy / targetDist) * (animal.speed || 0.5);
+                    }
+                } else {
+                    // Животное в правильной позиции - случайное движение вокруг водоёма
+                    if (animal.direction === undefined) {
+                        animal.direction = Math.random() * Math.PI * 2;
+                    }
+                    // Двигаемся по кругу вокруг водоёма
+                    animal.direction += (Math.random() - 0.5) * 0.1;
+                    const speed = animal.speed || 0.5;
+                    animal.x += Math.cos(animal.direction) * speed;
+                    animal.y += Math.sin(animal.direction) * speed;
+                    
+                    // Проверяем, не вошли ли в водоём после движения
+                    const newDx = pond.centerX - animal.x;
+                    const newDy = pond.centerY - animal.y;
+                    const newDistanceToPondCenter = Math.sqrt(newDx * newDx + newDy * newDy);
+                    const newAngle = Math.atan2(newDy, newDx);
+                    const newCosAngle = Math.cos(newAngle);
+                    const newSinAngle = Math.sin(newAngle);
+                    const newDistanceToEdge = Math.sqrt(a * a * newCosAngle * newCosAngle + b * b * newSinAngle * newSinAngle);
+                    const newDistanceFromEdge = newDistanceToPondCenter - newDistanceToEdge;
+                    
+                    // Если вошли в водоём - откатываем движение
+                    if (newDistanceFromEdge < 0) {
+                        animal.x -= Math.cos(animal.direction) * speed;
+                        animal.y -= Math.sin(animal.direction) * speed;
+                        animal.direction += Math.PI; // Разворачиваемся
+                    }
+                }
+            } else if (animal.owner && window.agents) {
+                // Если есть владелец, двигаемся к нему
                 const ownerAgent = window.agents.getAgentById(animal.owner);
                 let foundOwner = ownerAgent;
                 
