@@ -1720,6 +1720,7 @@ class Agent {
                 'explore': 'исследует',
                 'findFood': 'ищет еду',
                 'rest': 'отдыхает',
+                'sleep': 'спит',
                 'findHeat': 'ищет источник тепла',
                 'buildFire': 'разводит костер',
                 'defend': 'обороняется',
@@ -1742,7 +1743,14 @@ class Agent {
                 'buildBarn': 'строит сарай',
                 'findAnimals': 'ищет животных',
                 'developFarm': 'развивает ферму',
-                'findWater': 'ищет воду'
+                'findWater': 'ищет воду',
+                'fish': 'ловит рыбу',
+                'cook': 'готовит еду',
+                'hunt': 'охотится',
+                'build': 'строит',
+                'farm': 'занимается фермерством',
+                'dead': 'мертв',
+                'goToMarket': 'идет на ярмарку'
             };
             window.addLogEntry(`${this.name} ${stateNames[this.state] || this.state}`);
         }
@@ -3770,13 +3778,14 @@ class Agent {
         if (!window.world) return;
         
         // Проверяем, есть ли удочка
-        const hasFishingRod = this.inventory.some(item => item.type === 'fishing_rod'); // Флаг наличия удочки в инвентаре (true/false)
+        const hasFishingRod = this.inventory.some(item => item.type === 'fishing_rod');
         if (!hasFishingRod) {
             // Нет удочки - прекращаем рыбалку
             if (window.addLogEntry && Math.random() < 0.2) {
                 window.addLogEntry(`🎣 ${this.name} нужна удочка для рыбалки`);
             }
             this.state = 'explore';
+            this.targetPosition = null; // Очищаем целевую позицию
             return;
         }
         
@@ -3786,20 +3795,17 @@ class Agent {
                 window.addLogEntry(`🎣 ${this.name} не может найти водоём для рыбалки`);
             }
             this.state = 'explore';
+            this.targetPosition = null; // Очищаем целевую позицию
             return;
         }
         
         const pond = window.world.terrain.pond;
-        const dx = pond.centerX - this.position.x; // Разница по оси X до центра пруда (пиксели)
-        const dy = pond.centerY - this.position.y; // Разница по оси Y до центра пруда (пиксели)
-        const distanceToPondCenter = Math.sqrt(dx * dx + dy * dy); // Расстояние до центра пруда (пиксели)
+        const dx = pond.centerX - this.position.x;
+        const dy = pond.centerY - this.position.y;
+        const distanceToPondCenter = Math.sqrt(dx * dx + dy * dy);
         
         // Вычисляем расстояние до края пруда (эллипс)
-        const maxRadius = Math.max(pond.radiusX, pond.radiusY);
-        const minRadius = Math.min(pond.radiusX, pond.radiusY);
         const angle = Math.atan2(dy, dx);
-        
-        // Приблизительное расстояние до края эллипса
         const a = pond.radiusX;
         const b = pond.radiusY;
         const cosAngle = Math.cos(angle);
@@ -3808,67 +3814,103 @@ class Agent {
         const distanceFromEdge = distanceToPondCenter - distanceToEdge;
         
         // Рыбалка возможна только на расстоянии 15 пикселей от края пруда
-        const fishingDistance = 15; // Расстояние от края пруда для рыбалки
+        const fishingDistance = 15;
+        const tolerance = 3; // Допустимое отклонение от идеального расстояния
         
-        if (distanceFromEdge > fishingDistance + 5) {
+        // Если агент уже ловит рыбу, проверяем расстояние и не позволяем двигаться
+        if (this.fishingProgress && this.fishingProgress > 0) {
+            // Проверяем расстояние во время ловли
+            if (distanceFromEdge < fishingDistance - tolerance || distanceFromEdge > fishingDistance + tolerance) {
+                // Отошли слишком далеко - прекращаем рыбалку
+                this.fishingProgress = 0;
+                this.targetPosition = null; // Очищаем целевую позицию
+                if (window.addLogEntry && Math.random() < 0.3) {
+                    window.addLogEntry(`🎣 ${this.name} слишком далеко от водоёма для рыбалки`);
+                }
+                return;
+            }
+            // Агент на правильном расстоянии - продолжаем ловлю, не двигаемся
+            this.targetPosition = null; // Блокируем движение во время ловли
+        }
+        
+        // Если слишком далеко от пруда - идем к нему
+        if (distanceFromEdge > fishingDistance + tolerance) {
             // Слишком далеко от пруда - идем ближе к краю пруда
             const targetAngle = Math.atan2(dy, dx);
             const targetX = pond.centerX + Math.cos(targetAngle) * (distanceToEdge + fishingDistance);
             const targetY = pond.centerY + Math.sin(targetAngle) * (distanceToEdge + fishingDistance);
             this.moveTo(targetX, targetY);
+            this.fishingProgress = 0; // Сбрасываем прогресс при движении
             return;
         }
         
-        // Проверяем, что агент находится в пределах допустимого расстояния (15 пикселей от края)
-        if (distanceFromEdge < fishingDistance - 5 || distanceFromEdge > fishingDistance + 5) {
-            // Не в правильной позиции - корректируем
+        // Если не в правильной позиции - корректируем
+        if (distanceFromEdge < fishingDistance - tolerance) {
+            // Слишком близко - отходим немного
             const targetAngle = Math.atan2(dy, dx);
             const targetX = pond.centerX + Math.cos(targetAngle) * (distanceToEdge + fishingDistance);
             const targetY = pond.centerY + Math.sin(targetAngle) * (distanceToEdge + fishingDistance);
             this.moveTo(targetX, targetY);
+            this.fishingProgress = 0; // Сбрасываем прогресс при движении
             return;
         }
         
-        // У пруда на правильном расстоянии - ловим рыбу
+        // У пруда на правильном расстоянии - начинаем или продолжаем ловлю
+        // Блокируем движение во время ловли
+        this.targetPosition = null;
+        
         if (!this.fishingProgress) {
-            this.fishingProgress = 0; // Прогресс рыбалки (число кадров, 0 = начало рыбалки)
+            this.fishingProgress = 0;
         }
         
-        this.fishingProgress += 1; // Увеличиваем прогресс рыбалки
+        this.fishingProgress += 1;
         
         // Рыбалка занимает время (зависит от навыка)
-        const fishingTime = 15 - Math.floor(this.experience.fishing / 10); // Время рыбалки в кадрах (зависит от опыта рыбалки)
+        const fishingTime = 15 - Math.floor(this.experience.fishing / 10);
         if (this.fishingProgress < fishingTime) {
-            // Еще ловим - проверяем, что агент все еще возле водоёма
-            if (distanceFromEdge < fishingDistance - 10 || distanceFromEdge > fishingDistance + 10) {
-                // Отошли слишком далеко - прекращаем рыбалку
-                this.fishingProgress = 0;
-                return;
-            }
+            // Еще ловим - не двигаемся
             return;
         }
         
-        // Проверяем, что агент все еще возле водоёма перед попыткой поймать рыбу
-        if (distanceFromEdge < fishingDistance - 10 || distanceFromEdge > fishingDistance + 10) {
+        // Проверяем расстояние перед попыткой поймать рыбу
+        if (distanceFromEdge < fishingDistance - tolerance || distanceFromEdge > fishingDistance + tolerance) {
             // Отошли слишком далеко - не можем поймать рыбу
-            if (window.addLogEntry && Math.random() < 0.3) {
-                window.addLogEntry(`🎣 ${this.name} слишком далеко от водоёма для рыбалки`);
-            }
             this.fishingProgress = 0;
-            this.state = 'explore';
             return;
         }
         
         // Попытка поймать рыбу (зависит от навыка)
-        const successChance = 0.2 + (this.experience.fishing / 100); // Шанс успешной рыбалки (0-1, базовый 20% + опыт)
-        const success = Math.random() < successChance; // Результат попытки (true/false)
+        const successChance = 0.2 + (this.experience.fishing / 100);
+        const success = Math.random() < successChance;
         
         if (success) {
             // Успешная рыбалка
-            const fishCount = Math.random() < 0.3 ? 2 : 1; // Количество пойманной рыбы (1 или 2, 30% шанс на 2)
-            this.inventory.push({ type: 'fish', amount: fishCount }); // Добавляем рыбу в инвентарь
-            this.gainExperience('fishing', 3); // Получаем опыт рыбалки
-            this.increaseSatisfaction('fish', 4); // Увеличиваем удовлетворенность от успешной рыбалки
+            const fishCount = Math.random() < 0.3 ? 2 : 1;
+            
+            // Добавляем рыбу в инвентарь
+            this.inventory.push({ type: 'fish', amount: fishCount });
+            
+            // Добавляем рыбу в список ресурсов мира (на земле рядом с агентом)
+            if (window.world && window.world.resources) {
+                for (let i = 0; i < fishCount; i++) {
+                    const fishResource = {
+                        type: 'fish',
+                        x: this.position.x + (Math.random() - 0.5) * 10,
+                        y: this.position.y + (Math.random() - 0.5) * 10,
+                        amount: 1,
+                        id: 'fish_' + Date.now() + '_' + Math.random()
+                    };
+                    window.world.resources.push(fishResource);
+                    
+                    // Отправляем на сервер, если подключены
+                    if (window.networkManager && window.networkManager.isConnected) {
+                        window.networkManager.addResource('fish', fishResource.x, fishResource.y, 1);
+                    }
+                }
+            }
+            
+            this.gainExperience('fishing', 3);
+            this.increaseSatisfaction('fish', 4);
             
             if (window.addLogEntry) {
                 window.addLogEntry(`🎣 ${this.name} поймал(а) ${fishCount} рыбу(ы)!`);
@@ -3878,11 +3920,12 @@ class Agent {
             if (window.addLogEntry && Math.random() < 0.3) {
                 window.addLogEntry(`🎣 ${this.name} не поймал(а) рыбу`);
             }
-            this.gainExperience('fishing', 1); // Опыт даже при неудаче
+            this.gainExperience('fishing', 1);
         }
         
-        this.fishingProgress = 0; // Сбрасываем прогресс рыбалки
-        this.state = 'explore';
+        // Сбрасываем прогресс, но продолжаем рыбалку (агент может перейти в другое место)
+        this.fishingProgress = 0;
+        // Не меняем состояние - агент продолжает рыбачить
     }
     
     farm() {
